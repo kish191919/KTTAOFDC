@@ -13,6 +13,9 @@ import {
 /** 이미지 한 장을 보여 주는 시간(ms). 동영상은 끝까지 재생한 뒤 다음으로 넘어갑니다. */
 const IMAGE_DURATION_MS = 5000;
 
+/** 동영상 뒤에 까는 흐린 배경의 가로 해상도(px). 어차피 흐리게 보이므로 작게 그립니다. */
+const BACKDROP_WIDTH = 160;
+
 const controlClass =
   "absolute z-10 rounded-full bg-black/40 text-white transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
@@ -21,6 +24,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const backdropRefs = useRef<(HTMLCanvasElement | null)[]>([]);
 
   const count = items.length;
   // 관리자 화면에서 항목을 지워 개수가 줄어도 범위를 벗어나지 않게 합니다.
@@ -57,6 +61,31 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
         video.play().catch(() => {});
       });
     });
+  }, [current, items]);
+
+  // 지금 보이는 동영상의 화면을 작은 캔버스에 옮겨 그려, 양옆에 남는 자리를 채울 흐린 배경으로 씁니다.
+  useEffect(() => {
+    const video = videoRefs.current[current];
+    const canvas = backdropRefs.current[current];
+    const context = canvas?.getContext("2d");
+    // 이 기능이 없는 옛 브라우저에서는 배경색만 보입니다.
+    if (!video || !canvas || !context || !("requestVideoFrameCallback" in video)) return;
+
+    let handle = 0;
+    const draw = () => {
+      if (video.videoWidth > 0) {
+        const height = Math.round((BACKDROP_WIDTH * video.videoHeight) / video.videoWidth);
+        // 캔버스 크기를 바꾸면 그림이 지워지므로 달라졌을 때만 맞춥니다.
+        if (canvas.width !== BACKDROP_WIDTH || canvas.height !== height) {
+          canvas.width = BACKDROP_WIDTH;
+          canvas.height = height;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+      handle = video.requestVideoFrameCallback(draw);
+    };
+    draw();
+    return () => video.cancelVideoFrameCallback(handle);
   }, [current, items]);
 
   useEffect(() => {
@@ -105,21 +134,31 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
                 />
               </>
             ) : (
-              <video
-                ref={(element) => {
-                  videoRefs.current[position] = element;
-                }}
-                src={item.src}
-                muted={muted}
-                playsInline
-                // 한 개뿐이면 계속 되풀이하고, 여러 개면 끝난 뒤 다음으로 넘어갑니다.
-                loop={count === 1}
-                onEnded={goNext}
-                // 아직 차례가 아닌 동영상은 미리 내려받지 않습니다.
-                preload={active ? "auto" : "none"}
-                aria-label={item.title || undefined}
-                className="absolute inset-0 size-full object-contain"
-              />
+              <>
+                {/* 이미지와 마찬가지로, 남는 자리는 같은 동영상을 흐리게 키워서 채웁니다. */}
+                <canvas
+                  ref={(element) => {
+                    backdropRefs.current[position] = element;
+                  }}
+                  aria-hidden
+                  className="absolute inset-0 size-full scale-110 object-cover opacity-70 blur-2xl"
+                />
+                <video
+                  ref={(element) => {
+                    videoRefs.current[position] = element;
+                  }}
+                  src={item.src}
+                  muted={muted}
+                  playsInline
+                  // 한 개뿐이면 계속 되풀이하고, 여러 개면 끝난 뒤 다음으로 넘어갑니다.
+                  loop={count === 1}
+                  onEnded={goNext}
+                  // 아직 차례가 아닌 동영상은 미리 내려받지 않습니다.
+                  preload={active ? "auto" : "none"}
+                  aria-label={item.title || undefined}
+                  className="absolute inset-0 size-full object-contain"
+                />
+              </>
             )}
           </div>
         );
