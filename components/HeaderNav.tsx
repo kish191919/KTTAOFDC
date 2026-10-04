@@ -35,7 +35,7 @@ export function DesktopNav() {
   );
 }
 
-export function MobileNav() {
+export function MobileNav({ showAdmin }: { showAdmin: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -89,14 +89,16 @@ export function MobileNav() {
                 <MailIcon className="size-4" />
                 문의하기
               </a>
-              <Link
-                href="/admin"
-                onClick={() => setOpen(false)}
-                className="btn btn-ghost btn-sm flex-1"
-              >
-                <LockIcon className="size-4" />
-                관리자
-              </Link>
+              {showAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setOpen(false)}
+                  className="btn btn-ghost btn-sm flex-1"
+                >
+                  <LockIcon className="size-4" />
+                  관리자
+                </Link>
+              )}
             </div>
           </nav>
         </div>

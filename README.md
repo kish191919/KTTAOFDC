@@ -57,11 +57,12 @@ npm run dev     # http://localhost:3000
 ## Vercel 에 배포하기
 
 1. 이 폴더를 GitHub 저장소로 올린 뒤, Vercel 에서 **Add New → Project** 로 그 저장소를 불러옵니다. 설정은 기본값 그대로 두면 됩니다.
-2. Vercel 프로젝트의 **Settings → Environment Variables** 에 `.env.example` 의 값을 넣습니다.
-   (`ADMIN_PASSWORD`, `SESSION_SECRET`, 도메인을 연결했다면 `NEXT_PUBLIC_SITE_URL`)
+2. 도메인을 연결했다면 **Settings → Environment Variables** 에 `NEXT_PUBLIC_SITE_URL` 을 넣습니다.
+   (예: `https://www.kttaofdc.org` — 링크 미리보기와 sitemap 주소에 쓰입니다)
 
 **데이터베이스를 연결하기 전에는 배포된 사이트가 ‘읽기 전용’입니다.**
-Vercel 서버는 파일을 저장해 둘 수 없기 때문에, 배포된 사이트의 관리자 화면에서는 저장이 막혀 있습니다.
+Vercel 서버는 파일을 저장해 둘 수 없기 때문에 배포된 사이트에서는 저장이 막혀 있고, 관리자 메뉴도 보이지 않습니다.
+(그래서 지금은 `ADMIN_PASSWORD`, `SESSION_SECRET` 을 Vercel 에 넣지 않아도 됩니다. 데이터베이스를 연결할 때 함께 넣습니다.)
 그동안은 아래 순서로 내용을 올립니다.
 
 1. 내 컴퓨터에서 `npm run dev` 로 실행하고 관리자 화면에서 내용을 수정합니다.

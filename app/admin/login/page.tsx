@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isAdmin, isAdminConfigured } from "@/lib/auth";
 import { site } from "@/lib/site";
+import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { LockIcon } from "@/components/icons";
 
@@ -20,6 +21,11 @@ export default async function LoginPage() {
 
         {isAdminConfigured() ? (
           <LoginForm />
+        ) : !STORE_WRITABLE ? (
+          <p className="rounded-xl bg-brand-50 p-4 text-sm leading-relaxed break-keep text-slate-600">
+            배포된 사이트에서는 관리 기능을 사용하지 않습니다. 내용은 관리자 컴퓨터에서 수정한
+            뒤 다시 배포해 반영합니다.
+          </p>
         ) : (
           <div className="rounded-xl bg-accent-50 p-4 text-sm leading-relaxed break-keep text-accent-700">
             <p className="font-bold">관리자 비밀번호가 아직 설정되지 않았습니다.</p>

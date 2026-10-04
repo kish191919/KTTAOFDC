@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { nav, site } from "@/lib/site";
+import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { MailIcon } from "@/components/icons";
 
 export function Footer() {
@@ -65,9 +66,11 @@ export function Footer() {
           <p>
             © {new Date().getFullYear()} {site.name}. All rights reserved.
           </p>
-          <Link href="/admin" className="transition-colors hover:text-white">
-            관리자
-          </Link>
+          {STORE_WRITABLE && (
+            <Link href="/admin" className="transition-colors hover:text-white">
+              관리자
+            </Link>
+          )}
         </div>
       </div>
     </footer>

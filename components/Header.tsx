@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { site } from "@/lib/site";
+import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { LockIcon, MailIcon } from "@/components/icons";
 import { DesktopNav, MobileNav } from "@/components/HeaderNav";
 
@@ -39,14 +40,17 @@ export function Header() {
             <MailIcon className="size-4" />
             문의하기
           </a>
-          <Link
-            href="/admin"
-            className="hidden items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 lg:inline-flex"
-          >
-            <LockIcon className="size-3.5" />
-            관리자
-          </Link>
-          <MobileNav />
+          {/* 저장이 막힌 배포 환경(읽기 전용)에서는 관리자 메뉴를 보이지 않습니다. */}
+          {STORE_WRITABLE && (
+            <Link
+              href="/admin"
+              className="hidden items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 lg:inline-flex"
+            >
+              <LockIcon className="size-3.5" />
+              관리자
+            </Link>
+          )}
+          <MobileNav showAdmin={STORE_WRITABLE} />
         </div>
       </div>
     </header>
