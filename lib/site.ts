@@ -1,12 +1,12 @@
 // 사이트 전역에서 쓰는 기본 정보. 협회 이름·연락처가 바뀌면 이 파일만 고치면 됩니다.
 export const site = {
   name: "KTTA of DC",
-  nameKo: "버지니아 한인 탁구 협회",
-  nameEn: "Korean Table Tennis Association of Virginia",
+  nameKo: "워싱턴DC 한인탁구협회",
+  nameEn: "Korean Table Tennis Association of DC",
   slogan: "Table Tennis Builds a Better Community",
   description:
-    "버지니아·워싱턴 DC 지역 한인 탁구인들의 모임, 버지니아 한인 탁구 협회(KTTA of DC) 홈페이지입니다. 대회 정보와 탁구 장소, 협회 소식을 확인하세요.",
-  email: "kttaofva@gmail.com",
+    "버지니아·워싱턴 DC 지역 한인 탁구인들의 모임, 워싱턴DC 한인탁구협회(KTTA of DC) 홈페이지입니다. 대회 정보와 탁구 장소, 협회 소식을 확인하세요.",
+  email: "kttaofdc@gmail.com",
   // 대회 날짜의 '오늘' 기준이 되는 시간대
   timeZone: "America/New_York",
 } as const;

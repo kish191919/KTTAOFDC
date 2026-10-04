@@ -7,10 +7,13 @@ import { randomBytes } from "node:crypto";
 // 나중에 Vercel Blob·Supabase Storage 등으로 바꿀 때는 이 파일만 교체하면 됩니다.
 
 export const UPLOAD_PREFIX = "/uploads/";
-export const UPLOAD_FOLDERS = ["tournaments", "gallery"] as const;
+export const UPLOAD_FOLDERS = ["tournaments", "gallery", "hero"] as const;
 export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
+export type UploadKind = "image" | "document" | "video";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+/** 동영상도 git 에 함께 올리므로 GitHub 이 경고 없이 받는 크기(50MB)까지만 받습니다. */
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 const IMAGE_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -35,10 +38,46 @@ const DOCUMENT_TYPES: Record<string, string> = {
   ".txt": "text/plain; charset=utf-8",
 };
 
-const ALL_TYPES = { ...IMAGE_TYPES, ...DOCUMENT_TYPES };
+// 휴대폰·컴퓨터 브라우저에서 두루 재생되는 형식만 받습니다.
+const VIDEO_TYPES: Record<string, string> = {
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+};
+
+const ATTACHMENT_TYPES = { ...IMAGE_TYPES, ...DOCUMENT_TYPES };
+const ALL_TYPES = { ...ATTACHMENT_TYPES, ...VIDEO_TYPES };
+
+const UPLOAD_RULES: Record<
+  UploadKind,
+  { types: Record<string, string>; maxBytes: number; allowed: string }
+> = {
+  image: {
+    types: IMAGE_TYPES,
+    maxBytes: MAX_UPLOAD_BYTES,
+    allowed: "JPG, PNG, WEBP, GIF 이미지만 올릴 수 있습니다.",
+  },
+  document: {
+    types: ATTACHMENT_TYPES,
+    maxBytes: MAX_UPLOAD_BYTES,
+    allowed: "PDF, 문서(DOC, XLS, PPT, HWP), 이미지 파일만 올릴 수 있습니다.",
+  },
+  video: {
+    types: VIDEO_TYPES,
+    maxBytes: MAX_VIDEO_BYTES,
+    allowed: "MP4, WEBM 동영상만 올릴 수 있습니다.",
+  },
+};
 
 export function contentTypeFor(filename: string): string | null {
   return ALL_TYPES[path.extname(filename).toLowerCase()] ?? null;
+}
+
+/** 파일 이름의 확장자로 이미지인지 동영상인지 구분합니다. 둘 다 아니면 null */
+export function mediaTypeOf(filename: string): "image" | "video" | null {
+  const ext = path.extname(filename).toLowerCase();
+  if (IMAGE_TYPES[ext]) return "image";
+  if (VIDEO_TYPES[ext]) return "video";
+  return null;
 }
 
 function uploadRoot(): string {
@@ -61,12 +100,13 @@ export function resolveUpload(url: string): string | null {
   return target;
 }
 
-/** 저장 가능한 업로드 주소인지(형식만) 확인합니다. */
-export function isUploadUrl(url: unknown): url is string {
+/** 저장 가능한 업로드 주소인지(형식만) 확인합니다. folder 를 주면 그 폴더의 파일만 통과합니다. */
+export function isUploadUrl(url: unknown, folder?: UploadFolder): url is string {
   return (
     typeof url === "string" &&
-    /^\/uploads\/(tournaments|gallery)\/[A-Za-z0-9._-]+$/.test(url) &&
-    !url.includes("..")
+    /^\/uploads\/(tournaments|gallery|hero)\/[A-Za-z0-9._-]+$/.test(url) &&
+    !url.includes("..") &&
+    (!folder || url.startsWith(`${UPLOAD_PREFIX}${folder}/`))
   );
 }
 
@@ -75,21 +115,20 @@ export class UploadError extends Error {}
 export async function saveUpload(
   folder: UploadFolder,
   file: File,
-  kind: "image" | "document",
+  kind: UploadKind,
 ): Promise<{ url: string; name: string; size: number }> {
-  if (file.size === 0) throw new UploadError("빈 파일입니다.");
-  if (file.size > MAX_UPLOAD_BYTES) {
-    throw new UploadError("파일이 너무 큽니다. (최대 15MB)");
+  const rule = UPLOAD_RULES[kind];
+  if (kind === "video" && folder !== "hero") {
+    throw new UploadError("동영상은 메인 화면에만 올릴 수 있습니다.");
   }
-  const ext = path.extname(file.name).toLowerCase();
-  const allowed = kind === "image" ? IMAGE_TYPES : ALL_TYPES;
-  if (!allowed[ext]) {
+  if (file.size === 0) throw new UploadError("빈 파일입니다.");
+  if (file.size > rule.maxBytes) {
     throw new UploadError(
-      kind === "image"
-        ? "JPG, PNG, WEBP, GIF 이미지만 올릴 수 있습니다."
-        : "PDF, 문서(DOC, XLS, PPT, HWP), 이미지 파일만 올릴 수 있습니다.",
+      `파일이 너무 큽니다. (최대 ${rule.maxBytes / 1024 / 1024}MB)`,
     );
   }
+  const ext = path.extname(file.name).toLowerCase();
+  if (!rule.types[ext]) throw new UploadError(rule.allowed);
 
   const name = `${Date.now().toString(36)}-${randomBytes(4).toString("hex")}${ext === ".jpeg" ? ".jpg" : ext}`;
   const dir = path.join(uploadRoot(), folder);

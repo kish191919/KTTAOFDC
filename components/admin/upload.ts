@@ -2,12 +2,14 @@ import type { Attachment, ImageRef } from "@/lib/types";
 
 // 관리자 화면(브라우저)에서 파일을 서버로 올리는 함수들입니다.
 
-export type UploadFolder = "tournaments" | "gallery";
+export type UploadFolder = "tournaments" | "gallery" | "hero";
 
 /** 올리기 전에 줄여 둘 긴 변의 최대 길이(px) */
 const MAX_DIMENSION = 1600;
 /** 이보다 작고 크기도 작은 이미지는 다시 압축하지 않고 그대로 올립니다. */
 const KEEP_ORIGINAL_BYTES = 800 * 1024;
+/** 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
+export const MAX_VIDEO_MB = 50;
 
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -29,7 +31,7 @@ async function send(
   file: Blob,
   filename: string,
   folder: UploadFolder,
-  kind: "image" | "document",
+  kind: "image" | "document" | "video",
 ): Promise<{ url: string; name: string; size: number }> {
   const body = new FormData();
   body.set("file", file, filename);
@@ -51,11 +53,16 @@ async function send(
 /**
  * 이미지를 올립니다. 휴대폰 사진처럼 큰 이미지는 브라우저에서 먼저
  * 긴 변 1600px 의 JPG 로 줄여서 저장 공간과 로딩 시간을 아낍니다.
+ * (화면 가득 보여 주는 메인 화면 이미지는 maxDimension 을 더 크게 줍니다.)
  */
-export async function uploadImage(file: File, folder: UploadFolder): Promise<ImageRef> {
+export async function uploadImage(
+  file: File,
+  folder: UploadFolder,
+  maxDimension = MAX_DIMENSION,
+): Promise<ImageRef> {
   const image = await loadImage(file);
   const { naturalWidth: width, naturalHeight: height } = image;
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
 
   // 움직이는 GIF 와 이미 충분히 작은 이미지는 원본 그대로 올립니다.
   const keepOriginal =
@@ -92,4 +99,15 @@ export async function uploadDocument(
 ): Promise<Attachment> {
   const { url, name, size } = await send(file, file.name, folder, "document");
   return { url, name, size };
+}
+
+/** 메인 화면에 쓸 동영상을 그대로 올립니다. (브라우저에서는 동영상을 줄일 수 없습니다) */
+export async function uploadVideo(file: File): Promise<{ src: string }> {
+  if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+    throw new Error(
+      `${file.name}: 동영상이 너무 큽니다. ${MAX_VIDEO_MB}MB 이하로 줄여서 올려 주세요.`,
+    );
+  }
+  const { url } = await send(file, file.name, "hero", "video");
+  return { src: url };
 }

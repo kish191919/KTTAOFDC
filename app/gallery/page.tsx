@@ -8,7 +8,7 @@ import { ImageIcon } from "@/components/icons";
 
 export const metadata = pageMetadata({
   title: "갤러리",
-  description: "버지니아 한인 탁구 협회의 대회와 모임 사진을 모았습니다.",
+  description: "워싱턴DC 한인탁구협회의 대회와 모임 사진을 모았습니다.",
 });
 
 export default async function GalleryPage() {

@@ -24,9 +24,9 @@ export function Header() {
             className="h-9 w-auto"
           />
           <span className="hidden border-l border-slate-200 pl-3 text-[13px] leading-tight font-semibold text-brand-900 xl:block">
-            버지니아 한인
+            워싱턴DC
             <br />
-            탁구 협회
+            한인탁구협회
           </span>
         </Link>
 

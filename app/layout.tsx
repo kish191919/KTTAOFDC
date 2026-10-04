@@ -20,13 +20,13 @@ export const metadata: Metadata = {
   title: { default: title, template: `%s | ${site.name}` },
   description: site.description,
   keywords: [
-    "버지니아 한인 탁구 협회",
+    "워싱턴DC 한인탁구협회",
     "버지니아 탁구",
     "워싱턴 DC 탁구",
     "한인 탁구",
     "탁구대회",
     "KTTA of DC",
-    "Korean Table Tennis Association of Virginia",
+    "Korean Table Tennis Association of DC",
   ],
   openGraph: {
     ...sharedOpenGraph,

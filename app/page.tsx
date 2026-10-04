@@ -4,8 +4,10 @@ import { greeting } from "@/lib/content/association";
 import { statusOf, today } from "@/lib/dates";
 import { site } from "@/lib/site";
 import { listAlbums } from "@/lib/store/albums";
+import { listHeroMedia } from "@/lib/store/hero";
 import { listTournaments } from "@/lib/store/tournaments";
 import { AlbumCard } from "@/components/AlbumCard";
+import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { SectionHeading } from "@/components/PageHeader";
 import { TournamentCard } from "@/components/TournamentCard";
 import { ArrowRightIcon, MailIcon, MapPinIcon, PaddleMark } from "@/components/icons";
@@ -14,8 +16,13 @@ import { ArrowRightIcon, MailIcon, MapPinIcon, PaddleMark } from "@/components/i
 export const revalidate = 3600;
 
 export default async function HomePage() {
-  const [tournaments, albums] = await Promise.all([listTournaments(), listAlbums()]);
+  const [tournaments, albums, heroMedia] = await Promise.all([
+    listTournaments(),
+    listAlbums(),
+    listHeroMedia(),
+  ]);
   const now = today();
+  const slides = heroMedia.filter((item) => item.active);
 
   // 다가오는 대회를 가까운 순서로 먼저 보여 주고, 모자라면 최근 대회로 채웁니다.
   const upcoming = tournaments.filter((t) => statusOf(t, now) !== "past").reverse();
@@ -24,20 +31,24 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* 배너 */}
-      <section className="bg-white">
-        <div className="relative mx-auto aspect-[16/9] w-full max-w-[1920px] overflow-hidden sm:aspect-[3/1]">
-          <Image
-            src="/images/banner.jpg"
-            alt={`${site.name} ${site.nameKo} — ${site.nameEn}. ${site.slogan}`}
-            fill
-            preload
-            quality={90}
-            sizes="(min-width: 1920px) 1920px, (min-width: 640px) 100vw, 180vw"
-            className="object-cover object-center"
-          />
-        </div>
-      </section>
+      {/* 메인 화면 — 관리자 화면에서 올린 동영상·이미지가 있으면 그것을, 없으면 배너를 보여 줍니다 */}
+      {slides.length > 0 ? (
+        <HeroSlideshow items={slides} />
+      ) : (
+        <section className="bg-white">
+          <div className="relative mx-auto aspect-[16/9] w-full max-w-[1920px] overflow-hidden sm:aspect-[3/1]">
+            <Image
+              src="/images/banner.jpg"
+              alt={`${site.name} ${site.nameKo} — ${site.nameEn}. ${site.slogan}`}
+              fill
+              preload
+              quality={90}
+              sizes="(min-width: 1920px) 1920px, (min-width: 640px) 100vw, 180vw"
+              className="object-cover object-center"
+            />
+          </div>
+        </section>
+      )}
 
       {/* 인사말 */}
       <section className="bg-brand-50/60 py-20">

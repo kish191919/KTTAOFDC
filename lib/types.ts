@@ -37,6 +37,20 @@ export type Tournament = {
   updatedAt: string;
 };
 
+/** 홈 화면 맨 위에서 차례로 보여 주는 동영상·이미지 한 개 */
+export type HeroMedia = {
+  id: string;
+  /** 관리 화면의 목록과 이미지 대체 텍스트에 쓰입니다. */
+  title: string;
+  type: "image" | "video";
+  src: string;
+  width?: number;
+  height?: number;
+  /** false 면 올려 두기만 하고 홈 화면에는 내보내지 않습니다. */
+  active: boolean;
+  createdAt: string;
+};
+
 export type Album = {
   id: string;
   title: string;

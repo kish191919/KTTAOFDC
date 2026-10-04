@@ -60,6 +60,18 @@ export const ChevronRightIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const ChevronUpIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m18 15-6-6-6 6" />
+  </Icon>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+);
+
 export const CalendarIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect width="18" height="18" x="3" y="4" rx="2" />
@@ -144,6 +156,44 @@ export const ImageIcon = (p: IconProps) => (
     <rect width="18" height="18" x="3" y="3" rx="2" />
     <circle cx="9" cy="9" r="2" />
     <path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21" />
+  </Icon>
+);
+
+export const FilmIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M7 3v18M17 3v18M3 12h18M3 7.5h4M3 16.5h4M17 7.5h4M17 16.5h4" />
+  </Icon>
+);
+
+export const EyeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+
+export const EyeOffIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10.73 5.08a10.74 10.74 0 0 1 11.21 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.45 2.49" />
+    <path d="M14.08 14.16a3 3 0 0 1-4.24-4.24" />
+    <path d="M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14" />
+    <path d="m2 2 20 20" />
+  </Icon>
+);
+
+export const VolumeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4z" />
+    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+  </Icon>
+);
+
+export const VolumeOffIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M11 5 6 9H2v6h4l5 4z" />
+    <path d="m22 9-6 6M16 9l6 6" />
   </Icon>
 );
 

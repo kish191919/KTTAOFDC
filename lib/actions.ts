@@ -10,7 +10,14 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { isValidDate, TIME_RE } from "@/lib/dates";
-import { isUploadUrl } from "@/lib/store/files";
+import { isUploadUrl, mediaTypeOf, removeUploads } from "@/lib/store/files";
+import {
+  addHeroMedia,
+  deleteHeroMedia,
+  MAX_HERO_MEDIA,
+  moveHeroMedia,
+  setHeroMediaActive,
+} from "@/lib/store/hero";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
 import {
   createAlbum,
@@ -293,4 +300,78 @@ export async function deleteAlbumAction(id: string): Promise<void> {
   await deleteAlbum(id);
   revalidateSite();
   redirect("/admin?deleted=album");
+}
+
+// ───────────────────────── 메인 화면 ─────────────────────────
+
+/** 올려 둔 동영상·이미지를 홈 화면 맨 위 슬라이드의 마지막 순서로 등록합니다. */
+export async function addHeroMediaAction(input: {
+  title: string;
+  src: string;
+  width?: number;
+  height?: number;
+}): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+
+  const { title, src, width, height } = (input ?? {}) as Record<string, unknown>;
+  const unreadable = { error: "파일 정보를 읽지 못했습니다. 다시 올려 주세요." };
+  if (!isUploadUrl(src, "hero")) return unreadable;
+  const type = mediaTypeOf(src);
+  if (!type) return unreadable;
+
+  const saved = await addHeroMedia({
+    title: typeof title === "string" ? title.trim().slice(0, 150) : "",
+    type,
+    src,
+    ...(isDimension(width) && isDimension(height) ? { width, height } : {}),
+    active: true,
+  });
+  if (!saved) {
+    // 등록하지 못한 파일이 디스크에 남지 않게 지웁니다.
+    await removeUploads([src]);
+    return { error: `메인 화면에는 최대 ${MAX_HERO_MEDIA}개까지 올릴 수 있습니다.` };
+  }
+
+  revalidateSite();
+  return {};
+}
+
+const HERO_NOT_FOUND = "항목을 찾을 수 없습니다. 화면을 새로 고쳐 주세요.";
+
+/** 홈 화면에 보일지(true) 숨길지(false) 정합니다. */
+export async function setHeroMediaActiveAction(
+  id: string,
+  active: boolean,
+): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+  if (typeof id !== "string" || typeof active !== "boolean") return { error: HERO_NOT_FOUND };
+  if (!(await setHeroMediaActive(id, active))) return { error: HERO_NOT_FOUND };
+  revalidateSite();
+  return {};
+}
+
+export async function moveHeroMediaAction(
+  id: string,
+  direction: "up" | "down",
+): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+  if (typeof id !== "string" || (direction !== "up" && direction !== "down")) {
+    return { error: HERO_NOT_FOUND };
+  }
+  await moveHeroMedia(id, direction === "up" ? -1 : 1);
+  revalidateSite();
+  return {};
+}
+
+export async function deleteHeroMediaAction(id: string): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+  if (typeof id !== "string" || !(await deleteHeroMedia(id))) {
+    return { error: HERO_NOT_FOUND };
+  }
+  revalidateSite();
+  return {};
 }

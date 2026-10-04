@@ -7,7 +7,7 @@ import { TournamentCard } from "@/components/TournamentCard";
 
 export const metadata = pageMetadata({
   title: "대회 정보",
-  description: "버지니아 한인 탁구 협회가 안내하는 탁구대회 일정과 요강입니다.",
+  description: "워싱턴DC 한인탁구협회가 안내하는 탁구대회 일정과 요강입니다.",
 });
 
 // 대회의 '예정/종료' 표시가 날짜에 따라 바뀌므로 한 시간마다 새로 만듭니다.

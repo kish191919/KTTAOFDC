@@ -7,7 +7,7 @@ import {
 } from "@/lib/store/files";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
 
-// 관리자 화면에서 포스터·사진·첨부 파일을 한 개씩 올리는 주소입니다.
+// 관리자 화면에서 포스터·사진·첨부 파일·메인 화면 동영상을 한 개씩 올리는 주소입니다.
 
 const fail = (error: string, status: number) => Response.json({ error }, { status });
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   ) {
     return fail("저장 위치가 올바르지 않습니다.", 400);
   }
-  if (kind !== "image" && kind !== "document") {
+  if (kind !== "image" && kind !== "document" && kind !== "video") {
     return fail("파일 종류가 올바르지 않습니다.", 400);
   }
 

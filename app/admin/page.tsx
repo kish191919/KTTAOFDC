@@ -7,12 +7,14 @@ import {
 import { requireAdmin } from "@/lib/auth";
 import { formatDate, formatDateRange, statusLabel, statusOf, today } from "@/lib/dates";
 import { listAlbums } from "@/lib/store/albums";
+import { listHeroMedia } from "@/lib/store/hero";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { listTournaments } from "@/lib/store/tournaments";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import {
   CheckIcon,
   ExternalLinkIcon,
+  FilmIcon,
   InfoIcon,
   LogOutIcon,
   PencilIcon,
@@ -28,12 +30,14 @@ const editLinkClass =
 
 export default async function AdminPage({ searchParams }: Props) {
   await requireAdmin();
-  const [{ saved, deleted, id }, tournaments, albums] = await Promise.all([
+  const [{ saved, deleted, id }, tournaments, albums, heroMedia] = await Promise.all([
     searchParams,
     listTournaments(),
     listAlbums(),
+    listHeroMedia(),
   ]);
   const now = today();
+  const heroShown = heroMedia.filter((item) => item.active).length;
 
   const savedHref =
     saved === "tournament" && tournaments.some((t) => t.id === id)
@@ -47,7 +51,9 @@ export default async function AdminPage({ searchParams }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-brand-950">홈페이지 관리</h1>
-          <p className="mt-1 text-slate-500">대회 정보와 갤러리 사진을 등록하고 수정합니다.</p>
+          <p className="mt-1 text-slate-500">
+            메인 화면 동영상, 대회 정보, 갤러리 사진을 등록하고 수정합니다.
+          </p>
         </div>
         <form action={logoutAction}>
           <button type="submit" className="btn btn-ghost btn-sm">
@@ -84,8 +90,26 @@ export default async function AdminPage({ searchParams }: Props) {
         </p>
       )}
 
+      {/* 메인 화면 */}
+      <section className="mt-10" aria-labelledby="hero-heading">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="hero-heading" className="text-xl font-black text-brand-950">
+            메인 화면 <span className="text-base font-bold text-slate-400">{heroMedia.length}</span>
+          </h2>
+          <Link href="/admin/hero" className="btn btn-accent btn-sm">
+            <FilmIcon className="size-4" />
+            동영상·이미지 관리
+          </Link>
+        </div>
+        <p className="card px-5 py-4 text-sm leading-relaxed break-keep text-slate-600">
+          {heroShown > 0
+            ? `홈 화면 맨 위에 동영상·이미지 ${heroShown}개가 차례로 나오고 있습니다.`
+            : "홈 화면 맨 위에 기본 배너 이미지가 나오고 있습니다. 동영상을 올리면 배너 자리에서 자동으로 재생됩니다."}
+        </p>
+      </section>
+
       {/* 대회 정보 */}
-      <section className="mt-10" aria-labelledby="tournaments-heading">
+      <section className="mt-12" aria-labelledby="tournaments-heading">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id="tournaments-heading" className="text-xl font-black text-brand-950">
             대회 정보 <span className="text-base font-bold text-slate-400">{tournaments.length}</span>
