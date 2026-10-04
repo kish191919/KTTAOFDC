@@ -52,9 +52,9 @@ export async function destroySession(): Promise<void> {
 }
 
 export async function isAdmin(): Promise<boolean> {
-  if (!isAdminConfigured()) return false;
+  // 쿠키를 먼저 읽어야 이 함수를 쓰는 페이지가 빌드 때 고정되지 않습니다.
   const value = (await cookies()).get(COOKIE)?.value;
-  if (!value) return false;
+  if (!isAdminConfigured() || !value) return false;
   const cut = value.lastIndexOf(".");
   if (cut < 0) return false;
   const payload = value.slice(0, cut);
