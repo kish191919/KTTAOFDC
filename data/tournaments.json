@@ -1,0 +1,445 @@
+[
+  {
+    "id": "2026-09-05-5419",
+    "title": "제34회 뉴욕체육회장배 탁구대회",
+    "startDate": "2026-09-05",
+    "startTime": "09:00",
+    "endDate": "2026-09-05",
+    "endTime": "17:00",
+    "venue": "Westchester Table Tennis Center",
+    "address": "175 Tompkins Ave, Pleasantville, NY 10570",
+    "images": [],
+    "attachments": [],
+    "createdAt": "2026-02-10T15:24:55.673Z",
+    "updatedAt": "2026-02-10T15:24:58.000Z"
+  },
+  {
+    "id": "2026-08-15-78e9",
+    "title": "제15회 뉴저지 탁구협회 이사장배 탁구대회",
+    "startDate": "2026-08-15",
+    "startTime": "09:00",
+    "endDate": "2026-08-15",
+    "endTime": "17:00",
+    "venue": "K Ping Pong Club",
+    "address": "229 W Shore Ave, Bogota, NJ 07603",
+    "images": [],
+    "attachments": [],
+    "createdAt": "2026-02-10T15:21:41.618Z",
+    "updatedAt": "2026-03-21T15:33:54.000Z"
+  },
+  {
+    "id": "2026-06-27-f2fd",
+    "title": "제7회 재미대한 탁구협회장배 탁구대회",
+    "startDate": "2026-06-27",
+    "startTime": "08:00",
+    "endDate": "2026-06-28",
+    "endTime": "14:00",
+    "venue": "Lucky Shoals Community Center",
+    "address": "4651 Britt Rd, Norcross, GA 30093",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2026-06-27-f2fd-1.jpg",
+        "width": 662,
+        "height": 1024
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2026-02-10T14:45:17.099Z",
+    "updatedAt": "2026-04-22T16:41:44.000Z"
+  },
+  {
+    "id": "2026-04-18-e47c",
+    "title": "제6회 조지아 대한탁구협회장배 탁구대회",
+    "startDate": "2026-04-18",
+    "startTime": "10:00",
+    "endDate": "2026-04-18",
+    "endTime": "19:00",
+    "venue": "MK Georgia Table Tennis Suwanee",
+    "address": "45 Old Peachtree Rd NW #300, Suwanee, GA 30024",
+    "body": "제6회 조지아 대한탁구협회장배 탁구대회 안내\n\n조지아 대한탁구협회에서 협회장배 탁구대회를 개최합니다.\n\n일시: 2026년 4월 18일 (토) 오전 10시\n장소: MK Georgia Table Tennis Suwanee\n(45 Old Peachtree Rd #300, Suwanee, GA)\n※ 구글에서 MK Georgia Table Tennis Suwanee 검색\n\n참가비: 팀당 $60\n신청 마감: 4월 11일\n\n경기 방식\n단체전 (2인 1조)\n단식 → 복식 → 단식\n\n경기 종목\nOPEN (제한 없음)\nU3000 (상위 1700 이상 참가 불가)\nU1500 (상위 1000 이상 참가 불가)\n\n경기 진행\n예선: 조별 리그전 (3전 2선승제)\n본선: 토너먼트 (3전 2선승제 / 결승 5전 3선승제)\n\n혜택\n참가자 전원 점심 및 기념품 제공\n\n🏆 시상\n우승: $300 상당 상품 + 메달\n준우승: $200 상당 상품 + 메달\n공동 3위: $100 상당 상품 + 메달\n\n📞 신청 및 문의\n김도홍 678-383-5787\n김호진 404-319-1130",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2026-04-18-e47c-1.jpg",
+        "width": 891,
+        "height": 1260
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2026-04-06T15:01:08.720Z",
+    "updatedAt": "2026-04-06T15:03:30.000Z"
+  },
+  {
+    "id": "2026-04-11-5b89",
+    "title": "제15회 미동부 탁구 대잔치",
+    "startDate": "2026-04-11",
+    "startTime": "08:00",
+    "endDate": "2026-04-11",
+    "endTime": "17:00",
+    "venue": "Westchester Table Tennis Center",
+    "address": "175 Tompkins Ave, Pleasantville, NY 10570",
+    "summary": "뉴저지 한인 탁구협회 주관으로 열리는 대회입니다.",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2026-04-11-5b89-1.jpg",
+        "width": 685,
+        "height": 801
+      }
+    ],
+    "attachments": [
+      {
+        "name": "제15회 탁구대잔치 요강.pdf",
+        "url": "/uploads/tournaments/2026-04-11-5b89-file1.pdf",
+        "size": 123576
+      }
+    ],
+    "createdAt": "2026-02-10T14:38:19.587Z",
+    "updatedAt": "2026-03-24T15:17:07.000Z"
+  },
+  {
+    "id": "2026-03-21-7443",
+    "title": "제 5 회 뉴져지 시니어 탁구대회",
+    "startDate": "2026-03-21",
+    "startTime": "09:30",
+    "endDate": "2026-03-21",
+    "endTime": "17:00",
+    "venue": "229 W Shore Ave",
+    "address": "229 W Shore Ave, Bogota, NJ 07603",
+    "summary": "뉴저지 대한탁구협회에서 제5회 뉴저지 시니어 탁구대회를 아래와 같이 개최하고자 하오니, 많은 참여와 관심 부탁드립니다.\n[일시] 2026년 3월 21일(토) 9:30- 17:00\n[장소] K-PingPong Club\n229 W Shore Ave Bogota NJ 07603",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2026-03-21-7443-1.jpg",
+        "width": 734,
+        "height": 961
+      },
+      {
+        "src": "/uploads/tournaments/2026-03-21-7443-2.jpg",
+        "width": 732,
+        "height": 961
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2026-02-10T03:28:11.620Z",
+    "updatedAt": "2026-02-10T03:33:23.000Z"
+  },
+  {
+    "id": "2026-03-14-7c58",
+    "title": "2026 동부지역 한인 탁구인 봄맞이 축제",
+    "startDate": "2026-03-14",
+    "startTime": "13:00",
+    "endDate": "2026-03-14",
+    "endTime": "21:00",
+    "venue": "Korean Central Presbyterian Church",
+    "address": "15451 US-29, Centreville, VA 20121",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2026-03-14-7c58-1.jpg",
+        "width": 1097,
+        "height": 1600
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2026-02-09T04:42:36.715Z",
+    "updatedAt": "2026-02-17T05:02:36.000Z"
+  },
+  {
+    "id": "2025-11-28-4620",
+    "title": "2025 JOOLA NORTH AMERICAN TEAMS CHAMPIONSHIPS",
+    "startDate": "2025-11-28",
+    "startTime": "08:00",
+    "endDate": "2025-11-30",
+    "endTime": "17:00",
+    "venue": "Gaylord Hotel",
+    "address": "201 Waterfront St, Oxon Hill, MD 20745",
+    "linkUrl": "http://www.joolateams.com/teams.php",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-11-28-4620-1.jpg",
+        "width": 900,
+        "height": 1600
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-11-09T23:54:55.181Z",
+    "updatedAt": "2025-11-10T00:35:02.000Z"
+  },
+  {
+    "id": "2025-11-01-1b58",
+    "title": "제1회 VA-MD 가을 친선 탁구대회",
+    "startDate": "2025-11-01",
+    "startTime": "14:00",
+    "endDate": "2025-11-01",
+    "endTime": "21:00",
+    "venue": "Centreville",
+    "address": "15451 US-29, Centreville, VA 20121",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-11-01-1b58-1.jpg",
+        "width": 900,
+        "height": 1600
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-10-08T18:38:28.351Z",
+    "updatedAt": "2025-10-08T23:35:52.000Z"
+  },
+  {
+    "id": "2025-10-18-b955",
+    "title": "제2회 필라한인탁구협회장배 탁구대회",
+    "startDate": "2025-10-18",
+    "startTime": "09:00",
+    "endDate": "2025-10-18",
+    "endTime": "18:00",
+    "venue": "필라한인탁구협회 탁구장",
+    "address": "320 S Broad St, Lansdale, PA 19446",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-10-18-b955-1.jpg",
+        "width": 1007,
+        "height": 1500
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-09-15T01:25:51.600Z",
+    "updatedAt": "2025-09-15T01:31:15.000Z"
+  },
+  {
+    "id": "2025-09-27-c5a5",
+    "title": "Northern Virginia Senior Olympics",
+    "startDate": "2025-09-27",
+    "startTime": "09:00",
+    "endDate": "2025-09-27",
+    "endTime": "17:00",
+    "venue": "Fairfax",
+    "address": "3001 Vaden Dr, Fairfax, VA 22031",
+    "summary": "나이가 50세 이상만 해당합니다.  단식 복식 혼합복식 종목이 있습니다.",
+    "body": "장소는 Jim Scott Community Center (https://www.fairfaxcounty.gov/neighborhood-community-services/jim-scott-community-center)\n접수마감 8/29/2025\nhttp://nvso.us 홈페이지에 가셔서 각자 개인등록을 하셔야 합니다.\n\n협회원 여러분께 안내드립니다.\n다가오는 9월 27일 토요일, 북버지니아 시니어 올림픽이 개최됩니다. 이미 참가 경험이 있으신 분들은 이메일을 통해 안내받으셨겠지만, 등록 마감일은 8월 29일까지입니다.\n탁구 대회는 늘 개최되던 Jim Scott Community Center에서 열립니다. 주소는 3001 Vaden Drive, Fairfax, VA 22031입니다. 이번 대회에서는 포맷에 큰 변동 사항이 있습니다.\n\n• 오전 9시부터 오후 1시까지: 70세에서 99세 연령대의 개인 단식 및 복식\n• 오후 1시부터 5시까지: 50세에서 69세 연령대의 개인 단식 및 복식\n이와 같이 연령대 별로 시간대가 나누어져 있어, 하루 종일 대회장에서 기다릴 필요가 없어졌습니다. 이번 대회에서는 시간 관계상 혼성복식 경기가 제외되었지만, 혼성으로 팀을 만들어 출전하는 것은 가능합니다.\n저를 포함한 대부분의 임원진이 대회 당일 자원봉사자로 참여할 예정이오니, 궁금한 점이 있으시면 언제든지 임원진에게 문의하시기 바랍니다. 감사합니다.",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-09-27-c5a5-1.jpg",
+        "width": 400,
+        "height": 200
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-07-23T23:44:37.241Z",
+    "updatedAt": "2025-08-13T19:30:26.000Z"
+  },
+  {
+    "id": "2025-09-20-483e",
+    "title": "MK Georgia Table Tennis 7th Anniversary, Grand Team Tournament",
+    "startDate": "2025-09-20",
+    "startTime": "08:30",
+    "endDate": "2025-09-20",
+    "endTime": "17:00",
+    "venue": "Suwanee",
+    "address": "45 Old Peachtree Rd NW, Suwanee, GA 30024",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-09-20-483e-1.jpg",
+        "width": 1213,
+        "height": 1600
+      }
+    ],
+    "attachments": [
+      {
+        "name": "MKGATT 7th Anniversary Grand Team Tournament.pdf",
+        "url": "/uploads/tournaments/2025-09-20-483e-file1.pdf",
+        "size": 4993135
+      }
+    ],
+    "createdAt": "2025-06-14T12:56:17.480Z",
+    "updatedAt": "2025-06-14T14:51:15.000Z"
+  },
+  {
+    "id": "2025-09-06-3891",
+    "title": "뉴욕 대한체육회장배 탁구대회",
+    "startDate": "2025-09-06",
+    "startTime": "08:00",
+    "endDate": "2025-09-06",
+    "endTime": "17:00",
+    "venue": "Westchester Table Tennis Center",
+    "address": "175 Tompkins Ave, Pleasantville, NY 10570",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-09-06-3891-1.jpg",
+        "width": 1043,
+        "height": 1600
+      },
+      {
+        "src": "/uploads/tournaments/2025-09-06-3891-2.jpg",
+        "width": 1035,
+        "height": 1600
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-01-17T19:32:39.507Z",
+    "updatedAt": "2025-08-18T17:06:49.000Z"
+  },
+  {
+    "id": "2025-08-23-b303",
+    "title": "2025 성 정하상 바오로 성당 탁구대회",
+    "startDate": "2025-08-23",
+    "startTime": "12:00",
+    "endDate": "2025-08-23",
+    "endTime": "17:30",
+    "venue": "Fairfax",
+    "address": "4712 Rippling Pond Dr, Fairfax, VA 22033",
+    "summary": "2025-08-23 에 바울 성당에서 탁구 대회가 열립니다.  단체전으로 36명까지 신청을 받습니다.",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-08-23-b303-1.jpg",
+        "width": 883,
+        "height": 1471
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-08-13T19:08:31.663Z",
+    "updatedAt": "2025-08-13T19:29:41.000Z"
+  },
+  {
+    "id": "2025-07-29-51f0",
+    "title": "제 6회 KCPC 화요 탁구 대회",
+    "startDate": "2025-07-29",
+    "startTime": "19:40",
+    "endDate": "2025-07-29",
+    "endTime": "22:00",
+    "venue": "Centreville",
+    "address": "15451 US-29, Centreville, VA 20121",
+    "summary": "중장 탁구팀에서 복식 대회를 개최합니다.",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-07-29-51f0-1.jpg",
+        "width": 1034,
+        "height": 784
+      },
+      {
+        "src": "/uploads/tournaments/2025-07-29-51f0-2.jpg",
+        "width": 1600,
+        "height": 794
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-07-05T19:16:55.129Z",
+    "updatedAt": "2025-07-16T16:41:55.000Z"
+  },
+  {
+    "id": "2025-06-21-8eef",
+    "title": "2025 Korean American Sports Festival",
+    "startDate": "2025-06-21",
+    "startTime": "08:00",
+    "endDate": "2025-06-21",
+    "endTime": "17:00",
+    "venue": "Dallas",
+    "address": "Dallas, TX, USA",
+    "summary": "2025년 전미체전 (장소 : 달라스,TX)",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-06-21-8eef-1.jpg",
+        "width": 792,
+        "height": 1224
+      },
+      {
+        "src": "/uploads/tournaments/2025-06-21-8eef-2.jpg",
+        "width": 489,
+        "height": 1600
+      },
+      {
+        "src": "/uploads/tournaments/2025-06-21-8eef-3.jpg",
+        "width": 639,
+        "height": 960
+      }
+    ],
+    "attachments": [],
+    "createdAt": "2025-01-03T15:41:10.242Z",
+    "updatedAt": "2025-06-20T00:15:58.000Z"
+  },
+  {
+    "id": "2025-05-03-01d5",
+    "title": "미동부연합회 이사장배 탁구대회",
+    "startDate": "2025-05-03",
+    "startTime": "09:00",
+    "endDate": "2025-05-03",
+    "endTime": "21:00",
+    "address": "320 S. BroadbSt, Landdale, PA 19446",
+    "body": "미동부연합회 이사장배 탁구대회 (장소 : 필라델피아탁구협회 탁구장)\n\n1. 일시 : 2025년 5월 3일 토요일 9am – 6:00pm\n\n2. 장소 : 320 S. Broad St Lansdale, PA 19446\n\n3. 사용구 : Abros Ball (3성)\n\n4. 경기내용\n\t단식: U900, U1100, U1300, U1500, U1700, U1900, Open\n\t복식: U3500 등록인원에 따라 2 또는 3개 이벤트로 나누어 진행\n\n5. 입상자 (각이벤트) 1, 2, 3등: 상품제공 (4등 없음)\n\n6. 점심, 간식및 저녁이 준비됩니다\n\n7. 경기방법\n\t1) 예선 및 결승에 대하여\n\t\t(1) 모든경기의 예선리그는 각조 4명(조)로 편성이 원칙이나, 경우에 따라 3명(조)로 편성한다.\n\t\t(2) 예선리그에서 1.2위는 결선 토너멘트에 진출한다.\n\t\t(3) 모든 경기는 3전 2선승제로 한다.\n\n\t2) 신청마감 및 조 편성에 대하여\n\t\t(1) 신청마감 전이라도 모든 단식경기 32명 선착순 마감한다.\n\t\t(2) 예선 조 편성은 레이팅 순서에 의해 정하며, 같은 지역선수는 분배한다.\n\t\t(3) 5인 이하 이벤트는 주최측에 의해 조정될 수 있다.\n\n\t3) 리그전 순위 결정방법에 대하여\n\t\t(1) 2명이 승패가 같으면 그 두 선수 경기에서 승리 한 선수가 우선한다.\n\t\t(2) 3명 이상의 선수가 승패가 같으면\n\t\t\t(2-1) 해당되는 선수들의 경기의 득점 나누기 실점으로 계산해서 결정한다.\n\t\t\t(2-2) (2-1)항의 상황도 같으면 그 리그전 전 경기를 득점/실점으로 계산한다.(2-3) (2-2)항의 상황도 같으면 스코어를 같은 방법으로 계산한다\n\t\t(3) 단 스코어를 기록하지 않았을 시 주최측의 회의에 따라 결정한다.\n\n\t4) 레이팅에 대하여\n\t\t(1) 재미대한탁구협회 레이팅을 우선 인정한다.\n\t\t(2) 재미대한탁구협회 레이팅이 없는 경우 USA 레이팅을 인정하거나 USATT 레이팅도 없을경우 협회 임의로 레이팅을 부여한다.\n\t\t(3) 재미레이팅과 USA 레이팅이 현저히 차이가 나는 경우 주최측이 임시 레이팅을 부여한다.\n\n\t5) 경기 신청에 대하여\n\t\t(1) 본인 레벨의 경기와 한 단계 상위 레벨 경기에 중복 참여 할 수 있다.\n\t\t(2) 모든 선수는 최대 단식 2경기, 복식 1경기만 참가 할 수 있다. (오픈포함)\n\n8. 신청 및 신청금 납입 방법\n\t1) 각 지회별로 신청. 2단1복 $50, 또는 이벤트별 $20 ( 4월 19일 까지) ( 신청 후 불참시 참가비 환불불가 )\n\t2) 이메일 신청 : justinkim99@yahoo.com\n\t3) 마감일(4월 19일) 이후 신청 불가\n\t4) 신청금 납입 방법\n\t\tZelle: Byong Kang 703.200.4619\n\t\t체크로 납부시 위의 전화번호로 연락주세요",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-05-03-01d5-1.jpg",
+        "width": 1174,
+        "height": 1546
+      },
+      {
+        "src": "/uploads/tournaments/2025-05-03-01d5-2.jpg",
+        "width": 1600,
+        "height": 628
+      }
+    ],
+    "attachments": [
+      {
+        "name": "미동부 이사장배 탁구대회 05-03-2025.pdf",
+        "url": "/uploads/tournaments/2025-05-03-01d5-file1.pdf",
+        "size": 379313
+      }
+    ],
+    "createdAt": "2025-01-01T20:09:22.588Z",
+    "updatedAt": "2025-06-14T14:33:40.000Z"
+  },
+  {
+    "id": "2025-04-12-fc22",
+    "title": "제14회 미동부 탁구 대잔치",
+    "startDate": "2025-04-12",
+    "startTime": "08:30",
+    "endDate": "2025-04-12",
+    "endTime": "19:00",
+    "address": "175 Tompkins Ave, Pleasantville, NY 10570",
+    "summary": "제14회 미동부 탁구 대잔치가 4월12일(토) 웨체스터 탁구장에서 뉴저지 탁구협회 주관으로 개최됩니다.",
+    "body": "제14회 미동부 탁구 대잔치가 4월12일(토) 웨체스터 탁구장에서 뉴저지 탁구협회 주관으로 개최됩니다.\n\n1. 일시 : 2025년 4월 12일 토요일 8:30 – 7:00\n\n2. 장소 : Westchester Table Tennis Club\n\t175 Tomkins Ave. Pleasantville, NY 10570\n\n3. 사용구 : Butterfly PLASTIC Ball (3성)\n\n4. 경기내용\n\t1) 개인단식 : U2200. U1950, U1700, U1450. U1200. U950, U700\n\t2) 개인복식 : U3500\n\n5. 경기방법\n\t1) 예선 및 결승에 대하여\n\t\t(1) 모든경기의 예선리그는 각조 4명(조)로 편성이 원칙이나,경우에 따라 3명(조)로 편성한다.\n\t\t(2) 예선리그에서 1.2위는 결선 토너멘트에 진출한다.\n\t\t(3) 예선리그에서 준결승까지 경기는 3전 2선승제로 한다.\n\t\t(4) 결승전 경기는 5전 3선승제 경기로 한다.\n\t\t(5) 3,4위전 경기는 없으며 공동 3위로 한다.\n\t2) 신청마감 및 조 편성에 대하여\n\t\t(1) 신청마감 전이라도 모든 단식경기 24명 선착순 마감.\n\t\t(2) 예선 조 편성는 레이팅 순서에 의해 정하며, 같은 지역선수는 분배한다.\n\t\t(3) 각 지역 협회에 소속 된 외국인은 모든 이벤트 참가를 허용한다.\n\t3) 리그전 순위 결정방법에 대하여\n\t\t(1) 2명이 승패가 같으면 그 두 선수 경기에서 승리 한 선수가 우선한다.\n\t\t(2) 3명 이상의 선수가 승패가 같으면\n\t\t\t(2-1) 해당 되는 선수들의 경기의 득점 나누기 실점으로 계산해서 결정한다.\n\t\t\t(2-2) (2-1)항의 상황도 같은면 그 리그전 전 경기를 득점/실점 으로 계산한다.\n\t\t\t(2-3) (2-2)항의 상황도 같은면 스코어를 같은 방법으로 계산한다\n\t\t(3) 단 스코어를 기록하지 않았을시 주최측의 회의에 따라 결정한다.\n\t4) 레이팅에 대하여\n\t\t(1) 재미대한탁구협회 레이팅을 우선 인정한다.\n\t\t(2) 재미대한탁구협회 레이팅이 없는 경우 USA 레이팅을 인정한다.\n\t\t(3) 재미레이팅과 USA 레이팅이 현저히 차이가 나는 경우 주최측이 임시레이팅을 부여한다.\n\t5) 단식경기 신청에 대하여\n\t\t(1) 본인 레벨의 경기와 한 단계 상위 레벨 경기에 중복 참여 할 수 있다.\n\t\t(2) 모든선수는 최대 2경기만 참가 할 수 있다.\n\t6) 복식경기에 대하여\n\t\t(1) 복식경기는 U3500 으로 신청하고 신청마감 후 집행부에서 3개의 디비젼으로 나누어 경기를 치루도록 합니다.\n\t\t(2) 복식경기는 한선수가 한 이벤트만 참가할 수 있다.\n\n6. 참가신청\n\t1) 각 지회별로 수합해서 신청 : 4월 6일 일요일 도착분에 한함.\n\t\tKTTA OF NJ 201-655-5379(우편신청시 전화로 반드시 확인 해 주세요)\n\t\t229 W Shore Ave Bogota Nj 07603\n\t\t우편 신청시 신청금(check) 동봉 필. (Pay to : KTTA of NJ)\n\t2) 이메일 신청 : ahnbj9923@gmail.com\n\t3) 카톡신청 : ahnbj9923@gmail.com\n\t4) 마감일(4월6일) 이후 신청 불가\n\t5) 참가금 : 전체 3경기 출전($80), 2경기 출전($60), 1경기 출전($30).\n\n7. 경기일정 (시간엄수)\n\t1) 08:30 : 등록\n\t2) 09:00 : 개회식\n\t3) 9:30 : 전 단식경기\n\t4) 3:00 : 전 복식경기\n\t5) 7:00 : 폐회식\n\n8. 기타\n\t1) 각 이벤트 1.2.3 위 시상\n\t2) 간식/점심/저녁/물 제공합니다.",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-04-12-fc22-1.jpg",
+        "width": 1600,
+        "height": 854
+      }
+    ],
+    "attachments": [
+      {
+        "name": "뉴저지탁구대회 04-12-2025.pdf",
+        "url": "/uploads/tournaments/2025-04-12-fc22-file1.pdf",
+        "size": 139273
+      }
+    ],
+    "createdAt": "2025-01-03T15:37:31.432Z",
+    "updatedAt": "2025-07-26T00:38:24.000Z"
+  },
+  {
+    "id": "2025-03-08-b6f4",
+    "title": "2025 중앙장로교회(KCPC) 봄맞이 친선 탁구대회",
+    "startDate": "2025-03-08",
+    "startTime": "14:00",
+    "endDate": "2025-03-08",
+    "endTime": "21:00",
+    "venue": "Centreville, VA",
+    "address": "15451 Route 29, Centreville, VA 20121",
+    "images": [
+      {
+        "src": "/uploads/tournaments/2025-03-08-b6f4-1.jpg",
+        "width": 1068,
+        "height": 1600
+      },
+      {
+        "src": "/uploads/tournaments/2025-03-08-b6f4-2.jpg",
+        "width": 1196,
+        "height": 436
+      }
+    ],
+    "attachments": [
+      {
+        "name": "중장탁구대회_영문.jpg",
+        "url": "/uploads/tournaments/2025-03-08-b6f4-file2.jpg",
+        "size": 345050
+      }
+    ],
+    "createdAt": "2025-01-01T20:26:20.864Z",
+    "updatedAt": "2025-06-18T20:50:40.000Z"
+  }
+]

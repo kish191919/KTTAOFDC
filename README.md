@@ -1,0 +1,83 @@
+# KTTA of DC 홈페이지
+
+버지니아 한인 탁구 협회(Korean Table Tennis Association of Virginia) 홈페이지입니다.
+Next.js 16 · React 19 · Tailwind CSS 4 로 만들었고, 데이터베이스 없이 프로젝트 안의 파일에 내용을 저장합니다.
+
+## 실행하기
+
+Node.js 20.9 이상이 필요합니다.
+
+```bash
+npm install     # 처음 한 번만
+npm run dev     # http://localhost:3000
+```
+
+| 명령 | 설명 |
+| --- | --- |
+| `npm run dev` | 개발 서버. 수정한 내용이 바로 반영됩니다. |
+| `npm run build` 후 `npm start` | 실제 배포와 같은 방식으로 실행합니다. |
+| `npm run lint` | 코드 검사 |
+
+## 페이지 구성
+
+| 주소 | 내용 |
+| --- | --- |
+| `/` | 홈 — 배너, 인사말, 대회 정보, 갤러리 미리보기 |
+| `/about` | 협회 소개 — 협회장 인사말, 임원진, 정관(PDF) |
+| `/tournaments` | 대회 정보 — 예정된 대회 / 지난 대회(연도별) |
+| `/tournaments/[id]` | 대회 상세 — 일시·장소·참가 안내, 포스터, 첨부 파일 |
+| `/gallery`, `/gallery/[id]` | 갤러리 — 앨범 목록과 사진 |
+| `/community` | 탁구 장소 |
+| `/community/etiquette` | 탁구 에티켓 |
+| `/admin` | 관리자 — 대회 정보·갤러리 등록, 수정, 삭제 |
+
+## 대회 정보 올리기
+
+1. `http://localhost:3000/admin` 에 접속해 관리자 비밀번호로 로그인합니다.
+2. **새 대회 등록**을 눌러 대회 이름·날짜·장소 등을 적고, 포스터 이미지와 요강 파일(PDF 등)을 올립니다.
+3. 저장하면 대회 정보 페이지와 홈 화면에 바로 나타납니다. 날짜가 지나면 자동으로 ‘지난 대회’로 넘어갑니다.
+
+- 관리자 비밀번호는 `.env.local` 파일의 `ADMIN_PASSWORD` 입니다. 바꾼 뒤에는 서버를 다시 시작하세요.
+- 큰 사진은 올릴 때 자동으로 긴 변 1600px 로 줄어듭니다.
+- 갤러리도 같은 화면의 **새 앨범 만들기**에서 사진을 올립니다.
+
+## 내용이 저장되는 곳
+
+| 위치 | 내용 |
+| --- | --- |
+| `data/tournaments.json` | 대회 정보 |
+| `data/albums.json` | 갤러리 앨범 |
+| `public/uploads/` | 관리자 화면에서 올린 포스터·사진·첨부 파일 |
+| `lib/site.ts` | 협회 이름, 문의 이메일, 메뉴 |
+| `lib/content/` | 인사말·임원진, 탁구 장소, 탁구 에티켓 글 |
+| `public/images/` | 로고, 배너 |
+
+`data/` 와 `public/uploads/` 가 곧 사이트의 내용이므로 git 에 함께 올립니다.
+
+## Vercel 에 배포하기
+
+1. 이 폴더를 GitHub 저장소로 올린 뒤, Vercel 에서 **Add New → Project** 로 그 저장소를 불러옵니다. 설정은 기본값 그대로 두면 됩니다.
+2. Vercel 프로젝트의 **Settings → Environment Variables** 에 `.env.example` 의 값을 넣습니다.
+   (`ADMIN_PASSWORD`, `SESSION_SECRET`, 도메인을 연결했다면 `NEXT_PUBLIC_SITE_URL`)
+
+**데이터베이스를 연결하기 전에는 배포된 사이트가 ‘읽기 전용’입니다.**
+Vercel 서버는 파일을 저장해 둘 수 없기 때문에, 배포된 사이트의 관리자 화면에서는 저장이 막혀 있습니다.
+그동안은 아래 순서로 내용을 올립니다.
+
+1. 내 컴퓨터에서 `npm run dev` 로 실행하고 관리자 화면에서 내용을 수정합니다.
+2. 바뀐 `data/`, `public/uploads/` 를 커밋해서 GitHub 에 올립니다.
+3. Vercel 이 자동으로 다시 배포하면 공개 사이트에 반영됩니다.
+
+## 나중에 데이터베이스를 연결할 때
+
+저장과 관련된 코드는 `lib/store/` 에만 모여 있습니다. 화면과 관리자 기능은 아래 함수만 호출하므로,
+이 파일들의 내부만 데이터베이스용으로 바꾸면 됩니다.
+
+| 파일 | 역할 | 바꿀 내용 |
+| --- | --- | --- |
+| `lib/store/tournaments.ts` | 대회 정보 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
+| `lib/store/albums.ts` | 갤러리 앨범 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
+| `lib/store/files.ts` | 업로드 파일 저장·삭제 | `public/uploads` → 파일 저장소(Vercel Blob, Supabase Storage 등) |
+| `lib/store/json-file.ts` | 파일 저장 공통 코드 | `STORE_WRITABLE` 을 `true` 로 (읽기 전용 해제) |
+
+기존 `data/*.json` 의 내용은 테이블 구조(`lib/types.ts`)와 같으므로 그대로 옮겨 넣을 수 있습니다.

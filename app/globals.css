@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans:
+    var(--font-noto-sans-kr), ui-sans-serif, system-ui, "Apple SD Gothic Neo",
+    "Malgun Gothic", sans-serif;
+}
+
+@theme {
+  /* 로고의 파란색(#00529C)을 700 단계로 둔 브랜드 블루 */
+  --color-brand-50: #f0f6fc;
+  --color-brand-100: #dcebf8;
+  --color-brand-200: #bcd8f1;
+  --color-brand-300: #8cbde6;
+  --color-brand-400: #559bd6;
+  --color-brand-500: #2d7cc3;
+  --color-brand-600: #1565ad;
+  --color-brand-700: #00529c;
+  --color-brand-800: #06417d;
+  --color-brand-900: #0a3566;
+  --color-brand-950: #07224a;
+
+  /* 배너의 짙은 남색 */
+  --color-navy-800: #0a2a6b;
+  --color-navy-900: #081f52;
+  --color-navy-950: #06163b;
+
+  /* 로고의 붉은색(#ED1B2E)을 500 단계로 둔 포인트 레드 */
+  --color-accent-50: #fff1f2;
+  --color-accent-100: #ffe1e4;
+  --color-accent-200: #ffc8cd;
+  --color-accent-300: #fd9aa4;
+  --color-accent-400: #f8566a;
+  --color-accent-500: #ed1b2e;
+  --color-accent-600: #d41226;
+  --color-accent-700: #b20f21;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-slate-700);
+}
+
+@layer components {
+  .eyebrow {
+    @apply inline-block text-sm font-semibold tracking-[0.18em] text-accent-600 uppercase;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-base font-semibold transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-accent {
+    @apply bg-accent-600 text-white shadow-sm hover:bg-accent-700 hover:shadow-md;
+  }
+  .btn-brand {
+    @apply bg-brand-700 text-white shadow-sm hover:bg-brand-800 hover:shadow-md;
+  }
+  .btn-outline {
+    @apply border-2 border-brand-700 text-brand-700 hover:bg-brand-50;
+  }
+  .btn-ghost {
+    @apply border border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700;
+  }
+  .btn-sm {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-hidden disabled:bg-slate-100;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-slate-700;
+  }
+  .hint {
+    @apply mt-1.5 text-sm text-slate-500;
+  }
+}

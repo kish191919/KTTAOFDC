@@ -1,0 +1,296 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import {
+  createSession,
+  destroySession,
+  isAdmin,
+  isAdminConfigured,
+  verifyPassword,
+} from "@/lib/auth";
+import { isValidDate, TIME_RE } from "@/lib/dates";
+import { isUploadUrl } from "@/lib/store/files";
+import { STORE_WRITABLE } from "@/lib/store/json-file";
+import {
+  createAlbum,
+  deleteAlbum,
+  updateAlbum,
+  type AlbumInput,
+} from "@/lib/store/albums";
+import {
+  createTournament,
+  deleteTournament,
+  updateTournament,
+  type TournamentInput,
+} from "@/lib/store/tournaments";
+import type { Attachment, ImageRef } from "@/lib/types";
+
+export type FormState = {
+  error?: string;
+  /** 입력 칸 이름별 오류 문구 */
+  fields?: Record<string, string>;
+};
+
+const MAX_TOURNAMENT_IMAGES = 20;
+const MAX_ATTACHMENTS = 10;
+const MAX_ALBUM_PHOTOS = 300;
+
+// ───────────────────────── 로그인 ─────────────────────────
+
+// 비밀번호를 계속 틀리면 잠시 로그인을 막습니다. (서버를 다시 켜면 초기화)
+const LOCK_AFTER = 8;
+const LOCK_WINDOW_MS = 10 * 60 * 1000;
+let failures = { count: 0, since: 0 };
+
+export async function loginAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!isAdminConfigured()) {
+    return { error: "관리자 비밀번호가 아직 설정되지 않았습니다." };
+  }
+
+  const now = Date.now();
+  if (now - failures.since > LOCK_WINDOW_MS) failures = { count: 0, since: now };
+  if (failures.count >= LOCK_AFTER) {
+    return { error: "로그인 시도가 너무 많습니다. 10분 뒤에 다시 시도해 주세요." };
+  }
+
+  const password = formData.get("password");
+  if (typeof password !== "string" || !verifyPassword(password)) {
+    failures.count += 1;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return { error: "비밀번호가 올바르지 않습니다." };
+  }
+
+  failures = { count: 0, since: now };
+  await createSession();
+  redirect("/admin");
+}
+
+export async function logoutAction(): Promise<void> {
+  await destroySession();
+  redirect("/admin/login");
+}
+
+// ───────────────────────── 공통 ─────────────────────────
+
+/** 저장·삭제 전에 권한과 저장 가능 여부를 확인합니다. 문제가 있으면 안내 문구를 돌려줍니다. */
+async function writeBlocker(): Promise<string | null> {
+  if (!(await isAdmin())) return "로그인이 만료되었습니다. 다시 로그인해 주세요.";
+  if (!STORE_WRITABLE) {
+    return "이 서버에서는 내용을 저장할 수 없습니다. 내 컴퓨터에서 수정한 뒤 다시 배포해 주세요.";
+  }
+  return null;
+}
+
+function text(formData: FormData, key: string, max: number): string {
+  const value = formData.get(key);
+  if (typeof value !== "string") return "";
+  return value.replace(/\r\n?/g, "\n").trim().slice(0, max);
+}
+
+function jsonList(formData: FormData, key: string): unknown[] | null {
+  const raw = formData.get(key);
+  if (typeof raw !== "string" || raw === "") return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+const isDimension = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value > 0 && value < 100_000;
+
+function parseImages(list: unknown[] | null, max: number): ImageRef[] | null {
+  if (!list || list.length > max) return null;
+  const images: ImageRef[] = [];
+  for (const item of list) {
+    if (typeof item !== "object" || item === null) return null;
+    const { src, width, height } = item as Record<string, unknown>;
+    if (!isUploadUrl(src)) return null;
+    images.push(
+      isDimension(width) && isDimension(height) ? { src, width, height } : { src },
+    );
+  }
+  return images;
+}
+
+function parseAttachments(list: unknown[] | null): Attachment[] | null {
+  if (!list || list.length > MAX_ATTACHMENTS) return null;
+  const files: Attachment[] = [];
+  for (const item of list) {
+    if (typeof item !== "object" || item === null) return null;
+    const { name, url, size } = item as Record<string, unknown>;
+    if (!isUploadUrl(url) || typeof name !== "string" || !name.trim()) return null;
+    files.push({
+      name: name.trim().slice(0, 200),
+      url,
+      ...(typeof size === "number" && size > 0 ? { size } : {}),
+    });
+  }
+  return files;
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function revalidateSite() {
+  // 홈·목록·상세 등 모든 페이지를 새 내용으로 다시 만들게 합니다.
+  revalidatePath("/", "layout");
+}
+
+// ───────────────────────── 대회 정보 ─────────────────────────
+
+function parseTournament(
+  formData: FormData,
+): { value: TournamentInput } | { fields: Record<string, string> } {
+  const fields: Record<string, string> = {};
+
+  const title = text(formData, "title", 150);
+  if (!title) fields.title = "대회 이름을 입력해 주세요.";
+
+  const startDate = text(formData, "startDate", 10);
+  if (!isValidDate(startDate)) fields.startDate = "시작 날짜를 선택해 주세요.";
+
+  const endDate = text(formData, "endDate", 10);
+  if (endDate && !isValidDate(endDate)) {
+    fields.endDate = "종료 날짜가 올바르지 않습니다.";
+  } else if (endDate && !fields.startDate && endDate < startDate) {
+    fields.endDate = "종료 날짜가 시작 날짜보다 빠릅니다.";
+  }
+
+  const startTime = text(formData, "startTime", 5);
+  const endTime = text(formData, "endTime", 5);
+  if (startTime && !TIME_RE.test(startTime)) {
+    fields.startTime = "시작 시간이 올바르지 않습니다.";
+  }
+  if (endTime && !TIME_RE.test(endTime)) {
+    fields.endTime = "종료 시간이 올바르지 않습니다.";
+  } else if (endTime && !startTime) {
+    fields.startTime = "시작 시간도 함께 입력해 주세요.";
+  } else if (
+    endTime &&
+    !fields.startTime &&
+    (!endDate || endDate === startDate) &&
+    endTime <= startTime
+  ) {
+    fields.endTime = "종료 시간이 시작 시간보다 늦어야 합니다.";
+  }
+
+  const deadline = text(formData, "deadline", 10);
+  if (deadline && !isValidDate(deadline)) {
+    fields.deadline = "신청 마감일이 올바르지 않습니다.";
+  }
+
+  const linkUrl = text(formData, "linkUrl", 500);
+  if (linkUrl && !isHttpUrl(linkUrl)) {
+    fields.linkUrl = "http:// 또는 https:// 로 시작하는 주소를 입력해 주세요.";
+  }
+
+  const images = parseImages(jsonList(formData, "images"), MAX_TOURNAMENT_IMAGES);
+  if (!images) fields.images = "이미지 정보를 읽지 못했습니다. 다시 올려 주세요.";
+
+  const attachments = parseAttachments(jsonList(formData, "attachments"));
+  if (!attachments) fields.attachments = "첨부 파일 정보를 읽지 못했습니다. 다시 올려 주세요.";
+
+  if (!images || !attachments || Object.keys(fields).length > 0) return { fields };
+
+  const value: TournamentInput = { title, startDate, images, attachments };
+  const optional = {
+    startTime,
+    endDate,
+    endTime,
+    venue: text(formData, "venue", 150),
+    address: text(formData, "address", 250),
+    organizer: text(formData, "organizer", 150),
+    fee: text(formData, "fee", 150),
+    deadline,
+    contact: text(formData, "contact", 300),
+    summary: text(formData, "summary", 500),
+    body: text(formData, "body", 30_000),
+    linkUrl,
+    linkLabel: linkUrl ? text(formData, "linkLabel", 40) : "",
+  };
+  for (const [key, entry] of Object.entries(optional)) {
+    if (entry) value[key as keyof typeof optional] = entry;
+  }
+  return { value };
+}
+
+/** id 가 null 이면 새로 등록, 있으면 그 대회를 수정합니다. */
+export async function saveTournamentAction(
+  id: string | null,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+
+  const parsed = parseTournament(formData);
+  if ("fields" in parsed) {
+    return { error: "입력 내용을 다시 확인해 주세요.", fields: parsed.fields };
+  }
+
+  const saved = id
+    ? await updateTournament(id, parsed.value)
+    : await createTournament(parsed.value);
+  if (!saved) return { error: "수정하려는 대회를 찾을 수 없습니다." };
+
+  revalidateSite();
+  redirect(`/admin?saved=tournament&id=${encodeURIComponent(saved.id)}`);
+}
+
+export async function deleteTournamentAction(id: string): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  await deleteTournament(id);
+  revalidateSite();
+  redirect("/admin?deleted=tournament");
+}
+
+// ───────────────────────── 갤러리 ─────────────────────────
+
+/** id 가 null 이면 새 앨범, 있으면 그 앨범을 수정합니다. */
+export async function saveAlbumAction(
+  id: string | null,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+
+  const fields: Record<string, string> = {};
+  const title = text(formData, "title", 150);
+  if (!title) fields.title = "앨범 이름을 입력해 주세요.";
+  const date = text(formData, "date", 10);
+  if (!isValidDate(date)) fields.date = "행사 날짜를 선택해 주세요.";
+  const photos = parseImages(jsonList(formData, "photos"), MAX_ALBUM_PHOTOS);
+  if (!photos) fields.photos = "사진 정보를 읽지 못했습니다. 다시 올려 주세요.";
+  if (!photos || Object.keys(fields).length > 0) {
+    return { error: "입력 내용을 다시 확인해 주세요.", fields };
+  }
+
+  const description = text(formData, "description", 1000);
+  const input: AlbumInput = { title, date, photos, ...(description ? { description } : {}) };
+  const saved = id ? await updateAlbum(id, input) : await createAlbum(input);
+  if (!saved) return { error: "수정하려는 앨범을 찾을 수 없습니다." };
+
+  revalidateSite();
+  redirect(`/admin?saved=album&id=${encodeURIComponent(saved.id)}`);
+}
+
+export async function deleteAlbumAction(id: string): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  await deleteAlbum(id);
+  revalidateSite();
+  redirect("/admin?deleted=album");
+}
