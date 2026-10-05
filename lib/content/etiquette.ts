@@ -1,125 +1,205 @@
-// 탁구 에티켓 — 기존 홈페이지(kttava.org)의 내용을 그대로 옮긴 목록입니다.
-export type EtiquetteItem = { ko: string; en: string };
+// 탁구 에티켓 — 기존 홈페이지(kttava.org)의 30개 항목을 주제별로 묶고 문장을 다듬은 목록입니다.
+export type EtiquetteItem = { title: string; ko: string; en: string };
 
-export const etiquette: EtiquetteItem[] = [
+export type EtiquetteGroup = {
+  /** 바로가기 주소(#id)로 쓰는 영문 이름 */
+  id: string;
+  title: string;
+  titleEn: string;
+  items: EtiquetteItem[];
+};
+
+export const etiquetteGroups: EtiquetteGroup[] = [
   {
-    ko: "탁구장에서는 나이 불문 고수불문 먼저 인사하고, 공치기 전 서로 인사하기.",
-    en: "Regardless of age or skill level, greet others first before playing.",
+    id: "greeting",
+    title: "인사와 예의",
+    titleEn: "Greetings & Respect",
+    items: [
+      {
+        title: "먼저 인사하기",
+        ko: "나이와 실력에 상관없이 먼저 인사하고, 치기 전에도 서로 인사합니다.",
+        en: "Greet others first, whatever their age or level, and greet your opponent before you play.",
+      },
+      {
+        title: "존댓말로 시작하고 인사로 마무리",
+        ko: "처음부터 반말하지 않고, 연장자께 예의를 갖추며, 끝나면 인사합니다.",
+        en: "Speak politely from the start, show respect to elders, and say thank you when you finish.",
+      },
+      {
+        title: "네트·에지에는 미안함 표시",
+        ko: "시합 중 공이 네트나 에지(edge)에 맞았을 때는 가볍게 인사합니다.",
+        en: "When the ball clips the net or the edge, acknowledge it with a quick \"Sorry.\"",
+      },
+      {
+        title: "열심히 치고 칭찬하기",
+        ko: "경기는 성의껏 하고, 상대의 멋진 플레이에는 칭찬을 건넵니다.",
+        en: "Play your best and compliment your opponent's good shots.",
+      },
+      {
+        title: "공 주우러 함께 가기",
+        ko: "상대가 공을 주우러 갈 때 중간까지라도 따라갑니다.",
+        en: "When your opponent goes to fetch the ball, walk at least partway with them.",
+      },
+    ],
   },
   {
-    ko: "시합 중 네트나 에지(edge)가 되었을 때 인사하기.",
-    en: "When the ball hits the net or edge during a match, acknowledge it by saying \"Sorry\".",
+    id: "practice",
+    title: "준비와 연습",
+    titleEn: "Getting Ready & Practice",
+    items: [
+      {
+        title: "운동복과 탁구화 갖추기",
+        ko: "운동복과 탁구화를 갖추고 운동합니다.",
+        en: "Wear proper sportswear and table tennis shoes.",
+      },
+      {
+        title: "공은 내가 먼저 준비",
+        ko: "탁구공은 내가 먼저 준비합니다.",
+        en: "Have a ball ready before you play.",
+      },
+      {
+        title: "타월 챙기고 땀 닦기",
+        ko: "타월을 꼭 가지고 다니며, 탁구대나 바닥에 떨어진 자기 땀은 직접 닦습니다.",
+        en: "Always carry a towel and wipe your own sweat off the table and floor.",
+      },
+      {
+        title: "몸 풀 때는 부드럽게",
+        ko: "몸을 풀 때 강타를 하거나 갑자기 백 쪽으로 보내지 않습니다.",
+        en: "During warm-up, don't smash or suddenly switch to the backhand side.",
+      },
+      {
+        title: "어려운 서브는 적당히",
+        ko: "시합이 아닐 때는 상대가 받기 힘들어하는 서브를 너무 많이 넣지 않습니다.",
+        en: "Outside of matches, don't overuse serves your opponent struggles to return.",
+      },
+      {
+        title: "봐주는 서브 하지 않기",
+        ko: "봐주는 듯한 힘없는 서브는 넣지 않습니다.",
+        en: "Don't give weak serves that look like you're going easy.",
+      },
+    ],
   },
   {
-    ko: "경기 시 열심히 쳐주고, 상대의 멋진 플레이에 칭찬하기.",
-    en: "Play hard during the game and compliment your opponent's excellent plays.",
+    id: "fair-play",
+    title: "공정한 경기",
+    titleEn: "Fair Play",
+    items: [
+      {
+        title: "서브 규정 지키기",
+        ko: "공을 16cm 이상 띄우고, 오픈 서브를 지킵니다.",
+        en: "Follow the service rules: toss the ball at least 16 cm (about 6 in.) and keep it visible.",
+      },
+      {
+        title: "상대가 준비된 뒤에 치기",
+        ko: "상대방이 자세를 잡기 전에는 치지 않습니다.",
+        en: "Don't serve until your opponent is ready.",
+      },
+      {
+        title: "우기지 않기",
+        ko: "네트가 아닌데 네트라고 하는 등 서로 우기지 않습니다.",
+        en: "Don't argue over calls, such as claiming a net that wasn't.",
+      },
+      {
+        title: "우롱하는 플레이 하지 않기",
+        ko: "상대를 우롱하는 듯한 플레이는 하지 않습니다.",
+        en: "Don't play in a way that mocks your opponent.",
+      },
+      {
+        title: "현혹하는 동작 하지 않기",
+        ko: "라켓을 정신없이 흔드는 등 상대를 현혹하는 동작은 피합니다.",
+        en: "Avoid distracting moves such as waving your racket wildly.",
+      },
+    ],
   },
   {
-    ko: "상대를 우롱하는 듯한 플레이 하지 않기.",
-    en: "Avoid playing in a way that mocks your opponent.",
+    id: "focus",
+    title: "말과 집중",
+    titleEn: "Words & Focus",
+    items: [
+      {
+        title: "상대 실력을 깎아내리지 않기",
+        ko: "상대의 플레이를 평가절하하거나 약하다고 하는 등 자기 잣대로 말하지 않습니다.",
+        en: "Don't belittle your opponent's play or call them weak by your own standards.",
+      },
+      {
+        title: "궁시렁거리지 않기",
+        ko: "경기 중 투덜대거나 상대의 실수를 두고 이러쿵저러쿵하지 않습니다.",
+        en: "Don't grumble during play or comment on your opponent's mistakes.",
+      },
+      {
+        title: "전화와 껌은 경기 뒤에",
+        ko: "경기 중에는 전화를 받거나 껌을 씹지 않습니다.",
+        en: "Don't take calls or chew gum during a game.",
+      },
+      {
+        title: "경기에만 집중하기",
+        ko: "경기 중 주변 사람과 이야기하거나 오가는 사람을 쳐다보며 치지 않습니다.",
+        en: "Don't chat with bystanders or watch people passing by while you play.",
+      },
+    ],
   },
   {
-    ko: "오늘 자기 컨디션이 안 좋아 졌다는 말 하지 않기.",
-    en: "Do not mention that you are not feeling well today.",
+    id: "result",
+    title: "승패를 대하는 태도",
+    titleEn: "Winning & Losing",
+    items: [
+      {
+        title: "패배는 깨끗이 인정하기",
+        ko: "지면 깨끗이 인정하고, 인상 쓰지 않습니다.",
+        en: "Accept a loss gracefully — no sour faces.",
+      },
+      {
+        title: "이겨도 약 올리지 않기",
+        ko: "이겼다고 상대방을 약 올리지 않습니다.",
+        en: "Don't taunt your opponent when you win.",
+      },
+      {
+        title: "컨디션 핑계 대지 않기",
+        ko: "\"오늘 컨디션이 안 좋아서 졌다\"는 말은 하지 않습니다.",
+        en: "Don't blame a loss on not feeling well today.",
+      },
+      {
+        title: "내리 5판 이기지 않기",
+        ko: "한 상대에게 5판을 연속해서 이기지 않습니다.",
+        en: "Don't win five straight games without giving your opponent a chance.",
+      },
+      {
+        title: "중간에 그만두지 않기",
+        ko: "재미없다고 한 판만 치고 그만두거나, 하수에게 질 듯하면 치다 말고 가지 않습니다.",
+        en: "Don't quit after one game because it's dull, or walk away when you're about to lose to a lower-rated player.",
+      },
+    ],
   },
   {
-    ko: "상대의 플레이를 평가절하하거나, 약하다거나, 본인의 잣대로 말하지 않기(꼭 어설픈 사람이 하는 행동...).",
-    en: "Do not belittle your opponent's play or say they are weak based on your own standards (this behavior is characteristic of inexperienced players).",
-  },
-  {
-    ko: "NET도 아닌데 우기는 등 서로 우기지 않기.",
-    en: "Do not argue about points that are not net calls.",
-  },
-  {
-    ko: "상대방이 자세 잡기 전 치기 없기.",
-    en: "Do not serve the ball before your opponent is ready.",
-  },
-  {
-    ko: "공 주우러 갈 때 따라가기 (중간정도라도).",
-    en: "Follow someone when retrieving the ball (at least partway).",
-  },
-  {
-    ko: "내리 5판 연속해서 이기기 없기.",
-    en: "Do not win five games in a row without allowing your opponent a chance.",
-  },
-  {
-    ko: "시합이 아닐 때 상대가 받기 힘들어 하는 서브 너무 많이 넣기 없기.",
-    en: "Avoid giving your opponent too many difficult serves when it’s not a match.",
-  },
-  {
-    ko: "봐주는 듯한 힘없는 서브는 하기 없기.",
-    en: "Do not serve weak serves as if you are letting your opponent to win.",
-  },
-  {
-    ko: "지면 깨끗이 패배인정하기. (진다고 인상쓰기 없기).",
-    en: "Accept defeat gracefully when you lose (do not make faces when you lose).",
-  },
-  {
-    ko: "이겼다고 상대방 약 올리지 말기.",
-    en: "Do not taunt your opponent when you win.",
-  },
-  {
-    ko: "운동복과 탁구화를 갖추고 운동하기.",
-    en: "Wear appropriate sportswear and table tennis shoes while playing.",
-  },
-  {
-    ko: "레이팅 차이가 날 때 하수는 상수에게 핸디를 과하지 않게 부탁하기.",
-    en: "When there is a significant rating difference, lower-ranked players should politely ask for a reasonable handicap.",
-  },
-  {
-    ko: "경기 중 전화 받는다든가, 껌을 씹으면서 운동하기 없기.",
-    en: "Do not take calls or chew gum during the match.",
-  },
-  {
-    ko: "탁구공 먼저 준비하기.",
-    en: "Prepare the table tennis ball in advance.",
-  },
-  {
-    ko: "처음부터 반말하지 않고, 연장자에게 예의를 갖추며, 끝나고 인사하기.",
-    en: "Do not speak informally from the start, show respect to elders, and greet others at the end.",
-  },
-  {
-    ko: "타월은 반드시 갖고다니며, 탁구대의 위 또는 바닦의 자신의 땀은 본인이 처리하기.",
-    en: "Always carry a towel and wipe your sweat from the table or floor.",
-  },
-  {
-    ko: "경기중 궁시렁 거리거나, 상대방의 실수에 대해서 이렇쿵 저렇쿵 하지말기.",
-    en: "Do not grumble during the match or comment on your opponent's mistakes.",
-  },
-  {
-    ko: "서브시 규정을 지켜서 넣어야 하며(16cm이상 띄우기,오픈서브 준수).",
-    en: "Follow the rules for serving (lift the ball 6 inches or more, adhere to open serve rules).",
-  },
-  {
-    ko: "라켓을 정신없이 흔드는 동작 등 상대방을 현혹하는 동작을 피할 것.",
-    en: "Avoid distracting movements, such as wildly swinging a racket.",
-  },
-  {
-    ko: "몸 풀 때 강타 한다든가, 갑자기 백 쪽으로 주기 없기.",
-    en: "Do not hit hard during warm-ups or suddenly give a backhand without warning.",
-  },
-  {
-    ko: "경기 중 주변사람과 얘기해서는 안되고, 주변으로 시선 돌리기 없기 (오가는 사람 처다 보면서 공치기 없기).",
-    en: "During the match, do not talk to others nearby, and avoid looking around (do not play while watching people passing by).",
-  },
-  {
-    ko: "하수에게 지도를 하더라도 하수가 무엇을 배우기를 원하는지 생각하지 않고 자기 스타일 대로 일방적으로 지도하기 없기.",
-    en: "When teaching inexperienced players, think about what they want to learn rather than unilaterally imposing your style.",
-  },
-  {
-    ko: "재미없다고 한 판만 치고 그만두거나, 하수하고 치다가 질듯하면 치다 말고 가기 없기.",
-    en: "Do not quit after only one game if it’s not enjoyable, or stop playing when you are about to lose against a less experienced player.",
-  },
-  {
-    ko: "복식 때 파트너가 실수한다고 얼굴 찌푸려서는 안되고, 파트너를 배려하지 않고 혼자만의 PLAY 하지 않기.",
-    en: "Do not frown when your partner makes a mistake in doubles, and avoid playing solo without considering your partner.",
-  },
-  {
-    ko: "탁구장 내에서만 탁구를 치지 않고 외부에서 개최하는 대회에 참석하여 실력향상 및 동호회 친목 활성화 하기.",
-    en: "Participate in external tournaments to improve skills and foster camaraderie, not just play in the table tennis hall.",
-  },
-  {
-    ko: "오직 자신의 실력 향상을 위해서 고수하고만 탁구쳐서는 안되고, 고수에게 오래 매달리지 않기(15분쯤 후에는 계속해도 되는지 물어보기).",
-    en: "Do not only play with experienced players for your improvement, and don’t cling to them for too long (ask after about 15 minutes if you can continue playing).",
+    id: "together",
+    title: "함께 성장하기",
+    titleEn: "Growing Together",
+    items: [
+      {
+        title: "핸디는 적당히 부탁하기",
+        ko: "레이팅 차이가 날 때 하수는 상수에게 핸디를 과하지 않게 부탁합니다.",
+        en: "When ratings differ, the lower-rated player should ask for a reasonable handicap.",
+      },
+      {
+        title: "고수에게 오래 매달리지 않기",
+        ko: "자기 실력만을 위해 고수하고만 치지 않고, 15분쯤 지나면 계속해도 되는지 물어봅니다.",
+        en: "Don't play only with stronger players, and after about 15 minutes ask if they're happy to continue.",
+      },
+      {
+        title: "배우는 사람에 맞춰 지도하기",
+        ko: "하수를 지도할 때는 자기 스타일을 일방적으로 강요하지 않고, 무엇을 배우고 싶어 하는지 먼저 생각합니다.",
+        en: "When coaching, think about what the learner wants rather than imposing your own style.",
+      },
+      {
+        title: "복식 파트너 배려하기",
+        ko: "파트너가 실수해도 얼굴을 찌푸리지 않고, 혼자만의 플레이를 하지 않습니다.",
+        en: "In doubles, don't frown at your partner's mistakes or play as if you were alone.",
+      },
+      {
+        title: "외부 대회에도 참가하기",
+        ko: "탁구장 안에서만 치지 말고 외부 대회에 나가 실력을 키우고 동호회 친목을 다집니다.",
+        en: "Join outside tournaments too — improve your game and build friendships across clubs.",
+      },
+    ],
   },
 ];

@@ -10,7 +10,7 @@ import { AlbumCard } from "@/components/AlbumCard";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { SectionHeading } from "@/components/PageHeader";
 import { TournamentCard } from "@/components/TournamentCard";
-import { ArrowRightIcon, MailIcon, MapPinIcon, PaddleMark } from "@/components/icons";
+import { ArrowRightIcon, MailIcon, MapPinIcon } from "@/components/icons";
 
 // 대회의 '예정/종료' 표시가 날짜에 따라 바뀌므로 한 시간마다 새로 만듭니다.
 export const revalidate = 3600;
@@ -71,28 +71,22 @@ export default async function HomePage() {
             </div>
 
             <div className="order-1 md:order-2 md:col-span-2">
-              <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 p-8 text-white shadow-xl md:p-10">
-                <div
-                  aria-hidden="true"
-                  className="absolute -top-20 -right-20 size-56 rounded-full border-[26px] border-accent-500"
+              {/* 협회장 사진 — 인사말 글과 높이가 맞도록 정사각형으로 잘라 보여 줍니다. */}
+              <figure className="mx-auto max-w-xs overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 text-white shadow-xl md:max-w-none">
+                <Image
+                  src={greeting.photo.src}
+                  alt={greeting.signature}
+                  width={greeting.photo.width}
+                  height={greeting.photo.height}
+                  sizes="(min-width: 1152px) 420px, (min-width: 768px) 37vw, 320px"
+                  className="aspect-square h-auto w-full object-cover object-[50%_30%]"
                 />
-                <div
-                  aria-hidden="true"
-                  className="absolute -bottom-28 -left-16 size-72 rounded-full border-[30px] border-white/5"
-                />
-                <PaddleMark light className="relative size-20" />
-                <p className="relative mt-8 text-2xl leading-snug font-bold md:text-3xl">
-                  Table Tennis
-                  <br />
-                  Builds a Better
-                  <br />
-                  Community
-                </p>
-                <p className="relative mt-6 text-xs tracking-[0.25em] text-brand-100 uppercase">
-                  Play <span className="text-accent-400">•</span> Connect{" "}
-                  <span className="text-accent-400">•</span> Together
-                </p>
-              </div>
+                <figcaption className="px-7 py-5 md:px-8">
+                  <p className="text-lg font-bold text-balance break-keep">
+                    {greeting.signature}
+                  </p>
+                </figcaption>
+              </figure>
             </div>
           </div>
         </div>

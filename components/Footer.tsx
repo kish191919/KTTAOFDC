@@ -8,27 +8,27 @@ export function Footer() {
   return (
     <footer className="bg-navy-950 text-brand-100">
       <div className="h-1 bg-linear-to-r from-accent-500 via-accent-500 to-brand-500" />
-      <div className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
-          <div>
-            <Image
-              src="/images/logo-white.png"
-              alt={site.name}
-              width={1200}
-              height={266}
-              sizes="170px"
-              className="h-9 w-auto"
-            />
-            <p className="mt-4 text-base font-semibold text-white">{site.nameKo}</p>
-            <p className="text-sm text-brand-200">{site.nameEn}</p>
-            <p className="mt-4 text-sm text-brand-300 italic">{site.slogan}</p>
-          </div>
 
+      {/* 윗줄: 로고·협회 이름 | 바로가기 · 문의 메일 */}
+      <div className="mx-auto flex max-w-6xl flex-col gap-x-8 gap-y-4 px-4 py-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <Image
+            src="/images/logo-white.png"
+            alt={site.name}
+            width={1200}
+            height={266}
+            sizes="170px"
+            className="h-8 w-auto self-start sm:self-auto"
+          />
+          <div className="leading-tight sm:border-l sm:border-white/15 sm:pl-3">
+            <p className="text-sm font-semibold text-white">{site.nameKo}</p>
+            <p className="text-xs text-brand-200">{site.nameEn}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-x-6 gap-y-3 sm:flex-row sm:items-center">
           <nav aria-label="바로가기">
-            <p className="text-sm font-semibold tracking-wider text-white uppercase">
-              바로가기
-            </p>
-            <ul className="mt-4 space-y-2.5">
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
               {nav.map((item) => (
                 <li key={item.href}>
                   <Link
@@ -41,36 +41,36 @@ export function Footer() {
               ))}
             </ul>
           </nav>
-
-          <div>
-            <p className="text-sm font-semibold tracking-wider text-white uppercase">
-              문의
-            </p>
-            <a
-              href={`mailto:${site.email}`}
-              className="mt-4 inline-flex items-center gap-2 text-sm text-brand-200 transition-colors hover:text-white"
-            >
-              <MailIcon className="size-4" />
-              {site.email}
-            </a>
-            <p className="mt-6 text-xs tracking-[0.2em] text-brand-300 uppercase">
-              Community <span className="text-accent-400">•</span> Health{" "}
-              <span className="text-accent-400">•</span> Friendship
-            </p>
-          </div>
+          <a
+            href={`mailto:${site.email}`}
+            className="inline-flex items-center gap-2 text-sm text-brand-200 transition-colors hover:text-white sm:border-l sm:border-white/15 sm:pl-6"
+          >
+            <MailIcon className="size-4" />
+            {site.email}
+          </a>
         </div>
       </div>
 
+      {/* 아랫줄: 저작권 · 슬로건 | 표어 · 관리자 */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-2 px-4 py-5 text-xs text-brand-300 sm:flex-row sm:items-center">
-          <p>
-            © {new Date().getFullYear()} {site.name}. All rights reserved.
-          </p>
-          {STORE_WRITABLE && (
-            <Link href="/admin" className="transition-colors hover:text-white">
-              관리자
-            </Link>
-          )}
+        <div className="mx-auto flex max-w-6xl flex-col gap-x-6 gap-y-1.5 px-4 py-3 text-xs text-brand-300 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-x-3 gap-y-1 sm:flex-row sm:items-center">
+            <p>
+              © {new Date().getFullYear()} {site.name}. All rights reserved.
+            </p>
+            <p className="italic sm:border-l sm:border-white/15 sm:pl-3">{site.slogan}</p>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <p className="tracking-[0.2em] uppercase">
+              Community <span className="text-accent-400">•</span> Health{" "}
+              <span className="text-accent-400">•</span> Friendship
+            </p>
+            {STORE_WRITABLE && (
+              <Link href="/admin" className="transition-colors hover:text-white">
+                관리자
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </footer>

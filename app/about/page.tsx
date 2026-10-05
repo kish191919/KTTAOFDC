@@ -1,8 +1,15 @@
-import { about, bylawsUrl, greeting, leadership } from "@/lib/content/association";
+import Image from "next/image";
+import {
+  about,
+  bylawsUrl,
+  greeting,
+  groupPhoto,
+  leadership,
+} from "@/lib/content/association";
 import { pageMetadata } from "@/lib/metadata";
 import { site } from "@/lib/site";
 import { PageHeader, SectionHeading } from "@/components/PageHeader";
-import { FileIcon, PaddleMark } from "@/components/icons";
+import { FileIcon } from "@/components/icons";
 
 export const metadata = pageMetadata({
   title: "협회 소개",
@@ -18,18 +25,23 @@ export default function AboutPage() {
       <section className="bg-white py-20">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 md:grid-cols-5 md:gap-16">
           <div className="md:col-span-2">
-            <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 p-8 text-white shadow-xl md:sticky md:top-28 md:p-10">
-              <div
-                aria-hidden="true"
-                className="absolute -top-20 -right-20 size-56 rounded-full border-[26px] border-accent-500"
+            <figure className="mx-auto max-w-sm overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 text-white shadow-xl md:sticky md:top-28 md:max-w-none">
+              <Image
+                src={greeting.photo.src}
+                alt={greeting.signature}
+                width={greeting.photo.width}
+                height={greeting.photo.height}
+                sizes="(min-width: 1152px) 410px, (min-width: 768px) 36vw, 384px"
+                loading="eager"
+                className="h-auto w-full"
               />
-              <PaddleMark light className="relative size-16" />
-              <p className="relative mt-8 text-xl font-bold">{site.nameKo}</p>
-              <p className="relative mt-1 text-sm text-brand-100">{site.nameEn}</p>
-              <p className="relative mt-8 border-t border-white/15 pt-6 text-sm leading-relaxed text-brand-100 italic">
-                “{site.slogan}”
-              </p>
-            </div>
+              <figcaption className="px-7 py-6 md:px-8">
+                <p className="text-lg font-bold break-keep">{greeting.signature}</p>
+                <p className="mt-4 border-t border-white/15 pt-4 text-sm leading-relaxed text-brand-100 italic">
+                  “{site.slogan}”
+                </p>
+              </figcaption>
+            </figure>
           </div>
 
           <div className="md:col-span-3">
@@ -99,6 +111,18 @@ export default function AboutPage() {
             협회 정관 보기 (PDF)
           </a>
         </div>
+      </section>
+
+      {/* 회원 단체 사진 — 화면 양 끝까지 가득 채웁니다. */}
+      <section className="bg-white">
+        <Image
+          src={groupPhoto.src}
+          alt={groupPhoto.alt}
+          width={groupPhoto.width}
+          height={groupPhoto.height}
+          sizes="100vw"
+          className="h-auto w-full"
+        />
       </section>
     </>
   );

@@ -10,6 +10,8 @@ export const greeting = {
     "감사합니다.",
   ],
   signature: "워싱턴DC 한인탁구협회장 Jason Choi",
+  // 홈 화면과 협회 소개의 인사말 옆에 놓는 협회장 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.
+  photo: { src: "/images/president.jpg", width: 1184, height: 1504 },
 };
 
 export const about = {
@@ -49,3 +51,11 @@ export const leadership = {
 };
 
 export const bylawsUrl = "/docs/ktta-bylaws.pdf";
+
+// 협회 정관 아래에 놓는 회원 단체 사진
+export const groupPhoto = {
+  src: "/images/group-photo.jpg",
+  width: 3654,
+  height: 1288,
+  alt: "워싱턴DC 한인탁구협회 회원 단체 사진",
+};
