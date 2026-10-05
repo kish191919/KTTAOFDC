@@ -23,21 +23,22 @@ export default function AboutPage() {
 
       {/* 협회장 인사말 */}
       <section className="bg-white py-20">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 md:grid-cols-5 md:gap-16">
-          <div className="md:col-span-2">
-            <figure className="mx-auto max-w-sm overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 text-white shadow-xl md:sticky md:top-28 md:max-w-none">
+        <div className="mx-auto grid max-w-6xl gap-12 px-4 md:grid-cols-5 md:grid-rows-[auto_1fr] md:gap-x-16">
+          {/* 사진은 모바일에서 인사말 아래에 작게, md 부터는 인사말 왼쪽에 크게 놓습니다. */}
+          <div className="order-1 md:order-none md:col-span-2 md:row-span-2">
+            <figure className="mx-auto max-w-60 overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 text-white shadow-xl md:sticky md:top-28 md:max-w-none">
               <Image
                 src={greeting.photo.src}
                 alt={greeting.signature}
                 width={greeting.photo.width}
                 height={greeting.photo.height}
-                sizes="(min-width: 1152px) 410px, (min-width: 768px) 36vw, 384px"
+                sizes="(min-width: 1152px) 410px, (min-width: 768px) 36vw, 240px"
                 loading="eager"
                 className="h-auto w-full"
               />
-              <figcaption className="px-7 py-6 md:px-8">
-                <p className="text-lg font-bold break-keep">{greeting.signature}</p>
-                <p className="mt-4 border-t border-white/15 pt-4 text-sm leading-relaxed text-brand-100 italic">
+              <figcaption className="px-5 py-5 md:px-8 md:py-6">
+                <p className="font-bold break-keep md:text-lg">{greeting.signature}</p>
+                <p className="mt-3 border-t border-white/15 pt-3 text-sm leading-relaxed text-brand-100 italic md:mt-4 md:pt-4">
                   “{site.slogan}”
                 </p>
               </figcaption>
@@ -57,11 +58,11 @@ export default function AboutPage() {
                 {greeting.signature}
               </p>
             </div>
+          </div>
 
-            <div className="mt-12 rounded-2xl border border-brand-100 bg-brand-50/60 p-7">
-              <h2 className="text-xl font-black text-brand-950">{about.lead}</h2>
-              <p className="mt-3 leading-relaxed break-keep text-slate-600">{about.body}</p>
-            </div>
+          <div className="order-2 rounded-2xl border border-brand-100 bg-brand-50/60 p-7 md:order-none md:col-span-3 md:self-start">
+            <h2 className="text-xl font-black text-brand-950">{about.lead}</h2>
+            <p className="mt-3 leading-relaxed break-keep text-slate-600">{about.body}</p>
           </div>
         </div>
       </section>
