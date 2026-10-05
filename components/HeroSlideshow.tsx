@@ -73,8 +73,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
 
     let handle = 0;
     const draw = () => {
-      // 휴대폰에서는 캔버스를 숨기므로(offsetParent 가 null) 그리지 않고 넘어갑니다.
-      if (video.videoWidth > 0 && canvas.offsetParent !== null) {
+      if (video.videoWidth > 0) {
         const height = Math.round((BACKDROP_WIDTH * video.videoHeight) / video.videoWidth);
         // 캔버스 크기를 바꾸면 그림이 지워지므로 달라졌을 때만 맞춥니다.
         if (canvas.width !== BACKDROP_WIDTH || canvas.height !== height) {
@@ -101,8 +100,9 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
     <section
       aria-roledescription="carousel"
       aria-label="메인 화면"
-      // 휴대폰에서는 화면이 좁으므로 상자를 4:3 으로 키워 더 크게 보여 줍니다.
-      className="relative aspect-[4/3] max-h-[calc(100dvh-72px)] w-full overflow-hidden bg-linear-to-br from-brand-900 via-navy-900 to-navy-950 sm:aspect-video"
+      // 휴대폰에서는 상단 메뉴(72px) 아래 첫 화면 전체를 차지합니다.
+      // aspect-[4/3] 은 dvh 단위를 모르는 옛 브라우저에서 높이가 0 이 되지 않게 하는 안전장치입니다.
+      className="relative aspect-[4/3] h-[calc(100dvh-72px)] w-full overflow-hidden bg-linear-to-br from-brand-900 via-navy-900 to-navy-950 sm:aspect-video sm:h-auto sm:max-h-[calc(100dvh-72px)]"
     >
       {items.map((item, position) => {
         const active = position === current;
@@ -137,14 +137,13 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
               </>
             ) : (
               <>
-                {/* 휴대폰에서는 동영상이 상자를 가득 채웁니다. 넓은 화면에서는 이미지와 마찬가지로,
-                    남는 자리를 같은 동영상을 흐리게 키워서 채웁니다. */}
+                {/* 이미지와 마찬가지로, 남는 자리는 같은 동영상을 흐리게 키워서 채웁니다. */}
                 <canvas
                   ref={(element) => {
                     backdropRefs.current[position] = element;
                   }}
                   aria-hidden
-                  className="absolute inset-0 hidden size-full scale-110 object-cover opacity-70 blur-2xl sm:block"
+                  className="absolute inset-0 size-full scale-110 object-cover opacity-70 blur-2xl"
                 />
                 <video
                   ref={(element) => {
@@ -159,7 +158,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
                   // 아직 차례가 아닌 동영상은 미리 내려받지 않습니다.
                   preload={active ? "auto" : "none"}
                   aria-label={item.title || undefined}
-                  className="absolute inset-0 size-full object-cover sm:object-contain"
+                  className="absolute inset-0 size-full object-contain"
                 />
               </>
             )}

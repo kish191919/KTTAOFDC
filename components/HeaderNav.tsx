@@ -57,51 +57,60 @@ export function MobileNav({ showAdmin }: { showAdmin: boolean }) {
         aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
         aria-expanded={open}
         aria-controls="mobile-menu"
-        className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
+        className="relative z-10 rounded-lg p-2 text-slate-700 transition-colors hover:bg-brand-50 hover:text-brand-700"
       >
         {open ? <CloseIcon className="size-6" /> : <MenuIcon className="size-6" />}
       </button>
 
       {open && (
-        <div
-          id="mobile-menu"
-          className="absolute inset-x-0 top-[72px] border-b border-brand-100 bg-white shadow-lg"
-        >
-          <nav className="mx-auto flex max-w-6xl flex-col px-4 py-3" aria-label="모바일 메뉴">
-            {nav.map((item) => {
-              const active = isActive(pathname, item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={active ? "page" : undefined}
-                  className={`rounded-lg px-4 py-3 text-base font-medium ${
-                    active ? "bg-brand-50 text-brand-700" : "text-slate-700"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-            <div className="mt-2 flex gap-2 border-t border-slate-100 pt-3">
-              <a href={`mailto:${site.email}`} className="btn btn-accent btn-sm flex-1">
-                <MailIcon className="size-4" />
-                문의하기
-              </a>
-              {showAdmin && (
-                <Link
-                  href="/admin"
-                  onClick={() => setOpen(false)}
-                  className="btn btn-ghost btn-sm flex-1"
-                >
-                  <LockIcon className="size-4" />
-                  관리자
-                </Link>
-              )}
-            </div>
-          </nav>
-        </div>
+        <>
+          {/* 메뉴 바깥 화면을 누르면 닫히도록 화면 전체를 덮는 투명한 층입니다.
+              헤더의 backdrop-blur 때문에 fixed 는 헤더 기준으로 잡히므로 absolute + h-dvh 를 씁니다. */}
+          <div
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+            className="absolute inset-x-0 top-0 h-dvh"
+          />
+          <div
+            id="mobile-menu"
+            className="absolute inset-x-0 top-[72px] border-b border-brand-100 bg-white shadow-lg"
+          >
+            <nav className="mx-auto flex max-w-6xl flex-col px-4 py-3" aria-label="모바일 메뉴">
+              {nav.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={`rounded-lg px-4 py-3 text-base font-medium ${
+                      active ? "bg-brand-50 text-brand-700" : "text-slate-700"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <div className="mt-2 flex gap-2 border-t border-slate-100 pt-3">
+                <a href={`mailto:${site.email}`} className="btn btn-accent btn-sm flex-1">
+                  <MailIcon className="size-4" />
+                  문의하기
+                </a>
+                {showAdmin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setOpen(false)}
+                    className="btn btn-ghost btn-sm flex-1"
+                  >
+                    <LockIcon className="size-4" />
+                    관리자
+                  </Link>
+                )}
+              </div>
+            </nav>
+          </div>
+        </>
       )}
     </div>
   );
