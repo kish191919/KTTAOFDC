@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { FormState } from "@/lib/actions";
 import type { Attachment, ImageRef, Tournament } from "@/lib/types";
+import { HiddenField } from "./HiddenControls";
 import { FileUploader, ImageUploader } from "./Uploaders";
 
 type Props = {
@@ -291,7 +292,7 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
 
       <Section
         title="포스터 · 이미지"
-        description="첫 번째 이미지가 목록에 보이는 대표 포스터입니다. 화살표로 순서를 바꿀 수 있습니다."
+        description="첫 번째 이미지가 목록에 보이는 대표 포스터입니다. 화살표로 순서를 바꾸거나, ‘대표로 지정’을 눌러 한 번에 맨 앞으로 보낼 수 있습니다."
       >
         <ImageUploader
           folder="tournaments"
@@ -315,6 +316,10 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
           disabled={readOnly || pending}
         />
         {fieldError("attachments")}
+      </Section>
+
+      <Section title="공개 설정">
+        <HiddenField defaultChecked={tournament?.hidden} />
       </Section>
 
       {state.error && (

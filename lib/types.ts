@@ -33,6 +33,8 @@ export type Tournament = {
   /** 첫 번째 이미지가 목록에 보이는 대표 포스터입니다. */
   images: ImageRef[];
   attachments: Attachment[];
+  /** true 면 저장만 해 두고 방문자에게는 보이지 않습니다. (관리자 화면에서만 보입니다) */
+  hidden?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -59,6 +61,8 @@ export type Album = {
   description?: string;
   /** 첫 번째 사진이 앨범 표지입니다. */
   photos: ImageRef[];
+  /** true 면 저장만 해 두고 방문자에게는 보이지 않습니다. (관리자 화면에서만 보입니다) */
+  hidden?: boolean;
   createdAt: string;
   updatedAt: string;
 };

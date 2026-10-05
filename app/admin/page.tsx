@@ -3,6 +3,8 @@ import {
   deleteAlbumAction,
   deleteTournamentAction,
   logoutAction,
+  setAlbumHiddenAction,
+  setTournamentHiddenAction,
 } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
 import { formatDate, formatDateRange, statusLabel, statusOf, today } from "@/lib/dates";
@@ -11,6 +13,7 @@ import { listHeroMedia } from "@/lib/store/hero";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { listTournaments } from "@/lib/store/tournaments";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { HiddenToggle } from "@/components/admin/HiddenControls";
 import {
   CheckIcon,
   ExternalLinkIcon,
@@ -28,23 +31,34 @@ type Props = {
 const editLinkClass =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700";
 
+const hiddenBadge = (
+  <span className="rounded-full bg-accent-50 px-2 py-0.5 text-xs font-bold text-accent-700 ring-1 ring-accent-200">
+    숨김
+  </span>
+);
+
 export default async function AdminPage({ searchParams }: Props) {
   await requireAdmin();
   const [{ saved, deleted, id }, tournaments, albums, heroMedia] = await Promise.all([
     searchParams,
-    listTournaments(),
-    listAlbums(),
+    listTournaments({ includeHidden: true }),
+    listAlbums({ includeHidden: true }),
     listHeroMedia(),
   ]);
   const now = today();
   const heroShown = heroMedia.filter((item) => item.active).length;
 
+  const savedItem =
+    saved === "tournament"
+      ? tournaments.find((t) => t.id === id)
+      : saved === "album"
+        ? albums.find((album) => album.id === id)
+        : undefined;
+  // 숨긴 대회·앨범은 방문자용 페이지가 없으므로 링크를 보여 주지 않습니다.
   const savedHref =
-    saved === "tournament" && tournaments.some((t) => t.id === id)
-      ? `/tournaments/${id}`
-      : saved === "album" && albums.some((album) => album.id === id)
-        ? `/gallery/${id}`
-        : null;
+    savedItem && !savedItem.hidden
+      ? `/${saved === "tournament" ? "tournaments" : "gallery"}/${savedItem.id}`
+      : null;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
@@ -70,17 +84,21 @@ export default async function AdminPage({ searchParams }: Props) {
           수정한 뒤 다시 배포해야 반영됩니다.
         </p>
       )}
-      {savedHref && (
+      {savedItem && (
         <p className="mt-6 flex flex-wrap items-center gap-2.5 rounded-xl border border-brand-200 bg-white p-4 text-sm font-medium text-brand-800">
           <CheckIcon className="size-4 shrink-0" />
           저장했습니다.
-          <Link
-            href={savedHref}
-            className="inline-flex items-center gap-1 font-bold underline underline-offset-2"
-          >
-            게시된 페이지 보기
-            <ExternalLinkIcon className="size-3.5" />
-          </Link>
+          {savedHref ? (
+            <Link
+              href={savedHref}
+              className="inline-flex items-center gap-1 font-bold underline underline-offset-2"
+            >
+              게시된 페이지 보기
+              <ExternalLinkIcon className="size-3.5" />
+            </Link>
+          ) : (
+            <span>숨김 상태라 방문자에게는 아직 보이지 않습니다.</span>
+          )}
         </p>
       )}
       {deleted && (
@@ -140,16 +158,22 @@ export default async function AdminPage({ searchParams }: Props) {
                       >
                         {statusLabel(tournament, now)}
                       </span>
+                      {tournament.hidden && hiddenBadge}
                       {formatDateRange(tournament, true)}
                     </p>
+                    {/* 숨긴 대회는 방문자용 페이지가 없으므로 수정 화면으로 보냅니다. */}
                     <Link
-                      href={`/tournaments/${tournament.id}`}
+                      href={
+                        tournament.hidden
+                          ? `/admin/tournaments/${tournament.id}`
+                          : `/tournaments/${tournament.id}`
+                      }
                       className="mt-1 block truncate font-bold text-slate-900 hover:text-brand-700"
                     >
                       {tournament.title}
                     </Link>
                   </div>
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     <Link
                       href={`/admin/tournaments/${tournament.id}`}
                       className={editLinkClass}
@@ -157,6 +181,11 @@ export default async function AdminPage({ searchParams }: Props) {
                       <PencilIcon className="size-4" />
                       수정
                     </Link>
+                    <HiddenToggle
+                      hidden={Boolean(tournament.hidden)}
+                      action={setTournamentHiddenAction.bind(null, tournament.id)}
+                      disabled={!STORE_WRITABLE}
+                    />
                     <DeleteButton
                       action={deleteTournamentAction.bind(null, tournament.id)}
                       confirmMessage={`'${tournament.title}' 대회를 삭제할까요?\n포스터와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`}
@@ -192,21 +221,28 @@ export default async function AdminPage({ searchParams }: Props) {
                 className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4"
               >
                 <div className="min-w-0 flex-1 basis-64">
-                  <p className="text-sm text-slate-500">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    {album.hidden && hiddenBadge}
                     {formatDate(album.date)} · 사진 {album.photos.length}장
                   </p>
+                  {/* 숨긴 앨범은 방문자용 페이지가 없으므로 수정 화면으로 보냅니다. */}
                   <Link
-                    href={`/gallery/${album.id}`}
+                    href={album.hidden ? `/admin/albums/${album.id}` : `/gallery/${album.id}`}
                     className="mt-1 block truncate font-bold text-slate-900 hover:text-brand-700"
                   >
                     {album.title}
                   </Link>
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 flex-wrap gap-2">
                   <Link href={`/admin/albums/${album.id}`} className={editLinkClass}>
                     <PencilIcon className="size-4" />
                     수정
                   </Link>
+                  <HiddenToggle
+                    hidden={Boolean(album.hidden)}
+                    action={setAlbumHiddenAction.bind(null, album.id)}
+                    disabled={!STORE_WRITABLE}
+                  />
                   <DeleteButton
                     action={deleteAlbumAction.bind(null, album.id)}
                     confirmMessage={`'${album.title}' 앨범을 삭제할까요?\n사진 ${album.photos.length}장도 함께 지워지며 되돌릴 수 없습니다.`}

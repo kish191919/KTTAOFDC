@@ -4,6 +4,7 @@ import Link from "next/link";
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import type { FormState } from "@/lib/actions";
 import type { Album, ImageRef } from "@/lib/types";
+import { HiddenField } from "./HiddenControls";
 import { ImageUploader } from "./Uploaders";
 
 type Props = {
@@ -82,8 +83,9 @@ export function AlbumForm({ album, action, readOnly = false }: Props) {
 
       <div className="card p-6 md:p-7">
         <h2 className="text-lg font-black text-brand-950">사진</h2>
-        <p className="mt-1 mb-5 text-sm text-slate-500">
-          여러 장을 한꺼번에 고를 수 있습니다. 첫 번째 사진이 앨범 표지가 됩니다.
+        <p className="mt-1 mb-5 text-sm break-keep text-slate-500">
+          여러 장을 한꺼번에 고를 수 있습니다. 첫 번째 사진이 앨범 표지가 됩니다. 다른 사진의
+          ‘표지로 지정’을 누르면 그 사진이 맨 앞으로 옵니다.
         </p>
         <ImageUploader
           folder="gallery"
@@ -95,6 +97,11 @@ export function AlbumForm({ album, action, readOnly = false }: Props) {
           disabled={readOnly || pending}
         />
         {fieldError("photos")}
+      </div>
+
+      <div className="card p-6 md:p-7">
+        <h2 className="mb-5 text-lg font-black text-brand-950">공개 설정</h2>
+        <HiddenField defaultChecked={album?.hidden} />
       </div>
 
       {state.error && (

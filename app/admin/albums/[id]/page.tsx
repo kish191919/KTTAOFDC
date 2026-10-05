@@ -12,7 +12,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function EditAlbumPage({ params }: Props) {
   await requireAdmin();
   const { id } = await params;
-  const album = await getAlbum(id);
+  const album = await getAlbum(id, { includeHidden: true });
   if (!album) notFound();
 
   return (

@@ -232,7 +232,7 @@ export default async function TournamentPage({ params }: Props) {
               <h2 id="poster-heading" className="mb-4 text-xl font-black text-brand-950">
                 대회 포스터
               </h2>
-              <ImageViewer images={tournament.images} label={tournament.title} layout="stack" />
+              <ImageViewer images={tournament.images} label={tournament.title} />
             </section>
           )}
 

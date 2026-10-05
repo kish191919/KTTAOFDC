@@ -72,7 +72,7 @@ type ImageUploaderProps = {
   onChange: (update: (images: ImageRef[]) => ImageRef[]) => void;
   onBusyChange?: (busy: boolean) => void;
   max: number;
-  /** 첫 번째 이미지에 붙는 표시 (예: 대표 포스터, 표지) */
+  /** 첫 번째 이미지에 붙는 표시 (예: 대표, 표지). 다른 이미지에는 '○○로 지정' 버튼이 됩니다. */
   firstLabel: string;
   disabled?: boolean;
 };
@@ -103,6 +103,14 @@ export function ImageUploader({
       return next;
     });
 
+  /** 고른 이미지를 맨 앞(표지·대표 자리)으로 보내고 나머지 순서는 그대로 둡니다. */
+  const makeFirst = (index: number) =>
+    onChange((current) =>
+      index > 0 && index < current.length
+        ? [current[index], ...current.filter((_, position) => position !== index)]
+        : current,
+    );
+
   const remove = (index: number) =>
     onChange((current) => current.filter((_, position) => position !== index));
 
@@ -123,10 +131,20 @@ export function ImageUploader({
                 alt={`올린 이미지 ${index + 1}`}
                 className="aspect-square w-full object-cover"
               />
-              {index === 0 && (
+              {index === 0 ? (
                 <span className="absolute top-2 left-2 rounded-full bg-accent-600 px-2 py-0.5 text-xs font-bold text-white">
                   {firstLabel}
                 </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => makeFirst(index)}
+                  disabled={disabled}
+                  aria-label={`이미지 ${index + 1} ${firstLabel}로 지정`}
+                  className="absolute top-2 left-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-accent-600 hover:text-white disabled:opacity-30"
+                >
+                  {firstLabel}로 지정
+                </button>
               )}
               <div className="flex items-center justify-between gap-1 border-t border-slate-200 bg-white p-1.5">
                 <div className="flex gap-1">

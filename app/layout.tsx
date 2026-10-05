@@ -5,7 +5,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { sharedOpenGraph } from "@/lib/metadata";
-import { site, siteUrl } from "@/lib/site";
+import { site, siteUrl, verification } from "@/lib/site";
 
 const notoSansKr = Noto_Sans_KR({
   variable: "--font-noto-sans-kr",
@@ -32,6 +32,16 @@ export const metadata: Metadata = {
     ...sharedOpenGraph,
     title,
     description: site.description,
+  },
+  // RSS 리더와 검색 사이트가 대회 소식 피드(/rss.xml)를 찾을 수 있게 알려 줍니다.
+  alternates: {
+    types: {
+      "application/rss+xml": [{ url: "/rss.xml", title: `${site.name} 대회 소식` }],
+    },
+  },
+  verification: {
+    google: verification.google || undefined,
+    other: verification.naver ? { "naver-site-verification": verification.naver } : undefined,
   },
 };
 

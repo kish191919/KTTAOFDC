@@ -19,13 +19,22 @@ const uploadsOf = (t: Pick<Tournament, "images" | "attachments">) => [
   ...t.attachments.map((file) => file.url),
 ];
 
-/** 최신 대회가 먼저 오도록 정렬된 전체 목록 */
-export async function listTournaments(): Promise<Tournament[]> {
-  return (await readCollection<Tournament>(FILE)).sort(newestFirst);
+/** 관리자 화면처럼 숨긴 대회까지 읽어야 할 때 `{ includeHidden: true }` 를 줍니다. */
+type ReadOptions = { includeHidden?: boolean };
+
+/** 최신 대회가 먼저 오도록 정렬된 목록. 숨긴 대회는 따로 요청하지 않으면 빠집니다. */
+export async function listTournaments({ includeHidden = false }: ReadOptions = {}): Promise<
+  Tournament[]
+> {
+  const tournaments = (await readCollection<Tournament>(FILE)).sort(newestFirst);
+  return includeHidden ? tournaments : tournaments.filter((t) => !t.hidden);
 }
 
-export async function getTournament(id: string): Promise<Tournament | null> {
-  return (await listTournaments()).find((t) => t.id === id) ?? null;
+export async function getTournament(
+  id: string,
+  options?: ReadOptions,
+): Promise<Tournament | null> {
+  return (await listTournaments(options)).find((t) => t.id === id) ?? null;
 }
 
 export async function createTournament(
@@ -69,6 +78,18 @@ export async function updateTournament(
   const kept = new Set(uploadsOf(change.updated));
   await removeUploads(uploadsOf(change.previous).filter((url) => !kept.has(url)));
   return change.updated;
+}
+
+/** 방문자에게 숨길지(true) 보일지(false) 정합니다. */
+export async function setTournamentHidden(id: string, hidden: boolean): Promise<boolean> {
+  const updatedAt = new Date().toISOString();
+  return mutateCollection<Tournament, boolean>(FILE, (items) => ({
+    items: items.map((t) =>
+      // 보이는 대회에는 hidden 값을 아예 남기지 않습니다. (undefined 는 파일에 쓰이지 않습니다)
+      t.id === id ? { ...t, hidden: hidden || undefined, updatedAt } : t,
+    ),
+    result: items.some((t) => t.id === id),
+  }));
 }
 
 export async function deleteTournament(id: string): Promise<boolean> {

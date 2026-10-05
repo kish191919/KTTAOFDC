@@ -13,13 +13,17 @@ export type AlbumInput = Omit<Album, "id" | "createdAt" | "updatedAt">;
 const newestFirst = (a: Album, b: Album) =>
   b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
 
-/** 최근 행사가 먼저 오도록 정렬된 전체 목록 */
-export async function listAlbums(): Promise<Album[]> {
-  return (await readCollection<Album>(FILE)).sort(newestFirst);
+/** 관리자 화면처럼 숨긴 앨범까지 읽어야 할 때 `{ includeHidden: true }` 를 줍니다. */
+type ReadOptions = { includeHidden?: boolean };
+
+/** 최근 행사가 먼저 오도록 정렬된 목록. 숨긴 앨범은 따로 요청하지 않으면 빠집니다. */
+export async function listAlbums({ includeHidden = false }: ReadOptions = {}): Promise<Album[]> {
+  const albums = (await readCollection<Album>(FILE)).sort(newestFirst);
+  return includeHidden ? albums : albums.filter((album) => !album.hidden);
 }
 
-export async function getAlbum(id: string): Promise<Album | null> {
-  return (await listAlbums()).find((album) => album.id === id) ?? null;
+export async function getAlbum(id: string, options?: ReadOptions): Promise<Album | null> {
+  return (await listAlbums(options)).find((album) => album.id === id) ?? null;
 }
 
 export async function createAlbum(input: AlbumInput): Promise<Album> {
@@ -67,6 +71,18 @@ export async function updateAlbum(
       .filter((src) => !kept.has(src)),
   );
   return change.updated;
+}
+
+/** 방문자에게 숨길지(true) 보일지(false) 정합니다. */
+export async function setAlbumHidden(id: string, hidden: boolean): Promise<boolean> {
+  const updatedAt = new Date().toISOString();
+  return mutateCollection<Album, boolean>(FILE, (items) => ({
+    items: items.map((album) =>
+      // 보이는 앨범에는 hidden 값을 아예 남기지 않습니다. (undefined 는 파일에 쓰이지 않습니다)
+      album.id === id ? { ...album, hidden: hidden || undefined, updatedAt } : album,
+    ),
+    result: items.some((album) => album.id === id),
+  }));
 }
 
 export async function deleteAlbum(id: string): Promise<boolean> {

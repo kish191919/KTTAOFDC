@@ -22,12 +22,14 @@ import { STORE_WRITABLE } from "@/lib/store/json-file";
 import {
   createAlbum,
   deleteAlbum,
+  setAlbumHidden,
   updateAlbum,
   type AlbumInput,
 } from "@/lib/store/albums";
 import {
   createTournament,
   deleteTournament,
+  setTournamentHidden,
   updateTournament,
   type TournamentInput,
 } from "@/lib/store/tournaments";
@@ -142,6 +144,9 @@ function parseAttachments(list: unknown[] | null): Attachment[] | null {
   return files;
 }
 
+/** 입력 화면의 '방문자에게 숨기기' 체크 여부 */
+const isHiddenChecked = (formData: FormData) => formData.get("hidden") === "on";
+
 function isHttpUrl(value: string): boolean {
   try {
     const { protocol } = new URL(value);
@@ -231,6 +236,7 @@ function parseTournament(
   for (const [key, entry] of Object.entries(optional)) {
     if (entry) value[key as keyof typeof optional] = entry;
   }
+  if (isHiddenChecked(formData)) value.hidden = true;
   return { value };
 }
 
@@ -264,6 +270,14 @@ export async function deleteTournamentAction(id: string): Promise<void> {
   redirect("/admin?deleted=tournament");
 }
 
+/** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
+export async function setTournamentHiddenAction(id: string, hidden: boolean): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  if (typeof id !== "string" || typeof hidden !== "boolean") return;
+  await setTournamentHidden(id, hidden);
+  revalidateSite();
+}
+
 // ───────────────────────── 갤러리 ─────────────────────────
 
 /** id 가 null 이면 새 앨범, 있으면 그 앨범을 수정합니다. */
@@ -287,7 +301,13 @@ export async function saveAlbumAction(
   }
 
   const description = text(formData, "description", 1000);
-  const input: AlbumInput = { title, date, photos, ...(description ? { description } : {}) };
+  const input: AlbumInput = {
+    title,
+    date,
+    photos,
+    ...(description ? { description } : {}),
+    ...(isHiddenChecked(formData) ? { hidden: true } : {}),
+  };
   const saved = id ? await updateAlbum(id, input) : await createAlbum(input);
   if (!saved) return { error: "수정하려는 앨범을 찾을 수 없습니다." };
 
@@ -300,6 +320,14 @@ export async function deleteAlbumAction(id: string): Promise<void> {
   await deleteAlbum(id);
   revalidateSite();
   redirect("/admin?deleted=album");
+}
+
+/** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
+export async function setAlbumHiddenAction(id: string, hidden: boolean): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  if (typeof id !== "string" || typeof hidden !== "boolean") return;
+  await setAlbumHidden(id, hidden);
+  revalidateSite();
 }
 
 // ───────────────────────── 메인 화면 ─────────────────────────

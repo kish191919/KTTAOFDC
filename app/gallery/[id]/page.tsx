@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { formatDate } from "@/lib/dates";
 import { pageMetadata } from "@/lib/metadata";
 import { getAlbum, listAlbums } from "@/lib/store/albums";
-import { ImageViewer } from "@/components/ImageViewer";
+import { AlbumPhotos } from "@/components/AlbumPhotos";
 import { LinkedText } from "@/components/LinkedText";
 import { ArrowLeftIcon } from "@/components/icons";
 
@@ -56,7 +56,7 @@ export default async function AlbumPage({ params }: Props) {
 
       <div className="mt-10">
         {album.photos.length > 0 ? (
-          <ImageViewer images={album.photos} label={album.title} layout="grid" />
+          <AlbumPhotos photos={album.photos} title={album.title} />
         ) : (
           <p className="rounded-2xl border border-dashed border-brand-200 bg-brand-50/50 px-6 py-10 text-center text-slate-500">
             아직 등록된 사진이 없습니다.

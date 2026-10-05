@@ -11,6 +11,16 @@ export const site = {
   timeZone: "America/New_York",
 } as const;
 
+/**
+ * 검색 사이트에 이 홈페이지의 주인임을 확인해 주는 코드. 발급받은 값을 따옴표 안에 넣습니다.
+ * Google Search Console · 네이버 서치어드바이저의 'HTML 태그' 인증에서
+ * <meta name="..." content="이 부분" /> 의 content 값입니다. 비워 두면 태그가 나가지 않습니다.
+ */
+export const verification = {
+  google: "",
+  naver: "",
+};
+
 export const nav = [
   { href: "/", label: "홈" },
   { href: "/about", label: "협회 소개" },

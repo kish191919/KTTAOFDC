@@ -12,7 +12,7 @@ type Props = { params: Promise<{ id: string }> };
 export default async function EditTournamentPage({ params }: Props) {
   await requireAdmin();
   const { id } = await params;
-  const tournament = await getTournament(id);
+  const tournament = await getTournament(id, { includeHidden: true });
   if (!tournament) notFound();
 
   return (
