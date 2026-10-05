@@ -2,6 +2,8 @@
 
 export const greeting = {
   welcome: "워싱턴DC 한인탁구협회 홈페이지를 방문해 주셔서 감사합니다.",
+  // 홈 화면에는 이 한 문장만 보여 줍니다. 전체 글(paragraphs)은 협회 소개에 나옵니다.
+  summary: "탁구로 하나 되어 만들어갈 더 밝은 미래를 여러분과 함께 꿈꿉니다.",
   paragraphs: [
     "안녕하세요, 워싱턴DC 한인탁구협회 회장입니다.",
     "탁구는 도전과 성취, 그리고 협력의 가치를 동시에 담고 있는 스포츠입니다.",
@@ -10,8 +12,16 @@ export const greeting = {
     "감사합니다.",
   ],
   signature: "워싱턴DC 한인탁구협회장 Jason Choi",
-  // 홈 화면과 협회 소개의 인사말 옆에 놓는 협회장 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.
+  // 협회 소개의 인사말 옆에 놓는 협회장 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.
   photo: { src: "/images/president.jpg", width: 1184, height: 1504 },
+};
+
+// 홈 화면 인사말 옆에 놓는 회원 단체 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.
+export const welcomePhoto = {
+  src: "/images/welcome-group.jpg",
+  width: 1982,
+  height: 918,
+  alt: "탁구장에 함께 모인 워싱턴DC 한인탁구협회 회원 단체 사진",
 };
 
 export const about = {

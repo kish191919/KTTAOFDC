@@ -63,16 +63,22 @@ export default async function TournamentsPage() {
             <h2 id="past-heading" className="mb-6 text-2xl font-black text-brand-950">
               지난 대회
             </h2>
-            <div className="space-y-12">
+            {/* 지난 대회는 휴대폰 화면에서 포스터 없이 간단한 목록으로 보여 줍니다. */}
+            <div className="space-y-8 sm:space-y-12">
               {[...pastByYear.entries()].map(([year, items]) => (
                 <div key={year}>
-                  <h3 className="mb-5 flex items-center gap-3 text-lg font-bold text-brand-700">
+                  <h3 className="mb-3 flex items-center gap-3 text-lg font-bold text-brand-700 sm:mb-5">
                     {year}년
                     <span className="h-px flex-1 bg-brand-100" />
                   </h3>
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                     {items.map((tournament) => (
-                      <TournamentCard key={tournament.id} tournament={tournament} now={now} />
+                      <TournamentCard
+                        key={tournament.id}
+                        tournament={tournament}
+                        now={now}
+                        compact
+                      />
                     ))}
                   </div>
                 </div>

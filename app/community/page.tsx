@@ -2,6 +2,7 @@ import { venues, venuesIntro } from "@/lib/content/venues";
 import { pageMetadata } from "@/lib/metadata";
 import { CommunityTabs } from "@/components/CommunityTabs";
 import { PageHeader } from "@/components/PageHeader";
+import { VenueCard } from "@/components/VenueCard";
 import { ClockIcon, GlobeIcon, InfoIcon, MapPinIcon, PhoneIcon } from "@/components/icons";
 
 export const metadata = pageMetadata({
@@ -22,15 +23,10 @@ export default function VenuesPage() {
       </PageHeader>
 
       <div className="mx-auto max-w-6xl px-4 py-14">
-        <ul className="grid gap-6 md:grid-cols-2">
+        <ul className="grid gap-3 md:grid-cols-2 md:gap-6">
           {venues.map((venue) => (
-            <li key={venue.name} className="card flex flex-col p-6 md:p-7">
-              <h2 className="text-xl font-black break-keep text-brand-950">{venue.name}</h2>
-              {venue.subtitle && (
-                <p className="mt-1 text-sm break-keep text-slate-500">{venue.subtitle}</p>
-              )}
-
-              <dl className="mt-5 space-y-3 text-[15px] text-slate-700">
+            <VenueCard key={venue.name} name={venue.name} subtitle={venue.subtitle}>
+              <dl className="space-y-3 text-[15px] text-slate-700">
                 {venue.hours && (
                   <div className="flex gap-3">
                     <dt className="mt-0.5 shrink-0 text-brand-600">
@@ -97,7 +93,7 @@ export default function VenuesPage() {
                   {venue.note}
                 </p>
               )}
-            </li>
+            </VenueCard>
           ))}
         </ul>
       </div>

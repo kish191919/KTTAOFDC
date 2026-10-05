@@ -274,7 +274,10 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
         </div>
       </Section>
 
-      <Section title="대회 소개" description="요강 등 자세한 내용을 적습니다. 줄바꿈은 그대로 보이고, 웹 주소와 이메일은 자동으로 링크가 됩니다.">
+      <Section
+        title="대회 소개"
+        description="포스터에 없는 안내나 대회 결과(입상자 명단)처럼 꼭 읽어야 할 내용만 적습니다. 상세 페이지에 항상 펼쳐서 보입니다. 줄바꿈은 그대로 보이고, 웹 주소와 이메일은 자동으로 링크가 됩니다."
+      >
         <div>
           <label htmlFor="body" className="sr-only">
             대회 소개
@@ -282,9 +285,28 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
           <textarea
             id="body"
             name="body"
-            rows={14}
+            rows={8}
             maxLength={30000}
             defaultValue={tournament?.body}
+            className="field leading-relaxed"
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="요강 전문"
+        description="포스터나 요강의 글을 그대로 옮겨 적는 곳입니다. 포스터와 내용이 겹치므로 상세 페이지에는 접힌 채로 보이고, 방문자가 누르면 펼쳐집니다. 비워 두어도 됩니다."
+      >
+        <div>
+          <label htmlFor="fullText" className="sr-only">
+            요강 전문
+          </label>
+          <textarea
+            id="fullText"
+            name="fullText"
+            rows={10}
+            maxLength={30000}
+            defaultValue={tournament?.fullText}
             className="field leading-relaxed"
           />
         </div>

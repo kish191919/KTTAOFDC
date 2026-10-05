@@ -74,21 +74,32 @@ export default function AboutPage() {
             title="임원진"
             description={leadership.intro}
           />
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* 모바일에서는 한 화면에 모두 보이도록 카드 한 장 안에 줄 목록으로,
+              sm 부터는 한 사람씩 카드로 나누어 보여 줍니다. */}
+          <ul className="card divide-y divide-slate-100 sm:grid sm:grid-cols-2 sm:gap-5 sm:divide-y-0 sm:border-0 sm:bg-transparent sm:shadow-none lg:grid-cols-4">
             {leadership.members.map((member) => (
-              <li key={`${member.role}-${member.name}`} className="card p-6 text-center">
-                <p className="text-sm font-bold text-accent-600">
+              <li
+                key={`${member.role}-${member.name}`}
+                className="flex items-baseline justify-between gap-4 px-5 py-2.5 sm:block sm:rounded-2xl sm:border sm:border-slate-200/80 sm:bg-white sm:p-6 sm:text-center sm:shadow-sm"
+              >
+                <p className="shrink-0 text-sm font-bold text-accent-600">
                   {member.role}{" "}
                   <span className="font-medium text-slate-400">{member.roleEn}</span>
                 </p>
-                <p className="mt-2 text-lg font-bold text-brand-950">{member.name}</p>
-                {member.note && (
-                  <p className="mt-1.5 text-sm break-keep text-slate-500">{member.note}</p>
-                )}
+                <div className="text-right sm:text-center">
+                  <p className="font-bold text-balance text-brand-950 sm:mt-2 sm:text-lg">
+                    {member.name}
+                  </p>
+                  {member.note && (
+                    <p className="text-xs break-keep text-slate-500 sm:mt-1.5 sm:text-sm">
+                      {member.note}
+                    </p>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
-          <p className="mt-8 text-center text-sm text-slate-500">
+          <p className="mt-5 text-center text-sm text-slate-500 sm:mt-8">
             임기 {leadership.term}
           </p>
         </div>

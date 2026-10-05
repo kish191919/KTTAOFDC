@@ -230,6 +230,7 @@ function parseTournament(
     contact: text(formData, "contact", 300),
     summary: text(formData, "summary", 500),
     body: text(formData, "body", 30_000),
+    fullText: text(formData, "fullText", 30_000),
     linkUrl,
     linkLabel: linkUrl ? text(formData, "linkLabel", 40) : "",
   };

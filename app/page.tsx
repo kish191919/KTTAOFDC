@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { greeting } from "@/lib/content/association";
+import { greeting, welcomePhoto } from "@/lib/content/association";
 import { statusOf, today } from "@/lib/dates";
 import { site } from "@/lib/site";
 import { listAlbums } from "@/lib/store/albums";
@@ -51,44 +51,33 @@ export default async function HomePage() {
       )}
 
       {/* 인사말 */}
-      <section className="bg-brand-50/60 py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="grid items-center gap-12 md:grid-cols-5">
-            <div className="order-2 md:order-1 md:col-span-3">
-              <span className="eyebrow mb-3">Welcome</span>
-              <h2 className="mb-8 text-2xl leading-snug font-bold break-keep text-brand-950 md:text-3xl">
-                {greeting.welcome}
-              </h2>
-              <div className="space-y-5 leading-relaxed break-keep text-slate-600">
-                {greeting.paragraphs.slice(0, 4).map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
-              <Link href="/about" className="btn btn-brand mt-10">
-                협회 소개 더 보기
-                <ArrowRightIcon className="size-4" />
-              </Link>
-            </div>
-
-            <div className="order-1 md:order-2 md:col-span-2">
-              {/* 협회장 사진 — 인사말 글과 높이가 맞도록 정사각형으로 잘라 보여 줍니다. */}
-              <figure className="mx-auto max-w-xs overflow-hidden rounded-3xl bg-linear-to-br from-brand-700 via-brand-800 to-navy-950 text-white shadow-xl md:max-w-none">
-                <Image
-                  src={greeting.photo.src}
-                  alt={greeting.signature}
-                  width={greeting.photo.width}
-                  height={greeting.photo.height}
-                  sizes="(min-width: 1152px) 420px, (min-width: 768px) 37vw, 320px"
-                  className="aspect-square h-auto w-full object-cover object-[50%_30%]"
-                />
-                <figcaption className="px-7 py-5 md:px-8">
-                  <p className="text-lg font-bold text-balance break-keep">
-                    {greeting.signature}
-                  </p>
-                </figcaption>
-              </figure>
-            </div>
+      <section className="bg-brand-50/60 py-14 lg:py-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 lg:grid-cols-5 lg:gap-12">
+          <div className="text-center lg:col-span-2 lg:text-left">
+            <span className="eyebrow mb-3">Welcome</span>
+            <h2 className="text-2xl leading-snug font-bold text-balance break-keep text-brand-950 md:text-3xl">
+              {greeting.welcome}
+            </h2>
+            <p className="mt-4 leading-relaxed text-balance break-keep text-slate-600">
+              {greeting.summary}
+            </p>
+            <Link href="/about" className="btn btn-brand btn-sm mt-6">
+              협회 소개 더 보기
+              <ArrowRightIcon className="size-4" />
+            </Link>
           </div>
+
+          {/* 회원 단체 사진 — 모두가 보이도록 자르지 않고 원래 비율로 보여 줍니다. */}
+          <figure className="overflow-hidden rounded-2xl shadow-lg lg:col-span-3">
+            <Image
+              src={welcomePhoto.src}
+              alt={welcomePhoto.alt}
+              width={welcomePhoto.width}
+              height={welcomePhoto.height}
+              sizes="(min-width: 1152px) 653px, (min-width: 1024px) 58vw, 100vw"
+              className="h-auto w-full"
+            />
+          </figure>
         </div>
       </section>
 

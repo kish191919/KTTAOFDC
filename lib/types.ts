@@ -27,7 +27,10 @@ export type Tournament = {
   deadline?: string;
   contact?: string;
   summary?: string;
+  /** 포스터에 없는 안내·대회 결과처럼 상세 페이지에 항상 펼쳐서 보여 주는 글 */
   body?: string;
+  /** 포스터·요강을 그대로 옮겨 적은 글. 포스터와 겹치므로 상세 페이지에는 접힌 채로 보입니다. */
+  fullText?: string;
   linkUrl?: string;
   linkLabel?: string;
   /** 첫 번째 이미지가 목록에 보이는 대표 포스터입니다. */

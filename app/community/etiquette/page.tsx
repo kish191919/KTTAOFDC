@@ -1,6 +1,7 @@
 import { etiquetteGroups } from "@/lib/content/etiquette";
 import { pageMetadata } from "@/lib/metadata";
 import { CommunityTabs } from "@/components/CommunityTabs";
+import { EtiquetteItem } from "@/components/EtiquetteItem";
 import { PageHeader } from "@/components/PageHeader";
 
 export const metadata = pageMetadata({
@@ -72,23 +73,14 @@ export default function EtiquettePage() {
 
               <ol start={group.first} className="divide-y divide-slate-100">
                 {group.items.map((item, index) => (
-                  <li key={item.title} className="flex gap-3 px-5 py-4">
-                    <span
-                      aria-hidden="true"
-                      className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white tabular-nums"
-                    >
-                      {group.first + index}
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="font-bold break-keep text-brand-950">{item.title}</h3>
-                      <p className="mt-0.5 text-[15px] leading-relaxed break-keep text-slate-600">
-                        {item.ko}
-                      </p>
-                      <p className="mt-1 text-sm leading-relaxed text-slate-500" lang="en">
-                        {item.en}
-                      </p>
-                    </div>
-                  </li>
+                  <EtiquetteItem key={item.title} number={group.first + index} title={item.title}>
+                    <p className="mt-0.5 text-[15px] leading-relaxed break-keep text-slate-600">
+                      {item.ko}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500" lang="en">
+                      {item.en}
+                    </p>
+                  </EtiquetteItem>
                 ))}
               </ol>
             </section>

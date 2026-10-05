@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/TournamentCard";
 import {
   ArrowLeftIcon,
   CalendarIcon,
+  ChevronDownIcon,
   ClockIcon,
   DollarIcon,
   DownloadIcon,
@@ -93,9 +94,9 @@ export default async function TournamentPage({ params }: Props) {
   const now = today();
   const registration = registrationLabel(tournament, now);
   const mapUrl = googleMapsUrl(tournament);
-  const hasDetails = Boolean(
-    tournament.body || tournament.images.length || tournament.attachments.length,
-  );
+  // 포스터나 첨부 파일이 있으면 요강 전문은 그 내용을 다시 적은 것입니다.
+  const hasSource = tournament.images.length > 0 || tournament.attachments.length > 0;
+  const hasDetails = Boolean(tournament.body || tournament.fullText || hasSource);
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 md:py-14">
@@ -128,7 +129,7 @@ export default async function TournamentPage({ params }: Props) {
         {tournament.summary && (
           <LinkedText
             text={tournament.summary}
-            className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600"
+            className="mt-4 max-w-3xl text-lg leading-relaxed break-keep text-slate-600"
           />
         )}
       </header>
@@ -222,7 +223,7 @@ export default async function TournamentPage({ params }: Props) {
               </h2>
               <LinkedText
                 text={tournament.body}
-                className="text-[15px] leading-7 text-slate-700 md:text-base md:leading-8"
+                className="text-[15px] leading-7 break-keep text-slate-700 md:text-base md:leading-8"
               />
             </section>
           )}
@@ -234,6 +235,31 @@ export default async function TournamentPage({ params }: Props) {
               </h2>
               <ImageViewer images={tournament.images} label={tournament.title} />
             </section>
+          )}
+
+          {/* 포스터를 옮겨 적은 글은 같은 내용을 두 번 읽지 않도록 접어 둡니다. */}
+          {tournament.fullText && (
+            <details open={!hasSource} className="group card overflow-hidden">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 transition-colors hover:bg-brand-50 [&::-webkit-details-marker]:hidden">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                  <FileIcon className="size-[18px]" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-black text-brand-950">요강 전문 글로 보기</span>
+                  {hasSource && (
+                    <span className="mt-0.5 block text-sm break-keep text-slate-500">
+                      포스터나 첨부 파일의 내용을 글로 옮긴 것입니다. 글자가 작아 읽기
+                      어렵거나 연락처를 복사할 때 펼쳐 보세요.
+                    </span>
+                  )}
+                </span>
+                <ChevronDownIcon className="size-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+              </summary>
+              <LinkedText
+                text={tournament.fullText}
+                className="border-t border-slate-200 px-5 py-5 text-[15px] leading-7 break-keep text-slate-700 md:text-base md:leading-8"
+              />
+            </details>
           )}
 
           {tournament.attachments.length > 0 && (
