@@ -1,9 +1,11 @@
 import Link from "next/link";
 import {
   deleteAlbumAction,
+  deleteNewsPostAction,
   deleteTournamentAction,
   logoutAction,
   setAlbumHiddenAction,
+  setNewsPostHiddenAction,
   setTournamentHiddenAction,
 } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
@@ -11,6 +13,7 @@ import { formatDate, formatDateRange, statusLabel, statusOf, today } from "@/lib
 import { listAlbums } from "@/lib/store/albums";
 import { listHeroMedia } from "@/lib/store/hero";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
+import { listNewsPosts } from "@/lib/store/news";
 import { listTournaments } from "@/lib/store/tournaments";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { HiddenToggle } from "@/components/admin/HiddenControls";
@@ -39,10 +42,11 @@ const hiddenBadge = (
 
 export default async function AdminPage({ searchParams }: Props) {
   await requireAdmin();
-  const [{ saved, deleted, id }, tournaments, albums, heroMedia] = await Promise.all([
+  const [{ saved, deleted, id }, tournaments, albums, news, heroMedia] = await Promise.all([
     searchParams,
     listTournaments({ includeHidden: true }),
     listAlbums({ includeHidden: true }),
+    listNewsPosts({ includeHidden: true }),
     listHeroMedia(),
   ]);
   const now = today();
@@ -53,12 +57,13 @@ export default async function AdminPage({ searchParams }: Props) {
       ? tournaments.find((t) => t.id === id)
       : saved === "album"
         ? albums.find((album) => album.id === id)
-        : undefined;
-  // 숨긴 대회·앨범은 방문자용 페이지가 없으므로 링크를 보여 주지 않습니다.
-  const savedHref =
-    savedItem && !savedItem.hidden
-      ? `/${saved === "tournament" ? "tournaments" : "gallery"}/${savedItem.id}`
-      : null;
+        : saved === "news"
+          ? news.find((post) => post.id === id)
+          : undefined;
+  const savedPath =
+    saved === "tournament" ? "/tournaments" : saved === "album" ? "/gallery" : "/community/news";
+  // 숨긴 대회·앨범·소식은 방문자용 페이지가 없으므로 링크를 보여 주지 않습니다.
+  const savedHref = savedItem && !savedItem.hidden ? `${savedPath}/${savedItem.id}` : null;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
@@ -66,7 +71,7 @@ export default async function AdminPage({ searchParams }: Props) {
         <div>
           <h1 className="text-3xl font-black text-brand-950">홈페이지 관리</h1>
           <p className="mt-1 text-slate-500">
-            메인 화면 동영상, 대회 정보, 갤러리 사진을 등록하고 수정합니다.
+            메인 화면 동영상, 대회 정보, 갤러리 사진, 탁구 소식을 등록하고 수정합니다.
           </p>
         </div>
         <form action={logoutAction}>
@@ -246,6 +251,60 @@ export default async function AdminPage({ searchParams }: Props) {
                   <DeleteButton
                     action={deleteAlbumAction.bind(null, album.id)}
                     confirmMessage={`'${album.title}' 앨범을 삭제할까요?\n사진 ${album.photos.length}장도 함께 지워지며 되돌릴 수 없습니다.`}
+                    disabled={!STORE_WRITABLE}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* 탁구 소식 */}
+      <section className="mt-12" aria-labelledby="news-heading">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="news-heading" className="text-xl font-black text-brand-950">
+            탁구 소식 <span className="text-base font-bold text-slate-400">{news.length}</span>
+          </h2>
+          <Link href="/admin/news/new" className="btn btn-accent btn-sm">
+            <PlusIcon className="size-4" />새 소식 등록
+          </Link>
+        </div>
+        {news.length === 0 ? (
+          <p className="card px-6 py-10 text-center text-slate-500">
+            등록된 소식이 없습니다. ‘새 소식 등록’을 눌러 신문 기사나 회원 안내를 올려 보세요.
+          </p>
+        ) : (
+          <ul className="card divide-y divide-slate-100">
+            {news.map((post) => (
+              <li key={post.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
+                <div className="min-w-0 flex-1 basis-64">
+                  <p className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    {post.hidden && hiddenBadge}
+                    {formatDate(post.date)}
+                    {post.source && ` · ${post.source}`}
+                  </p>
+                  {/* 숨긴 소식은 방문자용 페이지가 없으므로 수정 화면으로 보냅니다. */}
+                  <Link
+                    href={post.hidden ? `/admin/news/${post.id}` : `/community/news/${post.id}`}
+                    className="mt-1 block truncate font-bold text-slate-900 hover:text-brand-700"
+                  >
+                    {post.title}
+                  </Link>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Link href={`/admin/news/${post.id}`} className={editLinkClass}>
+                    <PencilIcon className="size-4" />
+                    수정
+                  </Link>
+                  <HiddenToggle
+                    hidden={Boolean(post.hidden)}
+                    action={setNewsPostHiddenAction.bind(null, post.id)}
+                    disabled={!STORE_WRITABLE}
+                  />
+                  <DeleteButton
+                    action={deleteNewsPostAction.bind(null, post.id)}
+                    confirmMessage={`'${post.title}' 소식을 삭제할까요?\n이미지와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`}
                     disabled={!STORE_WRITABLE}
                   />
                 </div>

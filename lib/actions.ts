@@ -27,6 +27,13 @@ import {
   type AlbumInput,
 } from "@/lib/store/albums";
 import {
+  createNewsPost,
+  deleteNewsPost,
+  setNewsPostHidden,
+  updateNewsPost,
+  type NewsPostInput,
+} from "@/lib/store/news";
+import {
   createTournament,
   deleteTournament,
   setTournamentHidden,
@@ -42,6 +49,7 @@ export type FormState = {
 };
 
 const MAX_TOURNAMENT_IMAGES = 20;
+const MAX_NEWS_IMAGES = 20;
 const MAX_ATTACHMENTS = 10;
 const MAX_ALBUM_PHOTOS = 300;
 
@@ -328,6 +336,68 @@ export async function setAlbumHiddenAction(id: string, hidden: boolean): Promise
   if (await writeBlocker()) redirect("/admin");
   if (typeof id !== "string" || typeof hidden !== "boolean") return;
   await setAlbumHidden(id, hidden);
+  revalidateSite();
+}
+
+// ───────────────────────── 탁구 소식 ─────────────────────────
+
+/** id 가 null 이면 새로 등록, 있으면 그 소식을 수정합니다. */
+export async function saveNewsPostAction(
+  id: string | null,
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+
+  const fields: Record<string, string> = {};
+  const title = text(formData, "title", 150);
+  if (!title) fields.title = "제목을 입력해 주세요.";
+  const date = text(formData, "date", 10);
+  if (!isValidDate(date)) fields.date = "날짜를 선택해 주세요.";
+  const linkUrl = text(formData, "linkUrl", 500);
+  if (linkUrl && !isHttpUrl(linkUrl)) {
+    fields.linkUrl = "http:// 또는 https:// 로 시작하는 주소를 입력해 주세요.";
+  }
+  const images = parseImages(jsonList(formData, "images"), MAX_NEWS_IMAGES);
+  if (!images) fields.images = "이미지 정보를 읽지 못했습니다. 다시 올려 주세요.";
+  const attachments = parseAttachments(jsonList(formData, "attachments"));
+  if (!attachments) fields.attachments = "첨부 파일 정보를 읽지 못했습니다. 다시 올려 주세요.";
+  if (!images || !attachments || Object.keys(fields).length > 0) {
+    return { error: "입력 내용을 다시 확인해 주세요.", fields };
+  }
+
+  const source = text(formData, "source", 100);
+  const body = text(formData, "body", 30_000);
+  const input: NewsPostInput = {
+    title,
+    date,
+    images,
+    attachments,
+    ...(source ? { source } : {}),
+    ...(linkUrl ? { linkUrl } : {}),
+    ...(body ? { body } : {}),
+    ...(isHiddenChecked(formData) ? { hidden: true } : {}),
+  };
+  const saved = id ? await updateNewsPost(id, input) : await createNewsPost(input);
+  if (!saved) return { error: "수정하려는 소식을 찾을 수 없습니다." };
+
+  revalidateSite();
+  redirect(`/admin?saved=news&id=${encodeURIComponent(saved.id)}`);
+}
+
+export async function deleteNewsPostAction(id: string): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  await deleteNewsPost(id);
+  revalidateSite();
+  redirect("/admin?deleted=news");
+}
+
+/** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
+export async function setNewsPostHiddenAction(id: string, hidden: boolean): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  if (typeof id !== "string" || typeof hidden !== "boolean") return;
+  await setNewsPostHidden(id, hidden);
   revalidateSite();
 }
 

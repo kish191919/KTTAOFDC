@@ -7,7 +7,7 @@ import { randomBytes } from "node:crypto";
 // 나중에 Vercel Blob·Supabase Storage 등으로 바꿀 때는 이 파일만 교체하면 됩니다.
 
 export const UPLOAD_PREFIX = "/uploads/";
-export const UPLOAD_FOLDERS = ["tournaments", "gallery", "hero"] as const;
+export const UPLOAD_FOLDERS = ["tournaments", "gallery", "hero", "news"] as const;
 export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
 export type UploadKind = "image" | "document" | "video";
 
@@ -104,7 +104,7 @@ export function resolveUpload(url: string): string | null {
 export function isUploadUrl(url: unknown, folder?: UploadFolder): url is string {
   return (
     typeof url === "string" &&
-    /^\/uploads\/(tournaments|gallery|hero)\/[A-Za-z0-9._-]+$/.test(url) &&
+    /^\/uploads\/(tournaments|gallery|hero|news)\/[A-Za-z0-9._-]+$/.test(url) &&
     !url.includes("..") &&
     (!folder || url.startsWith(`${UPLOAD_PREFIX}${folder}/`))
   );

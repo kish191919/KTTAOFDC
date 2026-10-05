@@ -2,7 +2,7 @@ import type { Attachment, ImageRef } from "@/lib/types";
 
 // 관리자 화면(브라우저)에서 파일을 서버로 올리는 함수들입니다.
 
-export type UploadFolder = "tournaments" | "gallery" | "hero";
+export type UploadFolder = "tournaments" | "gallery" | "hero" | "news";
 
 /** 올리기 전에 줄여 둘 긴 변의 최대 길이(px) */
 const MAX_DIMENSION = 1600;

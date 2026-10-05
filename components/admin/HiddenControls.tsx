@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { EyeIcon, EyeOffIcon } from "@/components/icons";
 
-/** 대회·앨범 입력 화면의 '방문자에게 숨기기' 체크 칸 */
+/** 대회·앨범·소식 입력 화면의 '방문자에게 숨기기' 체크 칸 */
 export function HiddenField({ defaultChecked }: { defaultChecked?: boolean }) {
   return (
     <label className="flex cursor-pointer items-start gap-3">

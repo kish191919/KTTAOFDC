@@ -1,16 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import {
-  startTransition,
-  useActionState,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import type { FormState } from "@/lib/actions";
 import type { Attachment, ImageRef, Tournament } from "@/lib/types";
 import { HiddenField } from "./HiddenControls";
+import { Section } from "./Section";
 import { FileUploader, ImageUploader } from "./Uploaders";
 
 type Props = {
@@ -19,26 +14,6 @@ type Props = {
   /** 저장할 수 없는 환경(읽기 전용)일 때 true */
   readOnly?: boolean;
 };
-
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="card p-6 md:p-7">
-      <h2 className="text-lg font-black text-brand-950">{title}</h2>
-      {description && (
-        <p className="mt-1 text-sm break-keep text-slate-500">{description}</p>
-      )}
-      <div className="space-y-5 pt-5">{children}</div>
-    </section>
-  );
-}
 
 export function TournamentForm({ tournament, action, readOnly = false }: Props) {
   const [state, formAction, pending] = useActionState(action, {});

@@ -13,6 +13,7 @@ import {
 } from "@/lib/dates";
 import { pageMetadata } from "@/lib/metadata";
 import { getTournament, listTournaments } from "@/lib/store/tournaments";
+import { AttachmentList } from "@/components/AttachmentList";
 import { ImageViewer } from "@/components/ImageViewer";
 import { LinkedText } from "@/components/LinkedText";
 import { StatusBadge } from "@/components/TournamentCard";
@@ -22,7 +23,6 @@ import {
   ChevronDownIcon,
   ClockIcon,
   DollarIcon,
-  DownloadIcon,
   ExternalLinkIcon,
   FileIcon,
   FlagIcon,
@@ -54,12 +54,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     image: tournament.images[0],
   });
-}
-
-function formatSize(bytes?: number) {
-  if (!bytes) return null;
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 function InfoRow({
@@ -267,26 +261,7 @@ export default async function TournamentPage({ params }: Props) {
               <h2 id="files-heading" className="mb-4 text-xl font-black text-brand-950">
                 첨부 파일
               </h2>
-              <ul className="space-y-2.5">
-                {tournament.attachments.map((file) => (
-                  <li key={file.url}>
-                    <a
-                      href={file.url}
-                      download={file.name}
-                      className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition-colors hover:border-brand-300 hover:bg-brand-50"
-                    >
-                      <FileIcon className="size-5 shrink-0 text-brand-700" />
-                      <span className="min-w-0 flex-1 truncate font-medium text-slate-800">
-                        {file.name}
-                      </span>
-                      <span className="shrink-0 text-sm text-slate-400">
-                        {formatSize(file.size)}
-                      </span>
-                      <DownloadIcon className="size-4 shrink-0 text-slate-400 group-hover:text-brand-700" />
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              <AttachmentList files={tournament.attachments} />
             </section>
           )}
 

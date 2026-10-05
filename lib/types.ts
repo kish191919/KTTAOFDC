@@ -42,6 +42,26 @@ export type Tournament = {
   updatedAt: string;
 };
 
+/** 커뮤니티의 '탁구 소식'에 올리는 글 한 편 (신문 기사, 회원 안내 등) */
+export type NewsPost = {
+  id: string;
+  title: string;
+  /** 기사가 실린 날짜 또는 글을 올린 날짜 (YYYY-MM-DD) */
+  date: string;
+  /** 기사가 실린 신문·방송 이름 */
+  source?: string;
+  /** 기사 원문 등 관련 링크 */
+  linkUrl?: string;
+  body?: string;
+  /** 첫 번째 이미지가 목록에 보이는 대표 이미지입니다. */
+  images: ImageRef[];
+  attachments: Attachment[];
+  /** true 면 저장만 해 두고 방문자에게는 보이지 않습니다. (관리자 화면에서만 보입니다) */
+  hidden?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** 홈 화면 맨 위에서 차례로 보여 주는 동영상·이미지 한 개 */
 export type HeroMedia = {
   id: string;
