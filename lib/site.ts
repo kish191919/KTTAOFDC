@@ -4,8 +4,10 @@ export const site = {
   nameKo: "워싱턴DC 한인탁구협회",
   nameEn: "Korean Table Tennis Association of DC",
   slogan: "Table Tennis Builds a Better Community",
-  description:
-    "버지니아·워싱턴 DC 지역 한인 탁구인들의 모임, 워싱턴DC 한인탁구협회(KTTA of DC) 홈페이지입니다. 대회 정보와 탁구 장소, 협회 소식을 확인하세요.",
+  description: {
+    ko: "버지니아·워싱턴 DC 지역 한인 탁구인들의 모임, 워싱턴DC 한인탁구협회(KTTA of DC) 홈페이지입니다. 대회 정보와 탁구 장소, 협회 소식을 확인하세요.",
+    en: "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area. Find tournaments, places to play, and association news.",
+  },
   email: "kttaofdc@gmail.com",
   // 대회 날짜의 '오늘' 기준이 되는 시간대
   timeZone: "America/New_York",
@@ -21,12 +23,13 @@ export const verification = {
   naver: "",
 };
 
+// href 는 언어 표시가 없는 주소입니다. 화면에서는 localePath() 로 언어에 맞는 주소를 만듭니다.
 export const nav = [
-  { href: "/", label: "홈" },
-  { href: "/about", label: "협회 소개" },
-  { href: "/tournaments", label: "대회 정보" },
-  { href: "/gallery", label: "갤러리" },
-  { href: "/community", label: "커뮤니티" },
+  { href: "/", label: { ko: "홈", en: "Home" } },
+  { href: "/about", label: { ko: "협회 소개", en: "About" } },
+  { href: "/tournaments", label: { ko: "대회 정보", en: "Tournaments" } },
+  { href: "/gallery", label: { ko: "갤러리", en: "Gallery" } },
+  { href: "/community", label: { ko: "커뮤니티", en: "Community" } },
 ] as const;
 
 /** 배포 주소. 공유 미리보기(OG)·sitemap 의 절대 주소를 만들 때 사용합니다. */

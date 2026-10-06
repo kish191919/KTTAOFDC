@@ -64,7 +64,7 @@ export async function GET() {
   <channel>
     <title>${escapeXml(`${site.name} | ${site.nameKo}`)}</title>
     <link>${base}</link>
-    <description>${escapeXml(site.description)}</description>
+    <description>${escapeXml(site.description.ko)}</description>
     <language>ko</language>
     <atom:link href="${base}/rss.xml" rel="self" type="application/rss+xml" />
 ${items}

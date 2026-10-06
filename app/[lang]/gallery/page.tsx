@@ -1,18 +1,27 @@
+import type { Metadata } from "next";
 import type { Album } from "@/lib/types";
 import { yearOf } from "@/lib/dates";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localizeAlbum } from "@/lib/i18n/localize";
+import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { listAlbums } from "@/lib/store/albums";
 import { AlbumCard } from "@/components/AlbumCard";
 import { PageHeader } from "@/components/PageHeader";
 import { ImageIcon } from "@/components/icons";
 
-export const metadata = pageMetadata({
-  title: "갤러리",
-  description: "워싱턴DC 한인탁구협회의 대회와 모임 사진을 모았습니다.",
-});
+type Props = { params: Promise<{ lang: string }> };
 
-export default async function GalleryPage() {
-  const albums = await listAlbums();
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const lang = await readLang(params);
+  const t = getDictionary(lang).gallery;
+  return pageMetadata({ lang, path: "/gallery", title: t.title, description: t.metaDescription });
+}
+
+export default async function GalleryPage({ params }: Props) {
+  const lang = await readLang(params);
+  const t = getDictionary(lang).gallery;
+  const albums = (await listAlbums()).map((album) => localizeAlbum(album, lang));
 
   const byYear = new Map<number, Album[]>();
   for (const album of albums) {
@@ -22,11 +31,7 @@ export default async function GalleryPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Gallery"
-        title="갤러리"
-        description="대회와 모임의 순간들을 사진으로 만나보세요."
-      />
+      <PageHeader eyebrow={t.eyebrow} title={t.title} description={t.description} />
 
       <div className="mx-auto max-w-6xl px-4 py-14">
         {albums.length === 0 ? (
@@ -34,10 +39,8 @@ export default async function GalleryPage() {
             <span className="flex size-14 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
               <ImageIcon className="size-7" />
             </span>
-            <p className="mt-5 text-lg font-bold text-brand-950">사진을 준비하고 있습니다</p>
-            <p className="mt-2 break-keep text-slate-500">
-              행사 사진이 올라오면 이곳에서 앨범별로 보실 수 있습니다.
-            </p>
+            <p className="mt-5 text-lg font-bold text-brand-950">{t.emptyTitle}</p>
+            <p className="mt-2 break-keep text-slate-500">{t.emptyDescription}</p>
           </div>
         ) : (
           <div className="space-y-12">
@@ -47,12 +50,12 @@ export default async function GalleryPage() {
                   id={`year-${year}`}
                   className="mb-5 flex items-center gap-3 text-lg font-bold text-brand-700"
                 >
-                  {year}년
+                  {t.year(year)}
                   <span className="h-px flex-1 bg-brand-100" />
                 </h2>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map((album) => (
-                    <AlbumCard key={album.id} album={album} />
+                    <AlbumCard key={album.id} album={album} lang={lang} />
                   ))}
                 </div>
               </section>

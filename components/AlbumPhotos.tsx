@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { ImageRef } from "@/lib/types";
 import { Lightbox, useLightbox } from "@/components/ImageViewer";
 import { CheckIcon, DownloadIcon } from "@/components/icons";
@@ -10,13 +12,15 @@ type Props = {
   photos: ImageRef[];
   /** 앨범 이름. 사진 설명과 내려받는 파일 이름에 쓰입니다. */
   title: string;
+  lang: Locale;
 };
 
 /**
  * 앨범의 사진 격자. 사진을 누르면 크게 보여 주고,
  * '사진 내려받기'를 누르면 여러 장을 골라 한꺼번에 받을 수 있습니다.
  */
-export function AlbumPhotos({ photos, title }: Props) {
+export function AlbumPhotos({ photos, title, lang }: Props) {
+  const t = getDictionary(lang).gallery;
   const viewer = useLightbox(photos.length);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -54,12 +58,12 @@ export function AlbumPhotos({ photos, title }: Props) {
         setProgress({ done, total: files.length }),
       );
       if (failed > 0) {
-        setNotice(`${failed}장은 받아 오지 못해 나머지 사진만 내려받았습니다.`);
+        setNotice(t.partialFailure(failed));
       } else {
         stopSelecting();
       }
     } catch {
-      setNotice("사진을 내려받지 못했습니다. 잠시 뒤에 다시 시도해 주세요.");
+      setNotice(t.downloadFailure);
     } finally {
       setProgress(null);
     }
@@ -70,9 +74,7 @@ export function AlbumPhotos({ photos, title }: Props) {
       {selecting ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-100 bg-brand-50/60 px-4 py-3">
           <p className="text-sm font-semibold break-keep text-brand-900" aria-live="polite">
-            {selected.size > 0
-              ? `${selected.size}장 선택`
-              : "내려받을 사진을 눌러서 골라 주세요."}
+            {selected.size > 0 ? t.selected(selected.size) : t.downloadHint}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -83,7 +85,7 @@ export function AlbumPhotos({ photos, title }: Props) {
               disabled={busy}
               className="btn btn-ghost btn-sm"
             >
-              {allSelected ? "전체 해제" : "전체 선택"}
+              {allSelected ? t.deselectAll : t.selectAll}
             </button>
             <button
               type="button"
@@ -92,7 +94,7 @@ export function AlbumPhotos({ photos, title }: Props) {
               className="btn btn-brand btn-sm"
             >
               <DownloadIcon className="size-4" />
-              {progress ? `준비하는 중… (${progress.done}/${progress.total})` : "내려받기"}
+              {progress ? t.preparing(progress.done, progress.total) : t.downloadStart}
             </button>
             <button
               type="button"
@@ -100,7 +102,7 @@ export function AlbumPhotos({ photos, title }: Props) {
               disabled={busy}
               className="btn btn-ghost btn-sm"
             >
-              취소
+              {t.cancel}
             </button>
           </div>
         </div>
@@ -115,7 +117,7 @@ export function AlbumPhotos({ photos, title }: Props) {
             className="btn btn-ghost btn-sm"
           >
             <DownloadIcon className="size-4" />
-            사진 내려받기
+            {t.download}
           </button>
         </div>
       )}
@@ -138,7 +140,9 @@ export function AlbumPhotos({ photos, title }: Props) {
                 type="button"
                 onClick={() => (selecting ? toggle(photo.src) : viewer.open(index))}
                 disabled={busy}
-                aria-label={`${title} 사진 ${index + 1} ${selecting ? "선택" : "크게 보기"}`}
+                aria-label={
+                  selecting ? t.photoSelect(title, index + 1) : t.photoEnlarge(title, index + 1)
+                }
                 aria-pressed={selecting ? isSelected : undefined}
                 className={`group relative block aspect-square w-full overflow-hidden rounded-xl bg-slate-100 ${
                   selecting ? "cursor-pointer" : "cursor-zoom-in"
@@ -147,7 +151,7 @@ export function AlbumPhotos({ photos, title }: Props) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo.src}
-                  alt={`${title} 사진 ${index + 1}`}
+                  alt={t.photoAlt(title, index + 1)}
                   loading="lazy"
                   decoding="async"
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -182,6 +186,7 @@ export function AlbumPhotos({ photos, title }: Props) {
         <Lightbox
           images={photos}
           label={title}
+          lang={lang}
           current={viewer.current}
           onStep={viewer.step}
           onClose={viewer.close}

@@ -1,15 +1,19 @@
 import Link from "next/link";
 import type { Tournament } from "@/lib/types";
 import { formatDateRange, statusLabel, statusOf, yearOf } from "@/lib/dates";
+import { localePath, type Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ArrowRightIcon, CalendarIcon, MapPinIcon, PaddleMark } from "@/components/icons";
 
 export function StatusBadge({
   tournament,
   now,
+  lang,
   className = "",
 }: {
   tournament: Pick<Tournament, "startDate" | "endDate">;
   now: string;
+  lang: Locale;
   className?: string;
 }) {
   const status = statusOf(tournament, now);
@@ -23,7 +27,7 @@ export function StatusBadge({
     <span
       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide ${tone} ${className}`}
     >
-      {statusLabel(tournament, now)}
+      {statusLabel(tournament, now, lang)}
     </span>
   );
 }
@@ -46,10 +50,13 @@ export function PosterFallback({ className = "" }: { className?: string }) {
 export function TournamentCard({
   tournament,
   now,
+  lang,
   compact = false,
 }: {
+  /** 보여 줄 언어에 맞춘(localizeTournament 를 거친) 대회 */
   tournament: Tournament;
   now: string;
+  lang: Locale;
   /** 휴대폰 화면에서는 포스터를 빼고 날짜·제목·장소만 한 줄 목록처럼 보여 줍니다. */
   compact?: boolean;
 }) {
@@ -59,7 +66,7 @@ export function TournamentCard({
 
   return (
     <Link
-      href={`/tournaments/${tournament.id}`}
+      href={localePath(lang, `/tournaments/${tournament.id}`)}
       className="group card flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg"
     >
       <div
@@ -81,6 +88,7 @@ export function TournamentCard({
         <StatusBadge
           tournament={tournament}
           now={now}
+          lang={lang}
           className="absolute top-3 left-3 shadow-sm"
         />
       </div>
@@ -88,7 +96,7 @@ export function TournamentCard({
       <div className={`flex flex-1 flex-col ${compact ? "relative p-4 pr-11 sm:p-5" : "p-5"}`}>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-accent-600">
           <CalendarIcon className="size-4" />
-          {formatDateRange(tournament, past && yearOf(tournament.startDate) !== yearOf(now))}
+          {formatDateRange(tournament, past && yearOf(tournament.startDate) !== yearOf(now), lang)}
         </p>
         <h3
           className={`line-clamp-2 leading-snug font-bold break-keep text-slate-900 transition-colors group-hover:text-brand-700 ${compact ? "mt-1.5 text-base sm:mt-2 sm:text-lg" : "mt-2 text-lg"}`}
@@ -106,7 +114,7 @@ export function TournamentCard({
         <div
           className={`mt-auto items-center gap-1 pt-4 text-sm font-semibold text-brand-700 ${compact ? "hidden sm:flex" : "flex"}`}
         >
-          세부 정보
+          {getDictionary(lang).tournaments.cardLink}
           <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
         </div>
         {compact && (

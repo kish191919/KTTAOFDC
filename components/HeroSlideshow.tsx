@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { HeroMedia } from "@/lib/types";
 import {
   ChevronLeftIcon,
@@ -20,7 +22,8 @@ const controlClass =
   "absolute z-10 rounded-full bg-black/40 text-white transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 /** 홈 화면 맨 위에서 동영상·이미지를 차례로 보여 줍니다. */
-export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
+export function HeroSlideshow({ items, lang }: { items: HeroMedia[]; lang: Locale }) {
+  const t = getDictionary(lang).hero;
   const [index, setIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -99,7 +102,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="메인 화면"
+      aria-label={t.label}
       // 휴대폰에서는 상단 메뉴(72px) 아래 첫 화면 전체를 차지합니다.
       // aspect-[4/3] 은 dvh 단위를 모르는 옛 브라우저에서 높이가 0 이 되지 않게 하는 안전장치입니다.
       className="relative aspect-[4/3] h-[calc(100dvh-72px)] w-full overflow-hidden bg-linear-to-br from-brand-900 via-navy-900 to-navy-950 sm:aspect-video sm:h-auto sm:max-h-[calc(100dvh-72px)]"
@@ -171,7 +174,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
           <button
             type="button"
             onClick={goPrev}
-            aria-label="이전 슬라이드"
+            aria-label={t.previous}
             className={`${controlClass} top-1/2 left-3 -translate-y-1/2 p-2 sm:left-4 sm:p-3`}
           >
             <ChevronLeftIcon className="size-5 sm:size-6" />
@@ -179,7 +182,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
           <button
             type="button"
             onClick={goNext}
-            aria-label="다음 슬라이드"
+            aria-label={t.next}
             className={`${controlClass} top-1/2 right-3 -translate-y-1/2 p-2 sm:right-4 sm:p-3`}
           >
             <ChevronRightIcon className="size-5 sm:size-6" />
@@ -191,7 +194,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
                 key={item.id}
                 type="button"
                 onClick={() => setIndex(position)}
-                aria-label={`슬라이드 ${position + 1}`}
+                aria-label={t.slide(position + 1)}
                 aria-current={position === current ? "true" : undefined}
                 className={`size-2.5 rounded-full transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                   position === current ? "scale-125 bg-white" : "bg-white/40 hover:bg-white/70"
@@ -206,7 +209,7 @@ export function HeroSlideshow({ items }: { items: HeroMedia[] }) {
         <button
           type="button"
           onClick={() => setMuted((value) => !value)}
-          aria-label={muted ? "소리 켜기" : "소리 끄기"}
+          aria-label={muted ? t.unmute : t.mute}
           className={`${controlClass} right-3 bottom-3 p-2.5 sm:right-6 sm:bottom-6`}
         >
           {muted ? <VolumeOffIcon className="size-[18px]" /> : <VolumeIcon className="size-[18px]" />}

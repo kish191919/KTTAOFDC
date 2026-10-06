@@ -2,20 +2,30 @@ import Image from "next/image";
 import Link from "next/link";
 import { greeting, welcomePhoto } from "@/lib/content/association";
 import { statusOf, today } from "@/lib/dates";
+import { localePath } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localizeAlbum, localizeTournament } from "@/lib/i18n/localize";
+import { readLang } from "@/lib/i18n/params";
 import { site } from "@/lib/site";
 import { listAlbums } from "@/lib/store/albums";
 import { listHeroMedia } from "@/lib/store/hero";
 import { listTournaments } from "@/lib/store/tournaments";
 import { AlbumCard } from "@/components/AlbumCard";
+import { ContactButton } from "@/components/ContactButton";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { SectionHeading } from "@/components/PageHeader";
 import { TournamentCard } from "@/components/TournamentCard";
 import { ArrowRightIcon, MailIcon, MapPinIcon } from "@/components/icons";
 
+type Props = { params: Promise<{ lang: string }> };
+
 // 대회의 '예정/종료' 표시가 날짜에 따라 바뀌므로 한 시간마다 새로 만듭니다.
 export const revalidate = 3600;
 
-export default async function HomePage() {
+export default async function HomePage({ params }: Props) {
+  const lang = await readLang(params);
+  const d = getDictionary(lang);
+  const t = d.home;
   const [tournaments, albums, heroMedia] = await Promise.all([
     listTournaments(),
     listAlbums(),
@@ -25,21 +35,23 @@ export default async function HomePage() {
   const slides = heroMedia.filter((item) => item.active);
 
   // 다가오는 대회를 가까운 순서로 먼저 보여 주고, 모자라면 최근 대회로 채웁니다.
-  const upcoming = tournaments.filter((t) => statusOf(t, now) !== "past").reverse();
-  const past = tournaments.filter((t) => statusOf(t, now) === "past");
-  const featured = [...upcoming, ...past].slice(0, 3);
+  const upcoming = tournaments.filter((item) => statusOf(item, now) !== "past").reverse();
+  const past = tournaments.filter((item) => statusOf(item, now) === "past");
+  const featured = [...upcoming, ...past]
+    .slice(0, 3)
+    .map((item) => localizeTournament(item, lang));
 
   return (
     <>
       {/* 메인 화면 — 관리자 화면에서 올린 동영상·이미지가 있으면 그것을, 없으면 배너를 보여 줍니다 */}
       {slides.length > 0 ? (
-        <HeroSlideshow items={slides} />
+        <HeroSlideshow items={slides} lang={lang} />
       ) : (
         <section className="bg-white">
           <div className="relative mx-auto aspect-[16/9] w-full max-w-[1920px] overflow-hidden sm:aspect-[3/1]">
             <Image
               src="/images/banner.jpg"
-              alt={`${site.name} ${site.nameKo} — ${site.nameEn}. ${site.slogan}`}
+              alt={t.bannerAlt}
               fill
               preload
               quality={90}
@@ -54,15 +66,15 @@ export default async function HomePage() {
       <section className="bg-brand-50/60 py-14 lg:py-16">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 lg:grid-cols-5 lg:gap-12">
           <div className="text-center lg:col-span-2 lg:text-left">
-            <span className="eyebrow mb-3">Welcome</span>
+            <span className="eyebrow mb-3">{t.welcomeEyebrow}</span>
             <h2 className="text-2xl leading-snug font-bold text-balance break-keep text-brand-950 md:text-3xl">
-              {greeting.welcome}
+              {greeting.welcome[lang]}
             </h2>
             <p className="mt-4 leading-relaxed text-balance break-keep text-slate-600">
-              {greeting.summary}
+              {greeting.summary[lang]}
             </p>
-            <Link href="/about" className="btn btn-brand btn-sm mt-6">
-              협회 소개 더 보기
+            <Link href={localePath(lang, "/about")} className="btn btn-brand btn-sm mt-6">
+              {t.aboutLink}
               <ArrowRightIcon className="size-4" />
             </Link>
           </div>
@@ -71,7 +83,7 @@ export default async function HomePage() {
           <figure className="overflow-hidden rounded-2xl shadow-lg lg:col-span-3">
             <Image
               src={welcomePhoto.src}
-              alt={welcomePhoto.alt}
+              alt={welcomePhoto.alt[lang]}
               width={welcomePhoto.width}
               height={welcomePhoto.height}
               sizes="(min-width: 1152px) 653px, (min-width: 1024px) 58vw, 100vw"
@@ -85,24 +97,29 @@ export default async function HomePage() {
       <section className="bg-white py-20">
         <div className="mx-auto max-w-6xl px-4">
           <SectionHeading
-            eyebrow="Tournaments"
-            title="대회 정보"
-            description="다가오는 대회와 최근 대회 소식을 확인하세요."
+            eyebrow={t.tournamentsEyebrow}
+            title={t.tournamentsTitle}
+            description={t.tournamentsDescription}
           />
           {featured.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-3">
               {featured.map((tournament) => (
-                <TournamentCard key={tournament.id} tournament={tournament} now={now} />
+                <TournamentCard
+                  key={tournament.id}
+                  tournament={tournament}
+                  now={now}
+                  lang={lang}
+                />
               ))}
             </div>
           ) : (
             <p className="card mx-auto max-w-xl px-6 py-10 text-center text-slate-500">
-              등록된 대회가 아직 없습니다. 새 대회 소식이 올라오면 이곳에서 안내해 드립니다.
+              {t.tournamentsEmpty}
             </p>
           )}
           <div className="mt-10 text-center">
-            <Link href="/tournaments" className="btn btn-outline">
-              전체 대회 일정 보기
+            <Link href={localePath(lang, "/tournaments")} className="btn btn-outline">
+              {t.tournamentsLink}
               <ArrowRightIcon className="size-4" />
             </Link>
           </div>
@@ -114,18 +131,18 @@ export default async function HomePage() {
         <section className="bg-brand-50/60 py-20">
           <div className="mx-auto max-w-6xl px-4">
             <SectionHeading
-              eyebrow="Gallery"
-              title="활동 현장"
-              description="대회와 모임의 순간들을 사진으로 만나보세요."
+              eyebrow={t.galleryEyebrow}
+              title={t.galleryTitle}
+              description={t.galleryDescription}
             />
             <div className="grid gap-6 md:grid-cols-3">
               {albums.slice(0, 3).map((album) => (
-                <AlbumCard key={album.id} album={album} />
+                <AlbumCard key={album.id} album={localizeAlbum(album, lang)} lang={lang} />
               ))}
             </div>
             <div className="mt-10 text-center">
-              <Link href="/gallery" className="btn btn-outline">
-                전체 갤러리 보기
+              <Link href={localePath(lang, "/gallery")} className="btn btn-outline">
+                {t.galleryLink}
                 <ArrowRightIcon className="size-4" />
               </Link>
             </div>
@@ -144,20 +161,23 @@ export default async function HomePage() {
       <section className="bg-linear-to-b from-white to-brand-50 py-20">
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="mb-4 text-3xl font-black break-keep text-brand-950 md:text-4xl">
-            탁구로 하나 되는 즐거움, 함께하세요
+            {t.joinTitle}
           </h2>
           <p className="mx-auto mb-10 max-w-xl text-lg break-keep text-slate-600">
-            가까운 탁구 장소를 찾아보고, 궁금한 점은 언제든지 협회로 문의해 주세요.
+            {t.joinDescription}
           </p>
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/community" className="btn btn-accent px-8 py-4 shadow-md">
+            <Link
+              href={localePath(lang, "/community")}
+              className="btn btn-accent px-8 py-4 shadow-md"
+            >
               <MapPinIcon className="size-5" />
-              탁구 장소 보기
+              {t.venuesLink}
             </Link>
-            <a href={`mailto:${site.email}`} className="btn btn-outline px-8 py-4">
+            <ContactButton t={d.contact} className="btn btn-outline px-8 py-4">
               <MailIcon className="size-5" />
-              이메일 문의
-            </a>
+              {t.emailLink}
+            </ContactButton>
           </div>
         </div>
       </section>

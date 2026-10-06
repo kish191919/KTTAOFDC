@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localizeNewsPost } from "@/lib/i18n/localize";
+import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { listNewsPosts } from "@/lib/store/news";
 import { CommunityTabs } from "@/components/CommunityTabs";
@@ -5,22 +9,29 @@ import { NewsCard } from "@/components/NewsCard";
 import { PageHeader } from "@/components/PageHeader";
 import { NewspaperIcon } from "@/components/icons";
 
-export const metadata = pageMetadata({
-  title: "탁구 소식",
-  description: "신문에 실린 협회 소식과 탁구인에게 필요한 정보를 전해 드립니다.",
-});
+type Props = { params: Promise<{ lang: string }> };
 
-export default async function NewsPage() {
-  const posts = await listNewsPosts();
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const lang = await readLang(params);
+  const d = getDictionary(lang);
+  return pageMetadata({
+    lang,
+    path: "/community/news",
+    title: d.community.news,
+    description: d.news.metaDescription,
+  });
+}
+
+export default async function NewsPage({ params }: Props) {
+  const lang = await readLang(params);
+  const d = getDictionary(lang);
+  const t = d.news;
+  const posts = (await listNewsPosts()).map((post) => localizeNewsPost(post, lang));
 
   return (
     <>
-      <PageHeader
-        eyebrow="Community"
-        title="탁구 소식"
-        description="신문에 실린 협회 소식과 회원 여러분께 필요한 정보를 전해 드립니다."
-      >
-        <CommunityTabs current="/community/news" />
+      <PageHeader eyebrow={d.community.eyebrow} title={d.community.news} description={t.description}>
+        <CommunityTabs lang={lang} current="/community/news" />
       </PageHeader>
 
       <div className="mx-auto max-w-4xl px-4 py-14">
@@ -29,16 +40,14 @@ export default async function NewsPage() {
             <span className="flex size-14 items-center justify-center rounded-full bg-white text-brand-500 shadow-sm">
               <NewspaperIcon className="size-7" />
             </span>
-            <p className="mt-5 text-lg font-bold text-brand-950">소식을 준비하고 있습니다</p>
-            <p className="mt-2 break-keep text-slate-500">
-              신문 기사와 회원 안내가 올라오면 이곳에서 보실 수 있습니다.
-            </p>
+            <p className="mt-5 text-lg font-bold text-brand-950">{t.emptyTitle}</p>
+            <p className="mt-2 break-keep text-slate-500">{t.emptyDescription}</p>
           </div>
         ) : (
           <ul className="space-y-4">
             {posts.map((post) => (
               <li key={post.id}>
-                <NewsCard post={post} />
+                <NewsCard post={post} lang={lang} />
               </li>
             ))}
           </ul>

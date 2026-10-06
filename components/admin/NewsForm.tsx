@@ -129,6 +129,50 @@ export function NewsForm({ post, defaultDate, action, readOnly = false }: Props)
         </div>
       </Section>
 
+      <Section title="영어 화면용 (English)" description="영어 화면(/en)에 보여 줄 글입니다. 비워 둔 칸은 영어 화면에도 한국어 글이 그대로 나옵니다.">
+        <div>
+          <label htmlFor="en_title" className="label">
+            제목 (영어)
+          </label>
+          <input
+            id="en_title"
+            name="en_title"
+            lang="en"
+            maxLength={150}
+            defaultValue={post?.en?.title}
+            className="field"
+          />
+        </div>
+        <div className="sm:max-w-xs">
+          <label htmlFor="en_source" className="label">
+            출처 (영어)
+          </label>
+          <input
+            id="en_source"
+            name="en_source"
+            lang="en"
+            maxLength={100}
+            defaultValue={post?.en?.source}
+            placeholder="e.g. The Korea Times"
+            className="field"
+          />
+        </div>
+        <div>
+          <label htmlFor="en_body" className="label">
+            내용 (영어)
+          </label>
+          <textarea
+            id="en_body"
+            name="en_body"
+            lang="en"
+            rows={10}
+            maxLength={30000}
+            defaultValue={post?.en?.body}
+            className="field leading-relaxed"
+          />
+        </div>
+      </Section>
+
       <Section
         title="이미지"
         description="신문 기사를 찍은 사진이나 관련 사진을 올립니다. 이미지는 글 위에 보입니다. 첫 번째 이미지가 목록에 보이는 대표 이미지입니다. 화살표로 순서를 바꾸거나, ‘대표로 지정’을 눌러 한 번에 맨 앞으로 보낼 수 있습니다."

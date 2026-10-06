@@ -10,6 +10,27 @@ export type Attachment = {
   size?: number;
 };
 
+/**
+ * 영어 화면(/en)에 보여 줄 글. 한국어 글과 같은 이름의 칸에 영어를 적습니다.
+ * 비워 둔 칸은 영어 화면에도 한국어 글이 그대로 나옵니다. (lib/i18n/localize.ts)
+ */
+export type TournamentEnglish = Partial<
+  Pick<
+    Tournament,
+    | "title"
+    | "summary"
+    | "venue"
+    | "organizer"
+    | "fee"
+    | "contact"
+    | "linkLabel"
+    | "body"
+    | "fullText"
+  >
+>;
+export type NewsPostEnglish = Partial<Pick<NewsPost, "title" | "source" | "body">>;
+export type AlbumEnglish = Partial<Pick<Album, "title" | "description">>;
+
 export type Tournament = {
   id: string;
   title: string;
@@ -33,6 +54,8 @@ export type Tournament = {
   fullText?: string;
   linkUrl?: string;
   linkLabel?: string;
+  /** 영어 화면용 글. 영어 화면에서 fullText 는 포스터를 간추린 영문 요약으로 씁니다. */
+  en?: TournamentEnglish;
   /** 첫 번째 이미지가 목록에 보이는 대표 포스터입니다. */
   images: ImageRef[];
   attachments: Attachment[];
@@ -53,6 +76,8 @@ export type NewsPost = {
   /** 기사 원문 등 관련 링크 */
   linkUrl?: string;
   body?: string;
+  /** 영어 화면용 글 */
+  en?: NewsPostEnglish;
   /** 첫 번째 이미지가 목록에 보이는 대표 이미지입니다. */
   images: ImageRef[];
   attachments: Attachment[];
@@ -82,6 +107,8 @@ export type Album = {
   /** 행사 날짜 (YYYY-MM-DD) */
   date: string;
   description?: string;
+  /** 영어 화면용 글 */
+  en?: AlbumEnglish;
   /** 첫 번째 사진이 앨범 표지입니다. */
   photos: ImageRef[];
   /** true 면 저장만 해 두고 방문자에게는 보이지 않습니다. (관리자 화면에서만 보입니다) */

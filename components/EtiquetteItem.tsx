@@ -7,7 +7,7 @@ type Props = {
   /** 주제를 넘어 1번부터 이어지는 번호 */
   number: number;
   title: string;
-  /** 한국어·영어 설명 등 펼쳤을 때 보이는 내용 */
+  /** 펼쳤을 때 보이는 설명 */
   children: ReactNode;
 };
 

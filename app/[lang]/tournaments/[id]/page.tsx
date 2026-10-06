@@ -11,6 +11,10 @@ import {
   scheduleLines,
   today,
 } from "@/lib/dates";
+import { localePath } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localizeTournament } from "@/lib/i18n/localize";
+import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { getTournament, listTournaments } from "@/lib/store/tournaments";
 import { AttachmentList } from "@/components/AttachmentList";
@@ -31,7 +35,7 @@ import {
   UsersIcon,
 } from "@/components/icons";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ lang: string; id: string }> };
 
 // 대회의 '예정/종료' 표시가 날짜에 따라 바뀌므로 한 시간마다 새로 만듭니다.
 export const revalidate = 3600;
@@ -41,15 +45,19 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const lang = await readLang(params);
   const { id } = await params;
-  const tournament = await getTournament(id);
-  if (!tournament) return { title: "대회 정보" };
+  const stored = await getTournament(id);
+  if (!stored) return { title: getDictionary(lang).tournaments.title };
 
+  const tournament = localizeTournament(stored, lang);
   const place = tournament.venue || tournament.address;
-  const description = [formatSchedule(tournament), place, tournament.summary]
+  const description = [formatSchedule(tournament, lang), place, tournament.summary]
     .filter(Boolean)
     .join(" · ");
   return pageMetadata({
+    lang,
+    path: `/tournaments/${tournament.id}`,
     title: tournament.title,
     description,
     image: tournament.images[0],
@@ -81,30 +89,37 @@ function InfoRow({
 }
 
 export default async function TournamentPage({ params }: Props) {
+  const lang = await readLang(params);
   const { id } = await params;
-  const tournament = await getTournament(id);
-  if (!tournament) notFound();
+  const stored = await getTournament(id);
+  if (!stored) notFound();
 
+  const t = getDictionary(lang).tournaments;
+  const tournament = localizeTournament(stored, lang);
   const now = today();
-  const registration = registrationLabel(tournament, now);
+  const registration = registrationLabel(tournament, now, lang);
   const mapUrl = googleMapsUrl(tournament);
   // 포스터나 첨부 파일이 있으면 요강 전문은 그 내용을 다시 적은 것입니다.
   const hasSource = tournament.images.length > 0 || tournament.attachments.length > 0;
   const hasDetails = Boolean(tournament.body || tournament.fullText || hasSource);
+  // 영어 화면에서 영문 요강은 한국어 포스터를 간추린 글이라 겹치지 않으므로 펼쳐 둡니다.
+  // 영문 요강이 없으면 한국어 글을 대신 보여 주고, 그렇다는 것을 알려 줍니다.
+  const englishFullText = lang === "en" && Boolean(stored.en?.fullText);
+  const fullTextFallback = lang === "en" && !englishFullText;
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 md:py-14">
       <Link
-        href="/tournaments"
+        href={localePath(lang, "/tournaments")}
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-brand-700"
       >
         <ArrowLeftIcon className="size-4" />
-        대회 정보
+        {t.back}
       </Link>
 
       <header className="mt-5 border-b border-brand-100 pb-8">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge tournament={tournament} now={now} />
+          <StatusBadge tournament={tournament} now={now} lang={lang} />
           {registration && (
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
@@ -132,17 +147,17 @@ export default async function TournamentPage({ params }: Props) {
         {/* 요약 정보 — 모바일에서는 본문보다 먼저 보입니다 */}
         <aside className="order-first lg:sticky lg:top-24 lg:order-last">
           <div className="card p-6">
-            <h2 className="text-base font-black text-brand-950">대회 안내</h2>
+            <h2 className="text-base font-black text-brand-950">{t.infoTitle}</h2>
             <dl className="mt-5 space-y-4">
-              <InfoRow icon={<CalendarIcon className="size-[18px]" />} label="일시">
-                {scheduleLines(tournament).map((line) => (
+              <InfoRow icon={<CalendarIcon className="size-[18px]" />} label={t.schedule}>
+                {scheduleLines(tournament, lang).map((line) => (
                   <span key={line} className="block">
                     {line}
                   </span>
                 ))}
               </InfoRow>
               {(tournament.venue || tournament.address) && (
-                <InfoRow icon={<MapPinIcon className="size-[18px]" />} label="장소">
+                <InfoRow icon={<MapPinIcon className="size-[18px]" />} label={t.venue}>
                   {tournament.venue && <span className="block">{tournament.venue}</span>}
                   {tournament.address && (
                     <span className="block font-normal text-slate-600">
@@ -152,22 +167,22 @@ export default async function TournamentPage({ params }: Props) {
                 </InfoRow>
               )}
               {tournament.organizer && (
-                <InfoRow icon={<UsersIcon className="size-[18px]" />} label="주최 · 주관">
+                <InfoRow icon={<UsersIcon className="size-[18px]" />} label={t.organizer}>
                   {tournament.organizer}
                 </InfoRow>
               )}
               {tournament.fee && (
-                <InfoRow icon={<DollarIcon className="size-[18px]" />} label="참가비">
+                <InfoRow icon={<DollarIcon className="size-[18px]" />} label={t.fee}>
                   {tournament.fee}
                 </InfoRow>
               )}
               {tournament.deadline && (
-                <InfoRow icon={<FlagIcon className="size-[18px]" />} label="신청 마감">
-                  {formatDate(tournament.deadline)}
+                <InfoRow icon={<FlagIcon className="size-[18px]" />} label={t.deadline}>
+                  {formatDate(tournament.deadline, true, lang)}
                 </InfoRow>
               )}
               {tournament.contact && (
-                <InfoRow icon={<PhoneIcon className="size-[18px]" />} label="문의">
+                <InfoRow icon={<PhoneIcon className="size-[18px]" />} label={t.contact}>
                   <LinkedText text={tournament.contact} />
                 </InfoRow>
               )}
@@ -181,7 +196,7 @@ export default async function TournamentPage({ params }: Props) {
                   rel="noopener noreferrer"
                   className="btn btn-accent w-full"
                 >
-                  {tournament.linkLabel || "관련 링크 열기"}
+                  {tournament.linkLabel || t.openLink}
                   <ExternalLinkIcon className="size-4" />
                 </a>
               )}
@@ -193,7 +208,7 @@ export default async function TournamentPage({ params }: Props) {
                   className="btn btn-ghost btn-sm w-full"
                 >
                   <MapPinIcon className="size-4" />
-                  지도에서 보기
+                  {t.map}
                 </a>
               )}
               <a
@@ -203,7 +218,7 @@ export default async function TournamentPage({ params }: Props) {
                 className="btn btn-ghost btn-sm w-full"
               >
                 <ClockIcon className="size-4" />
-                Google 캘린더에 추가
+                {t.calendar}
               </a>
             </div>
           </div>
@@ -213,7 +228,7 @@ export default async function TournamentPage({ params }: Props) {
           {tournament.body && (
             <section aria-labelledby="body-heading">
               <h2 id="body-heading" className="mb-4 text-xl font-black text-brand-950">
-                대회 소개
+                {t.bodyTitle}
               </h2>
               <LinkedText
                 text={tournament.body}
@@ -225,25 +240,26 @@ export default async function TournamentPage({ params }: Props) {
           {tournament.images.length > 0 && (
             <section aria-labelledby="poster-heading">
               <h2 id="poster-heading" className="mb-4 text-xl font-black text-brand-950">
-                대회 포스터
+                {t.posterTitle}
               </h2>
-              <ImageViewer images={tournament.images} label={tournament.title} />
+              <ImageViewer images={tournament.images} label={tournament.title} lang={lang} />
             </section>
           )}
 
           {/* 포스터를 옮겨 적은 글은 같은 내용을 두 번 읽지 않도록 접어 둡니다. */}
           {tournament.fullText && (
-            <details open={!hasSource} className="group card overflow-hidden">
+            <details open={!hasSource || englishFullText} className="group card overflow-hidden">
               <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 transition-colors hover:bg-brand-50 [&::-webkit-details-marker]:hidden">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
                   <FileIcon className="size-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-black text-brand-950">요강 전문 글로 보기</span>
+                  <span className="block font-black text-brand-950">
+                    {fullTextFallback ? t.fullTextFallbackTitle : t.fullTextTitle}
+                  </span>
                   {hasSource && (
                     <span className="mt-0.5 block text-sm break-keep text-slate-500">
-                      포스터나 첨부 파일의 내용을 글로 옮긴 것입니다. 글자가 작아 읽기
-                      어렵거나 연락처를 복사할 때 펼쳐 보세요.
+                      {fullTextFallback ? t.fullTextFallbackHint : t.fullTextHint}
                     </span>
                   )}
                 </span>
@@ -259,7 +275,7 @@ export default async function TournamentPage({ params }: Props) {
           {tournament.attachments.length > 0 && (
             <section aria-labelledby="files-heading">
               <h2 id="files-heading" className="mb-4 text-xl font-black text-brand-950">
-                첨부 파일
+                {t.attachments}
               </h2>
               <AttachmentList files={tournament.attachments} />
             </section>
@@ -267,16 +283,16 @@ export default async function TournamentPage({ params }: Props) {
 
           {!hasDetails && (
             <p className="rounded-2xl border border-dashed border-brand-200 bg-brand-50/50 px-6 py-10 text-center break-keep text-slate-500">
-              자세한 대회 요강은 준비되는 대로 이곳에 올려 드립니다.
+              {t.noDetails}
             </p>
           )}
         </div>
       </div>
 
       <div className="mt-14 border-t border-brand-100 pt-8 text-center">
-        <Link href="/tournaments" className="btn btn-outline">
+        <Link href={localePath(lang, "/tournaments")} className="btn btn-outline">
           <ArrowLeftIcon className="size-4" />
-          다른 대회 보기
+          {t.more}
         </Link>
       </div>
     </article>

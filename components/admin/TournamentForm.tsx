@@ -288,6 +288,141 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
       </Section>
 
       <Section
+        title="영어 화면용 (English)"
+        description="영어 화면(/en)에 보여 줄 글입니다. 비워 둔 칸은 영어 화면에도 한국어 글이 그대로 나옵니다. 날짜·주소·링크·포스터는 두 화면이 함께 씁니다."
+      >
+        <div>
+          <label htmlFor="en_title" className="label">
+            대회 이름 (영어)
+          </label>
+          <input
+            id="en_title"
+            name="en_title"
+            lang="en"
+            maxLength={150}
+            defaultValue={tournament?.en?.title}
+            placeholder="e.g. 1st VA-MD Fall Friendship Tournament"
+            className="field"
+          />
+        </div>
+        <div>
+          <label htmlFor="en_summary" className="label">
+            한 줄 소개 (영어)
+          </label>
+          <textarea
+            id="en_summary"
+            name="en_summary"
+            lang="en"
+            rows={2}
+            maxLength={500}
+            defaultValue={tournament?.en?.summary}
+            className="field"
+          />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="en_venue" className="label">
+              장소 이름 (영어)
+            </label>
+            <input
+              id="en_venue"
+              name="en_venue"
+              lang="en"
+              maxLength={150}
+              defaultValue={tournament?.en?.venue}
+              className="field"
+            />
+          </div>
+          <div>
+            <label htmlFor="en_organizer" className="label">
+              주최 · 주관 (영어)
+            </label>
+            <input
+              id="en_organizer"
+              name="en_organizer"
+              lang="en"
+              maxLength={150}
+              defaultValue={tournament?.en?.organizer}
+              className="field"
+            />
+          </div>
+          <div>
+            <label htmlFor="en_fee" className="label">
+              참가비 (영어)
+            </label>
+            <input
+              id="en_fee"
+              name="en_fee"
+              lang="en"
+              maxLength={150}
+              defaultValue={tournament?.en?.fee}
+              placeholder="e.g. $60 per team"
+              className="field"
+            />
+          </div>
+          <div>
+            <label htmlFor="en_contact" className="label">
+              문의 (영어)
+            </label>
+            <input
+              id="en_contact"
+              name="en_contact"
+              lang="en"
+              maxLength={300}
+              defaultValue={tournament?.en?.contact}
+              className="field"
+            />
+          </div>
+          <div>
+            <label htmlFor="en_linkLabel" className="label">
+              링크 버튼 이름 (영어)
+            </label>
+            <input
+              id="en_linkLabel"
+              name="en_linkLabel"
+              lang="en"
+              maxLength={40}
+              defaultValue={tournament?.en?.linkLabel}
+              placeholder="e.g. Register"
+              className="field"
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="en_body" className="label">
+            대회 소개 (영어)
+          </label>
+          <textarea
+            id="en_body"
+            name="en_body"
+            lang="en"
+            rows={6}
+            maxLength={30000}
+            defaultValue={tournament?.en?.body}
+            className="field leading-relaxed"
+          />
+        </div>
+        <div>
+          <label htmlFor="en_fullText" className="label">
+            요강 요약 (영어)
+          </label>
+          <textarea
+            id="en_fullText"
+            name="en_fullText"
+            lang="en"
+            rows={8}
+            maxLength={30000}
+            defaultValue={tournament?.en?.fullText}
+            className="field leading-relaxed"
+          />
+          <p className="hint">
+            포스터를 통째로 번역하지 않고 종목·방식·참가비·신청 방법만 간추려 적습니다. 포스터가
+            한국어이므로 영어 화면에서는 이 글이 펼쳐진 채로 보입니다.
+          </p>
+        </div>
+      </Section>
+
+      <Section
         title="포스터 · 이미지"
         description="첫 번째 이미지가 목록에 보이는 대표 포스터입니다. 화살표로 순서를 바꾸거나, ‘대표로 지정’을 눌러 한 번에 맨 앞으로 보낼 수 있습니다."
       >

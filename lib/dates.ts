@@ -1,7 +1,33 @@
+import type { Locale } from "@/lib/i18n/config";
 import { site } from "@/lib/site";
 import type { Tournament } from "@/lib/types";
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+// 날짜·시간을 글로 바꾸는 함수는 마지막 인자로 언어를 받습니다. 주지 않으면 한국어입니다.
+
+const WEEKDAYS: Record<Locale, string[]> = {
+  ko: ["일", "월", "화", "수", "목", "금", "토"],
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+};
+
+const MONTHS_EN = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** 기간을 잇는 표시: "9:00 ~ 5:00" · "9:00 – 5:00" */
+const RANGE_MARK: Record<Locale, string> = { ko: "~", en: "–" };
+/** 날짜와 시간 사이: "9월 5일 (토) 오전 9:00" · "Sat, Sep 5, 9:00 AM" */
+const TIME_JOINER: Record<Locale, string> = { ko: " ", en: ", " };
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -43,61 +69,81 @@ export function addDays(date: string, days: number): string {
     .slice(0, 10);
 }
 
-export function weekday(date: string): string {
-  return WEEKDAYS[new Date(parts(date).utc).getUTCDay()];
+export function weekday(date: string, lang: Locale = "ko"): string {
+  return WEEKDAYS[lang][new Date(parts(date).utc).getUTCDay()];
 }
 
 export function yearOf(date: string): number {
   return parts(date).y;
 }
 
-/** 2026년 9월 5일 (토) */
-export function formatDate(date: string, withYear = true): string {
+/** 2026년 9월 5일 (토) · Sat, Sep 5, 2026 */
+export function formatDate(date: string, withYear = true, lang: Locale = "ko"): string {
   const { y, m, d } = parts(date);
+  if (lang === "en") {
+    const head = `${weekday(date, lang)}, ${MONTHS_EN[m - 1]} ${d}`;
+    return withYear ? `${head}, ${y}` : head;
+  }
   const head = withYear ? `${y}년 ` : "";
   return `${head}${m}월 ${d}일 (${weekday(date)})`;
 }
 
-/** 오전 9:00 */
-export function formatTime(time: string): string {
+/** 오전 9:00 · 9:00 AM */
+export function formatTime(time: string, lang: Locale = "ko"): string {
   const [h, min] = time.split(":").map(Number);
-  const period = h < 12 ? "오전" : "오후";
   const hour = h % 12 === 0 ? 12 : h % 12;
-  return `${period} ${hour}:${String(min).padStart(2, "0")}`;
+  const clock = `${hour}:${String(min).padStart(2, "0")}`;
+  if (lang === "en") return `${clock} ${h < 12 ? "AM" : "PM"}`;
+  return `${h < 12 ? "오전" : "오후"} ${clock}`;
 }
 
 export function endDateOf(t: Pick<Tournament, "startDate" | "endDate">) {
   return t.endDate && t.endDate > t.startDate ? t.endDate : t.startDate;
 }
 
-/** 카드용 짧은 날짜: "9월 5일 (토)" 또는 "6월 27일 (토) ~ 28일 (일)" */
+/**
+ * 카드용 짧은 날짜: "9월 5일 (토)" 또는 "6월 27일 (토) ~ 28일 (일)"
+ * 영어: "Sat, Sep 5" 또는 "Sat, Jun 27 – Sun, Jun 28"
+ */
 export function formatDateRange(
   t: Pick<Tournament, "startDate" | "endDate">,
   withYear = false,
+  lang: Locale = "ko",
 ): string {
   const end = endDateOf(t);
-  const start = formatDate(t.startDate, withYear);
+  const start = formatDate(t.startDate, withYear, lang);
   if (end === t.startDate) return start;
   const s = parts(t.startDate);
   const e = parts(end);
+  if (lang === "en") {
+    // 영어는 연도를 날짜 뒤에 쓰므로, 같은 해라면 기간 끝에 한 번만 적습니다.
+    const startLabel = formatDate(t.startDate, withYear && s.y !== e.y, lang);
+    return `${startLabel} ${RANGE_MARK.en} ${formatDate(end, withYear, lang)}`;
+  }
   if (s.y === e.y && s.m === e.m) return `${start} ~ ${e.d}일 (${weekday(end)})`;
   return `${start} ~ ${formatDate(end, withYear && s.y !== e.y)}`;
 }
 
-/** 상세 페이지용 일시: "2026년 9월 5일 (토) 오전 9:00 ~ 오후 5:00" */
+/**
+ * 상세 페이지용 일시: "2026년 9월 5일 (토) 오전 9:00 ~ 오후 5:00"
+ * 영어: "Sat, Sep 5, 2026, 9:00 AM – 5:00 PM"
+ */
 export function formatSchedule(
   t: Pick<Tournament, "startDate" | "endDate" | "startTime" | "endTime">,
+  lang: Locale = "ko",
 ): string {
   const end = endDateOf(t);
-  const startTime = t.startTime ? ` ${formatTime(t.startTime)}` : "";
-  const endTime = t.endTime ? formatTime(t.endTime) : "";
-  const start = `${formatDate(t.startDate)}${startTime}`;
+  const mark = RANGE_MARK[lang];
+  const joiner = TIME_JOINER[lang];
+  const startTime = t.startTime ? formatTime(t.startTime, lang) : "";
+  const endTime = t.endTime ? formatTime(t.endTime, lang) : "";
+  const start = [formatDate(t.startDate, true, lang), startTime].filter(Boolean).join(joiner);
 
-  if (end === t.startDate) return endTime ? `${start} ~ ${endTime}` : start;
+  if (end === t.startDate) return endTime ? `${start} ${mark} ${endTime}` : start;
 
   const sameYear = yearOf(end) === yearOf(t.startDate);
-  const endLabel = `${formatDate(end, !sameYear)}${endTime ? ` ${endTime}` : ""}`;
-  return `${start} ~ ${endLabel}`;
+  const endLabel = [formatDate(end, !sameYear, lang), endTime].filter(Boolean).join(joiner);
+  return `${start} ${mark} ${endLabel}`;
 }
 
 /**
@@ -107,20 +153,22 @@ export function formatSchedule(
  */
 export function scheduleLines(
   t: Pick<Tournament, "startDate" | "endDate" | "startTime" | "endTime">,
+  lang: Locale = "ko",
 ): string[] {
   const end = endDateOf(t);
-  const startTime = t.startTime ? formatTime(t.startTime) : "";
-  const endTime = t.endTime ? formatTime(t.endTime) : "";
+  const mark = RANGE_MARK[lang];
+  const joiner = TIME_JOINER[lang];
+  const startTime = t.startTime ? formatTime(t.startTime, lang) : "";
+  const endTime = t.endTime ? formatTime(t.endTime, lang) : "";
+  const startDate = formatDate(t.startDate, true, lang);
 
   if (end === t.startDate) {
-    const time = [startTime, endTime].filter(Boolean).join(" ~ ");
-    return time ? [formatDate(t.startDate), time] : [formatDate(t.startDate)];
+    const time = [startTime, endTime].filter(Boolean).join(` ${mark} `);
+    return time ? [startDate, time] : [startDate];
   }
   const sameYear = yearOf(end) === yearOf(t.startDate);
-  return [
-    [formatDate(t.startDate), startTime].filter(Boolean).join(" "),
-    ["~", formatDate(end, !sameYear), endTime].filter(Boolean).join(" "),
-  ];
+  const endLabel = [formatDate(end, !sameYear, lang), endTime].filter(Boolean).join(joiner);
+  return [[startDate, startTime].filter(Boolean).join(joiner), `${mark} ${endLabel}`];
 }
 
 export type TournamentStatus = "upcoming" | "ongoing" | "past";
@@ -134,28 +182,45 @@ export function statusOf(
   return "past";
 }
 
-/** "D-12", "D-DAY", "진행 중", "종료" */
+const daysLeft = (days: number) => `${days} ${days === 1 ? "day" : "days"}`;
+
+/** "D-12", "D-DAY", "진행 중", "종료" · "In 12 days", "Today", "In progress", "Ended" */
 export function statusLabel(
   t: Pick<Tournament, "startDate" | "endDate">,
   now = today(),
+  lang: Locale = "ko",
 ): string {
   const status = statusOf(t, now);
-  if (status === "past") return "종료";
+  const en = lang === "en";
+  if (status === "past") return en ? "Ended" : "종료";
   if (status === "ongoing") {
-    return now === t.startDate ? "D-DAY" : "진행 중";
+    if (now === t.startDate) return en ? "Today" : "D-DAY";
+    return en ? "In progress" : "진행 중";
   }
-  return `D-${daysBetween(now, t.startDate)}`;
+  const days = daysBetween(now, t.startDate);
+  if (en) return days === 1 ? "Tomorrow" : `In ${daysLeft(days)}`;
+  return `D-${days}`;
 }
 
 /** 신청 접수 상태. 마감일이 없거나 대회가 끝났으면 null */
 export function registrationLabel(
   t: Pick<Tournament, "startDate" | "endDate" | "deadline">,
   now = today(),
+  lang: Locale = "ko",
 ): { open: boolean; label: string } | null {
   if (!t.deadline || statusOf(t, now) === "past") return null;
-  if (now > t.deadline) return { open: false, label: "접수 마감" };
+  const en = lang === "en";
+  if (now > t.deadline) {
+    return { open: false, label: en ? "Registration closed" : "접수 마감" };
+  }
   const left = daysBetween(now, t.deadline);
-  return { open: true, label: left === 0 ? "오늘 접수 마감" : `접수 중 · 마감 D-${left}` };
+  if (left === 0) {
+    return { open: true, label: en ? "Registration closes today" : "오늘 접수 마감" };
+  }
+  return {
+    open: true,
+    label: en ? `Registration open · ${daysLeft(left)} left` : `접수 중 · 마감 D-${left}`,
+  };
 }
 
 /** Google 캘린더 '일정 추가' 링크 */

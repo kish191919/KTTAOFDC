@@ -1,13 +1,20 @@
 import Link from "next/link";
 import type { NewsPost } from "@/lib/types";
 import { formatDate } from "@/lib/dates";
+import { localePath, type Locale } from "@/lib/i18n/config";
 import { excerptOf } from "@/lib/news";
 
 /** 날짜와, 신문 기사라면 실린 곳을 나란히 보여 줍니다. */
-export function NewsMeta({ post }: { post: Pick<NewsPost, "date" | "source"> }) {
+export function NewsMeta({
+  post,
+  lang,
+}: {
+  post: Pick<NewsPost, "date" | "source">;
+  lang: Locale;
+}) {
   return (
     <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm font-semibold text-accent-600">
-      {formatDate(post.date)}
+      {formatDate(post.date, true, lang)}
       {post.source && (
         <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-bold text-brand-700 ring-1 ring-brand-100">
           {post.source}
@@ -17,16 +24,17 @@ export function NewsMeta({ post }: { post: Pick<NewsPost, "date" | "source"> }) 
   );
 }
 
-export function NewsCard({ post }: { post: NewsPost }) {
+/** post 는 보여 줄 언어에 맞춘(localizeNewsPost 를 거친) 소식입니다. */
+export function NewsCard({ post, lang }: { post: NewsPost; lang: Locale }) {
   const cover = post.images[0];
   const excerpt = excerptOf(post);
   return (
     <Link
-      href={`/community/news/${post.id}`}
+      href={localePath(lang, `/community/news/${post.id}`)}
       className="group card flex items-start gap-4 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg sm:gap-6 sm:p-5"
     >
       <div className="min-w-0 flex-1">
-        <NewsMeta post={post} />
+        <NewsMeta post={post} lang={lang} />
         <h2 className="mt-1.5 line-clamp-2 text-lg leading-snug font-bold break-keep text-slate-900 transition-colors group-hover:text-brand-700 sm:text-xl">
           {post.title}
         </h2>

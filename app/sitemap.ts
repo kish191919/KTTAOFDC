@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { localePath, locales } from "@/lib/i18n/config";
 import { siteUrl } from "@/lib/site";
 import { listAlbums } from "@/lib/store/albums";
 import { listNewsPosts } from "@/lib/store/news";
@@ -14,28 +15,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     listAlbums(),
     listNewsPosts(),
   ]);
-  const pages = [
-    "",
-    "/about",
-    "/tournaments",
-    "/gallery",
-    "/community/news",
-    "/community",
-    "/community/etiquette",
-  ];
-  return [
-    ...pages.map((path) => ({ url: `${base}${path}` })),
-    ...tournaments.map((t) => ({
-      url: `${base}/tournaments/${t.id}`,
-      lastModified: t.updatedAt,
-    })),
-    ...albums.map((album) => ({
-      url: `${base}/gallery/${album.id}`,
-      lastModified: album.updatedAt,
-    })),
+  // 언어 표시가 없는 주소. 아래에서 한국어(/…)와 영어(/en/…) 주소를 함께 만듭니다.
+  const pages: { path: string; lastModified?: string }[] = [
+    { path: "/" },
+    { path: "/about" },
+    { path: "/tournaments" },
+    { path: "/gallery" },
+    { path: "/community/news" },
+    { path: "/community" },
+    { path: "/community/etiquette" },
+    ...tournaments.map((t) => ({ path: `/tournaments/${t.id}`, lastModified: t.updatedAt })),
+    ...albums.map((album) => ({ path: `/gallery/${album.id}`, lastModified: album.updatedAt })),
     ...news.map((post) => ({
-      url: `${base}/community/news/${post.id}`,
+      path: `/community/news/${post.id}`,
       lastModified: post.updatedAt,
     })),
   ];
+
+  const absolute = (path: string) => `${base}${path === "/" ? "" : path}`;
+
+  return pages.flatMap(({ path, lastModified }) => {
+    // 같은 페이지의 한국어·영어 주소를 서로 짝지어 알려 줍니다.
+    const languages = Object.fromEntries(
+      locales.map((lang) => [lang, absolute(localePath(lang, path))]),
+    );
+    return locales.map((lang) => ({
+      url: absolute(localePath(lang, path)),
+      ...(lastModified ? { lastModified } : {}),
+      alternates: { languages },
+    }));
+  });
 }

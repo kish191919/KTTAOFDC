@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { localePath } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { localizeNewsPost } from "@/lib/i18n/localize";
+import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { newsSummary } from "@/lib/news";
 import { getNewsPost, listNewsPosts } from "@/lib/store/news";
@@ -10,42 +14,51 @@ import { LinkedText } from "@/components/LinkedText";
 import { NewsMeta } from "@/components/NewsCard";
 import { ArrowLeftIcon, ExternalLinkIcon } from "@/components/icons";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ lang: string; id: string }> };
 
 export async function generateStaticParams() {
   return (await listNewsPosts()).map((post) => ({ id: post.id }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const lang = await readLang(params);
   const { id } = await params;
-  const post = await getNewsPost(id);
-  if (!post) return { title: "탁구 소식" };
+  const stored = await getNewsPost(id);
+  if (!stored) return { title: getDictionary(lang).community.news };
 
+  const post = localizeNewsPost(stored, lang);
   return pageMetadata({
+    lang,
+    path: `/community/news/${post.id}`,
     title: post.title,
-    description: newsSummary(post),
+    description: newsSummary(post, lang),
     image: post.images[0],
   });
 }
 
 export default async function NewsPostPage({ params }: Props) {
+  const lang = await readLang(params);
   const { id } = await params;
-  const post = await getNewsPost(id);
-  if (!post) notFound();
+  const stored = await getNewsPost(id);
+  if (!stored) notFound();
+
+  const d = getDictionary(lang);
+  const t = d.news;
+  const post = localizeNewsPost(stored, lang);
 
   return (
     // 글을 읽는 화면이라 한 줄이 너무 길어지지 않게 다른 페이지보다 폭을 좁게 잡습니다.
     <article className="mx-auto max-w-3xl px-4 py-10 md:py-14">
       <Link
-        href="/community/news"
+        href={localePath(lang, "/community/news")}
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-brand-700"
       >
         <ArrowLeftIcon className="size-4" />
-        탁구 소식
+        {d.community.news}
       </Link>
 
       <header className="mt-5 border-b border-brand-100 pb-8">
-        <NewsMeta post={post} />
+        <NewsMeta post={post} lang={lang} />
         <h1 className="mt-3 text-3xl leading-tight font-black break-keep text-brand-950 md:text-4xl">
           {post.title}
         </h1>
@@ -53,7 +66,7 @@ export default async function NewsPostPage({ params }: Props) {
 
       <div className="mt-10 space-y-10">
         {/* 신문 기사처럼 사진을 먼저 보여 주고 그 아래에 글을 싣습니다. */}
-        {post.images.length > 0 && <ImageViewer images={post.images} label={post.title} />}
+        {post.images.length > 0 && <ImageViewer images={post.images} label={post.title} lang={lang} />}
 
         {post.body && (
           <LinkedText
@@ -69,7 +82,7 @@ export default async function NewsPostPage({ params }: Props) {
             rel="noopener noreferrer"
             className="btn btn-accent w-full sm:w-auto"
           >
-            {post.source ? "기사 원문 보기" : "관련 링크 열기"}
+            {post.source ? t.original : t.openLink}
             <ExternalLinkIcon className="size-4" />
           </a>
         )}
@@ -77,7 +90,7 @@ export default async function NewsPostPage({ params }: Props) {
         {post.attachments.length > 0 && (
           <section aria-labelledby="files-heading">
             <h2 id="files-heading" className="mb-4 text-xl font-black text-brand-950">
-              첨부 파일
+              {t.attachments}
             </h2>
             <AttachmentList files={post.attachments} />
           </section>
@@ -85,9 +98,9 @@ export default async function NewsPostPage({ params }: Props) {
       </div>
 
       <div className="mt-14 border-t border-brand-100 pt-8 text-center">
-        <Link href="/community/news" className="btn btn-outline">
+        <Link href={localePath(lang, "/community/news")} className="btn btn-outline">
           <ArrowLeftIcon className="size-4" />
-          다른 소식 보기
+          {t.more}
         </Link>
       </div>
     </article>

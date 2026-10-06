@@ -115,6 +115,13 @@ export const ExternalLinkIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const CopyIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </Icon>
+);
+
 export const DownloadIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -304,6 +311,102 @@ export function PaddleMark({
         stroke={light ? "rgba(255,255,255,0.4)" : "var(--color-brand-200)"}
         strokeWidth="1.5"
       />
+    </svg>
+  );
+}
+
+// 언어 전환 버튼에 쓰는 국기 마크. 동그랗게 잘라 내는 것은 감싸는 쪽(overflow-hidden rounded-full)이 맡습니다.
+
+/** 태극기의 괘 하나. pattern 은 바깥쪽 줄부터 "이어진 줄(1) / 끊어진 줄(0)" 입니다. */
+function Trigram({
+  x,
+  y,
+  rotate,
+  pattern,
+}: {
+  x: number;
+  y: number;
+  rotate: number;
+  pattern: readonly [number, number, number];
+}) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${rotate})`} fill="var(--color-navy-950)">
+      {pattern.map((solid, index) => {
+        const top = -3.55 + index * 2.8;
+        return solid ? (
+          <rect key={index} x="-4" y={top} width="8" height="1.5" />
+        ) : (
+          <g key={index}>
+            <rect x="-4" y={top} width="3.4" height="1.5" />
+            <rect x="0.6" y={top} width="3.4" height="1.5" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** 동그란 태극기 — 영어 화면에서 '한국어로 보기' 버튼에 씁니다. */
+export function KoreaFlagMark(props: IconProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 48 48"
+      width="1em"
+      height="1em"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect width="48" height="48" fill="#ffffff" />
+      <g transform="rotate(33.69 24 24)">
+        <circle cx="24" cy="24" r="9" fill="var(--color-brand-700)" />
+        <path
+          d="M15 24a9 9 0 0 1 18 0 4.5 4.5 0 0 0-9 0 4.5 4.5 0 0 1-9 0z"
+          fill="var(--color-accent-500)"
+        />
+      </g>
+      {/* 건(왼쪽 위) · 감(오른쪽 위) · 이(왼쪽 아래) · 곤(오른쪽 아래) */}
+      <Trigram x={10.3} y={14.9} rotate={-56.31} pattern={[1, 1, 1]} />
+      <Trigram x={37.7} y={14.9} rotate={56.31} pattern={[0, 1, 0]} />
+      <Trigram x={10.3} y={33.1} rotate={56.31} pattern={[1, 0, 1]} />
+      <Trigram x={37.7} y={33.1} rotate={-56.31} pattern={[0, 0, 0]} />
+    </svg>
+  );
+}
+
+/** 동그란 성조기 — 한국어 화면에서 '영어로 보기' 버튼에 씁니다. */
+export function UsFlagMark(props: IconProps) {
+  // 줄 13개 가운데 흰 줄 6개 (줄 하나의 높이 = 48 / 13)
+  const stripe = 48 / 13;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 48 48"
+      width="1em"
+      height="1em"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect width="48" height="48" fill="var(--color-accent-600)" />
+      {[1, 3, 5, 7, 9, 11].map((row) => (
+        <rect key={row} y={row * stripe} width="48" height={stripe} fill="#ffffff" />
+      ))}
+      <rect width="25" height={stripe * 7} fill="var(--color-navy-800)" />
+      {[
+        [12.5, 5.5],
+        [18.5, 5.5],
+        [9.5, 10.5],
+        [15.5, 10.5],
+        [21.5, 10.5],
+        [6.5, 15.5],
+        [12.5, 15.5],
+        [18.5, 15.5],
+        [9.5, 20.5],
+        [15.5, 20.5],
+        [21.5, 20.5],
+      ].map(([cx, cy]) => (
+        <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" fill="#ffffff" />
+      ))}
     </svg>
   );
 }

@@ -82,6 +82,42 @@ export function AlbumForm({ album, action, readOnly = false }: Props) {
       </div>
 
       <div className="card p-6 md:p-7">
+        <h2 className="text-lg font-black text-brand-950">영어 화면용 (English)</h2>
+        <p className="mt-1 mb-5 text-sm break-keep text-slate-500">
+          영어 화면(/en)에 보여 줄 글입니다. 비워 둔 칸은 영어 화면에도 한국어 글이 그대로 나옵니다.
+        </p>
+        <div className="space-y-5">
+          <div>
+            <label htmlFor="en_title" className="label">
+              앨범 이름 (영어)
+            </label>
+            <input
+              id="en_title"
+              name="en_title"
+              lang="en"
+              maxLength={150}
+              defaultValue={album?.en?.title}
+              className="field"
+            />
+          </div>
+          <div>
+            <label htmlFor="en_description" className="label">
+              설명 (영어)
+            </label>
+            <textarea
+              id="en_description"
+              name="en_description"
+              lang="en"
+              rows={3}
+              maxLength={1000}
+              defaultValue={album?.en?.description}
+              className="field"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-6 md:p-7">
         <h2 className="text-lg font-black text-brand-950">사진</h2>
         <p className="mt-1 mb-5 text-sm break-keep text-slate-500">
           여러 장을 한꺼번에 고를 수 있습니다. 첫 번째 사진이 앨범 표지가 됩니다. 다른 사진의

@@ -164,6 +164,22 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+/**
+ * 입력 화면의 '영어 화면용' 칸(이름이 en_ 으로 시작)을 읽습니다.
+ * limits 는 칸 이름별 글자 수 한도입니다. 채운 칸만 묶어 돌려주고, 모두 비어 있으면 undefined 입니다.
+ */
+function englishFields<K extends string>(
+  formData: FormData,
+  limits: Record<K, number>,
+): Partial<Record<K, string>> | undefined {
+  const filled: Partial<Record<K, string>> = {};
+  for (const key of Object.keys(limits) as K[]) {
+    const value = text(formData, `en_${key}`, limits[key]);
+    if (value) filled[key] = value;
+  }
+  return Object.keys(filled).length > 0 ? filled : undefined;
+}
+
 function revalidateSite() {
   // 홈·목록·상세 등 모든 페이지를 새 내용으로 다시 만들게 합니다.
   revalidatePath("/", "layout");
@@ -245,6 +261,19 @@ function parseTournament(
   for (const [key, entry] of Object.entries(optional)) {
     if (entry) value[key as keyof typeof optional] = entry;
   }
+  // 영어 화면용 글. 한국어 칸과 같은 한도를 씁니다. 링크가 없으면 버튼 이름은 읽지 않습니다.
+  const en = englishFields(formData, {
+    title: 150,
+    summary: 500,
+    venue: 150,
+    organizer: 150,
+    fee: 150,
+    contact: 300,
+    body: 30_000,
+    fullText: 30_000,
+    linkLabel: linkUrl ? 40 : 0,
+  });
+  if (en) value.en = en;
   if (isHiddenChecked(formData)) value.hidden = true;
   return { value };
 }
@@ -310,11 +339,13 @@ export async function saveAlbumAction(
   }
 
   const description = text(formData, "description", 1000);
+  const en = englishFields(formData, { title: 150, description: 1000 });
   const input: AlbumInput = {
     title,
     date,
     photos,
     ...(description ? { description } : {}),
+    ...(en ? { en } : {}),
     ...(isHiddenChecked(formData) ? { hidden: true } : {}),
   };
   const saved = id ? await updateAlbum(id, input) : await createAlbum(input);
@@ -369,6 +400,7 @@ export async function saveNewsPostAction(
 
   const source = text(formData, "source", 100);
   const body = text(formData, "body", 30_000);
+  const en = englishFields(formData, { title: 150, source: 100, body: 30_000 });
   const input: NewsPostInput = {
     title,
     date,
@@ -377,6 +409,7 @@ export async function saveNewsPostAction(
     ...(source ? { source } : {}),
     ...(linkUrl ? { linkUrl } : {}),
     ...(body ? { body } : {}),
+    ...(en ? { en } : {}),
     ...(isHiddenChecked(formData) ? { hidden: true } : {}),
   };
   const saved = id ? await updateNewsPost(id, input) : await createNewsPost(input);

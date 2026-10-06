@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { ImageRef } from "@/lib/types";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
 
@@ -20,6 +22,8 @@ type LightboxProps = {
   images: ImageRef[];
   /** 사진마다 붙일 설명의 앞부분 (예: 대회 이름) */
   label: string;
+  /** 버튼 이름과 이미지 설명에 쓸 언어 */
+  lang: Locale;
   /** 지금 보여 줄 이미지의 순서 */
   current: number;
   onStep: (delta: number) => void;
@@ -27,7 +31,8 @@ type LightboxProps = {
 };
 
 /** 이미지 한 장을 화면 가득 보여 주는 창. Esc 로 닫고 ← → 로 넘깁니다. */
-export function Lightbox({ images, label, current, onStep, onClose }: LightboxProps) {
+export function Lightbox({ images, label, lang, current, onStep, onClose }: LightboxProps) {
+  const t = getDictionary(lang).viewer;
   const count = images.length;
 
   useEffect(() => {
@@ -50,14 +55,14 @@ export function Lightbox({ images, label, current, onStep, onClose }: LightboxPr
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={`${label} 이미지 크게 보기`}
+      aria-label={t.dialog(label)}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950/95"
       onClick={onClose}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={images[current].src}
-        alt={`${label} 이미지 ${current + 1}`}
+        alt={t.alt(label, current + 1)}
         className="max-h-[calc(100dvh-5rem)] max-w-[calc(100vw-1.5rem)] cursor-default rounded-lg object-contain shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       />
@@ -65,7 +70,7 @@ export function Lightbox({ images, label, current, onStep, onClose }: LightboxPr
       <button
         type="button"
         onClick={onClose}
-        aria-label="닫기"
+        aria-label={t.close}
         autoFocus
         className="absolute top-3 right-3 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25"
       >
@@ -80,7 +85,7 @@ export function Lightbox({ images, label, current, onStep, onClose }: LightboxPr
               event.stopPropagation();
               onStep(-1);
             }}
-            aria-label="이전 이미지"
+            aria-label={t.previous}
             className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25 sm:left-4"
           >
             <ChevronLeftIcon className="size-7" />
@@ -91,7 +96,7 @@ export function Lightbox({ images, label, current, onStep, onClose }: LightboxPr
               event.stopPropagation();
               onStep(1);
             }}
-            aria-label="다음 이미지"
+            aria-label={t.next}
             className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25 sm:right-4"
           >
             <ChevronRightIcon className="size-7" />
@@ -109,10 +114,12 @@ type Props = {
   images: ImageRef[];
   /** 사진마다 붙일 설명의 앞부분 (예: 대회 이름) */
   label: string;
+  lang: Locale;
 };
 
 /** 포스터처럼 원본 비율로 세로로 나열하고, 누르면 화면 가득 크게 보여 줍니다. */
-export function ImageViewer({ images, label }: Props) {
+export function ImageViewer({ images, label, lang }: Props) {
+  const t = getDictionary(lang).viewer;
   const viewer = useLightbox(images.length);
 
   return (
@@ -123,13 +130,13 @@ export function ImageViewer({ images, label }: Props) {
             key={image.src}
             type="button"
             onClick={() => viewer.open(index)}
-            aria-label={`${label} 이미지 ${index + 1} 크게 보기`}
+            aria-label={t.enlarge(label, index + 1)}
             className="block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm transition-shadow hover:shadow-md"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={image.src}
-              alt={`${label} 이미지 ${index + 1}`}
+              alt={t.alt(label, index + 1)}
               width={image.width}
               height={image.height}
               loading={index === 0 ? "eager" : "lazy"}
@@ -144,6 +151,7 @@ export function ImageViewer({ images, label }: Props) {
         <Lightbox
           images={images}
           label={label}
+          lang={lang}
           current={viewer.current}
           onStep={viewer.step}
           onClose={viewer.close}

@@ -1,10 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { localePath, type Locale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import { nav, site } from "@/lib/site";
 import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { MailIcon } from "@/components/icons";
+import { AdminLink } from "@/components/AdminLink";
 
-export function Footer() {
+export function Footer({ lang }: { lang: Locale }) {
+  const d = getDictionary(lang);
   return (
     <footer className="bg-navy-950 text-brand-100">
       <div className="h-1 bg-linear-to-r from-accent-500 via-accent-500 to-brand-500" />
@@ -21,21 +25,23 @@ export function Footer() {
             className="h-8 w-auto self-start sm:self-auto"
           />
           <div className="leading-tight sm:border-l sm:border-white/15 sm:pl-3">
-            <p className="text-sm font-semibold text-white">{site.nameKo}</p>
-            <p className="text-xs text-brand-200">{site.nameEn}</p>
+            <p className="text-sm font-semibold text-white">{d.site.fullName}</p>
+            <p className="text-xs text-brand-200" lang={lang === "ko" ? "en" : "ko"}>
+              {d.site.otherName}
+            </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-x-6 gap-y-3 sm:flex-row sm:items-center">
-          <nav aria-label="바로가기">
+          <nav aria-label={d.nav.quickLinks}>
             <ul className="flex flex-wrap gap-x-5 gap-y-2">
               {nav.map((item) => (
                 <li key={item.href}>
                   <Link
-                    href={item.href}
+                    href={localePath(lang, item.href)}
                     className="text-sm text-brand-200 transition-colors hover:text-white"
                   >
-                    {item.label}
+                    {item.label[lang]}
                   </Link>
                 </li>
               ))}
@@ -66,9 +72,7 @@ export function Footer() {
               <span className="text-accent-400">•</span> Friendship
             </p>
             {STORE_WRITABLE && (
-              <Link href="/admin" className="transition-colors hover:text-white">
-                관리자
-              </Link>
+              <AdminLink className="transition-colors hover:text-white">{d.nav.admin}</AdminLink>
             )}
           </div>
         </div>
