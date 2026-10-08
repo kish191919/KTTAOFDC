@@ -8,10 +8,16 @@ export const greeting = {
     ko: "워싱턴DC 한인탁구협회 홈페이지를 방문해 주셔서 감사합니다.",
     en: "Welcome to the Korean Table Tennis Association of DC.",
   },
+  // 홈 화면 큰 제목에서 협회 이름 바로 아래에 놓는 인사 한 줄.
+  thanks: {
+    ko: "홈페이지를 방문해 주셔서 감사합니다.",
+    en: "Thank you for visiting our website.",
+  },
   // 홈 화면에는 이 한 문장만 보여 줍니다. 전체 글(paragraphs)은 협회 소개에 나옵니다.
+  // 끊어 읽는 단위로 나눠 적습니다. 칸이 좁아 줄이 바뀔 때 이 단위 사이에서만 바뀝니다.
   summary: {
-    ko: "탁구로 하나 되어 만들어갈 더 밝은 미래를 여러분과 함께 꿈꿉니다.",
-    en: "United by table tennis, we look forward to building a brighter future together.",
+    ko: ["탁구로 하나 되어 만들어갈 더 밝은 미래를", "여러분과 함께 꿈꿉니다."],
+    en: ["United by table tennis,", "we look forward to building", "a brighter future together."],
   },
   paragraphs: {
     ko: [
@@ -37,11 +43,18 @@ export const greeting = {
   photo: { src: "/images/president.jpg", width: 1184, height: 1504 },
 };
 
-// 홈 화면 인사말 아래에 놓는 협회 소개 한 단락.
+// 홈 화면 인사말 아래에 놓는 협회 소개 글. 문장마다 새 줄에서 시작하도록 한 문장씩 나눠 적습니다.
 // 검색 사이트가 이 글로 협회가 어디에서 무엇을 하는 곳인지 알게 되므로, 지역과 하는 일을 빠뜨리지 않고 적습니다.
-export const homeIntro: Localized = {
-  ko: "워싱턴DC 한인탁구협회(KTTA of DC)는 버지니아와 워싱턴DC 지역의 한인 탁구 동호인들이 함께하는 탁구협회입니다. 미주 각 지역의 한인 탁구협회가 모인 재미한인탁구협회(KTTA in USA) 소속으로, 탁구대회 일정과 탁구 칠 수 있는 장소, 협회 소식을 안내합니다.",
-  en: "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area. A member of the Korean Table Tennis Association in USA (KTTA in USA), we share tournament schedules, places to play, and association news.",
+// (영어 글의   는 줄이 바뀌지 않는 띄어쓰기입니다. "Washington, DC" 가 두 줄로 갈라지지 않게 합니다)
+export const homeIntro: Localized<string[]> = {
+  ko: [
+    "워싱턴DC 한인탁구협회(KTTA of DC)는 버지니아와 워싱턴DC 지역의 한인 탁구 동호인들이 함께하는 탁구협회입니다.",
+    "미주 각 지역의 한인 탁구협회가 모인 재미한인탁구협회(KTTA in USA) 소속으로, 탁구대회 일정과 탁구 칠 수 있는 장소, 협회 소식을 안내합니다.",
+  ],
+  en: [
+    "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area.",
+    "A member of the Korean Table Tennis Association in USA (KTTA in USA), we share tournament schedules, places to play, and association news.",
+  ],
 };
 
 // 홈 화면 인사말 옆에 놓는 회원 단체 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.

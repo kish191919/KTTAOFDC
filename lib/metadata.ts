@@ -7,7 +7,9 @@ import type { ImageRef } from "@/lib/types";
 const OG_LOCALE: Record<Locale, string> = { ko: "ko_KR", en: "en_US" };
 
 // 대표 이미지가 없는 페이지는 사이트 배너(app/opengraph-image.jpg)를 미리보기로 씁니다.
-const DEFAULT_IMAGE = { url: "/opengraph-image.jpg", width: 1200, height: 630 };
+// 카카오톡·문자 앱은 미리보기 그림을 주소별로 휴대폰에 저장해 두어, 주소가 같으면 파일을 바꿔도 예전 그림을 보여 줍니다.
+// 배너 파일을 바꿀 때는 아래 v= 뒤의 날짜도 함께 바꿉니다.
+const DEFAULT_IMAGE = { url: "/opengraph-image.jpg?v=20261008", width: 1200, height: 630 };
 
 /**
  * 카카오톡·SNS 에 링크를 붙였을 때 보이는 미리보기의 공통 정보.

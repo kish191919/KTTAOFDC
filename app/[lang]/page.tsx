@@ -16,6 +16,7 @@ import { ContactButton } from "@/components/ContactButton";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 import { JsonLd } from "@/components/JsonLd";
 import { SectionHeading } from "@/components/PageHeader";
+import { KeepParens, Phrases } from "@/components/Phrases";
 import { TournamentCard } from "@/components/TournamentCard";
 import { ArrowRightIcon, MailIcon, MapPinIcon } from "@/components/icons";
 
@@ -72,12 +73,25 @@ export default async function HomePage({ params }: Props) {
           <div className="text-center lg:col-span-2 lg:text-left">
             <span className="eyebrow mb-3">{t.welcomeEyebrow}</span>
             {/* 이 화면의 큰 제목(h1). 검색 사이트가 협회 이름을 여기서 읽습니다. */}
-            <h1 className="text-2xl leading-snug font-bold text-balance break-keep text-brand-950 md:text-3xl">
-              {greeting.welcome[lang]}
+            {/* 협회 이름은 크게, 인사는 그 아래 한 줄로 작게 놓아 말이 중간에서 끊기지 않게 합니다. */}
+            <h1 className="break-keep text-brand-950">
+              <span className="block text-2xl leading-tight font-bold text-balance min-[360px]:text-3xl md:text-4xl lg:text-3xl xl:text-4xl">
+                {d.site.fullName}
+              </span>{" "}
+              <span className="mt-2 block text-base leading-snug font-medium text-balance text-brand-800 min-[360px]:text-lg md:text-xl lg:text-lg xl:text-xl">
+                {greeting.thanks[lang]}
+              </span>
             </h1>
-            <p className="mt-4 leading-relaxed break-keep text-slate-600">{homeIntro[lang]}</p>
-            <p className="mt-3 leading-relaxed text-balance break-keep text-slate-600">
-              {greeting.summary[lang]}
+            {/* 문장마다 새 줄에서 시작하고, 마지막 줄에 한 낱말만 남지 않게 합니다. 한 단으로 쌓이는 화면에서는 줄이 너무 길어지지 않게 폭을 줄입니다. */}
+            <div className="mx-auto mt-5 max-w-xl space-y-2 leading-relaxed text-pretty break-keep text-slate-600 lg:max-w-none">
+              {homeIntro[lang].map((sentence) => (
+                <p key={sentence}>
+                  <KeepParens text={sentence} />
+                </p>
+              ))}
+            </div>
+            <p className="mt-4 leading-relaxed font-medium text-balance break-keep text-brand-900">
+              <Phrases parts={greeting.summary[lang]} />
             </p>
             <Link href={localePath(lang, "/about")} className="btn btn-brand btn-sm mt-6">
               {t.aboutLink}
