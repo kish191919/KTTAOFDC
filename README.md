@@ -120,8 +120,7 @@ npm run dev     # http://localhost:3000
 ## Vercel 에 배포하기
 
 1. 이 폴더를 GitHub 저장소로 올린 뒤, Vercel 에서 **Add New → Project** 로 그 저장소를 불러옵니다. 설정은 기본값 그대로 두면 됩니다.
-2. 도메인을 연결했다면 **Settings → Environment Variables** 에 `NEXT_PUBLIC_SITE_URL` 을 넣습니다.
-   (예: `https://www.kttaofdc.org` — 링크 미리보기와 sitemap 주소에 쓰입니다)
+2. 도메인은 아래 **도메인 연결하기** 순서대로 붙입니다.
 
 **데이터베이스를 연결하기 전에는 배포된 사이트가 ‘읽기 전용’입니다.**
 Vercel 서버는 파일을 저장해 둘 수 없기 때문에 배포된 사이트에서는 저장이 막혀 있고, 관리자 메뉴도 보이지 않습니다.
@@ -131,6 +130,28 @@ Vercel 서버는 파일을 저장해 둘 수 없기 때문에 배포된 사이�
 1. 내 컴퓨터에서 `npm run dev` 로 실행하고 관리자 화면에서 내용을 수정합니다.
 2. 바뀐 `data/`, `public/uploads/` 를 커밋해서 GitHub 에 올립니다.
 3. Vercel 이 자동으로 다시 배포하면 공개 사이트에 반영됩니다.
+
+## 도메인 연결하기
+
+홈페이지 주소는 `https://www.kttaofdc.org` 입니다. `kttaofdc.org` 로 들어와도 www 주소로 넘어갑니다.
+
+도메인은 Wix 에서 구매했고(2029-09-23 만료) DNS 도 Wix 에서 관리합니다.
+Wix 에서 산 도메인은 네임서버를 바꿀 수 없어서, DNS 레코드 두 개만 Vercel 을 가리키게 합니다.
+
+1. Vercel 프로젝트의 **Settings → Domains → Add Domain** 에 `kttaofdc.org` 를 넣습니다.
+   `www.kttaofdc.org` 를 함께 추가하고 `kttaofdc.org` 를 www 로 넘기는 권장 옵션을 고릅니다.
+2. Wix 의 **Domains → 도메인 옆 ⋯ → Manage DNS Records** 에서 아래 두 레코드를 Vercel 화면에 나오는 값으로 맞춥니다.
+
+   | 종류 | Host | 값 |
+   | --- | --- | --- |
+   | A | 비워 둠 | Vercel 이 알려 주는 IP 주소 하나. Wix 주소(`185.230.63.x`)는 지웁니다. |
+   | CNAME | `www` | Vercel 이 알려 주는 주소 (`….vercel-dns-….com`) |
+
+3. Vercel 의 **Settings → Environment Variables** 에 `NEXT_PUBLIC_SITE_URL` 을 `https://www.kttaofdc.org` 로 넣고 다시 배포합니다.
+   링크 미리보기와 sitemap·RSS 에 적히는 주소가 이 값으로 만들어집니다.
+
+- 레코드를 바꾸면 보통 1시간 안에 반영되고, HTTPS 인증서는 Vercel 이 자동으로 발급합니다.
+- 기존 협회 사이트 `www.kttava.org` 는 별개의 Wix 도메인이라 이 설정과 상관없이 그대로 열립니다.
 
 ## 검색 사이트에 등록하기
 
