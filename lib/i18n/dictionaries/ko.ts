@@ -5,6 +5,10 @@ export const ko = {
   site: {
     /** 브라우저 탭과 링크 미리보기에 쓰는 협회 이름 */
     fullName: "워싱턴DC 한인탁구협회",
+    /** 홈 화면의 제목. 검색 결과에 그대로 보이므로 협회 이름과 지역을 함께 적습니다. */
+    homeTitle: "워싱턴DC 한인탁구협회 (KTTA of DC) | 버지니아·워싱턴DC 탁구",
+    /** 다른 페이지의 제목 뒤에 붙는 이름: "대회 정보 | 워싱턴DC 한인탁구협회" */
+    titleSuffix: "워싱턴DC 한인탁구협회",
     /** 로고 옆에 두 줄로 놓는 이름 */
     logoLines: ["워싱턴DC", "한인탁구협회"],
     /** 푸터에서 협회 이름 아래 작게 놓는 다른 언어 이름 */
@@ -12,8 +16,13 @@ export const ko = {
     homeLabel: "KTTA of DC 워싱턴DC 한인탁구협회 홈",
     keywords: [
       "워싱턴DC 한인탁구협회",
+      "워싱턴DC 탁구협회",
+      "워싱턴DC 탁구",
+      "버지니아 탁구협회",
       "버지니아 탁구",
-      "워싱턴 DC 탁구",
+      "미주 탁구협회",
+      "탁구협회",
+      "한인탁구",
       "한인 탁구",
       "탁구대회",
       "KTTA of DC",
@@ -82,7 +91,10 @@ export const ko = {
   tournaments: {
     eyebrow: "Tournaments",
     title: "대회 정보",
-    metaDescription: "워싱턴DC 한인탁구협회가 안내하는 탁구대회 일정과 요강입니다.",
+    /** 검색 결과에 보이는 제목. 화면의 제목(title)보다 무엇을 다루는지 풀어서 적습니다. */
+    metaTitle: "탁구대회 일정",
+    metaDescription:
+      "버지니아·워싱턴DC 지역 한인 탁구대회의 일정과 요강을 워싱턴DC 한인탁구협회가 안내합니다.",
     description: "협회가 주최하거나 함께 참가하는 탁구대회의 일정과 요강을 안내합니다.",
     upcoming: "예정된 대회",
     count: (n: number) => `${n}건`,
@@ -124,7 +136,11 @@ export const ko = {
     emptyTitle: "사진을 준비하고 있습니다",
     emptyDescription: "행사 사진이 올라오면 이곳에서 앨범별로 보실 수 있습니다.",
     year: (year: number) => `${year}년`,
-    photoCount: (n: number) => `사진 ${n}장`,
+    /** 앨범에 든 사진·동영상 수. 동영상이 없으면 사진 수만 적습니다. */
+    mediaCount: (photos: number, videos: number) =>
+      [photos > 0 || videos === 0 ? `사진 ${photos}장` : "", videos > 0 ? `동영상 ${videos}개` : ""]
+        .filter(Boolean)
+        .join(" · "),
     cardLink: "사진 보기",
     back: "갤러리",
     noPhotos: "아직 등록된 사진이 없습니다.",
@@ -142,6 +158,8 @@ export const ko = {
     photoAlt: (title: string, n: number) => `${title} 사진 ${n}`,
     photoSelect: (title: string, n: number) => `${title} 사진 ${n} 선택`,
     photoEnlarge: (title: string, n: number) => `${title} 사진 ${n} 크게 보기`,
+    videosTitle: "동영상",
+    videoPlay: (title: string, n: number) => `${title} 동영상 ${n} 재생`,
   },
 
   community: {
@@ -164,7 +182,9 @@ export const ko = {
   },
 
   venues: {
-    metaDescription: "북버지니아에서 탁구를 칠 수 있는 장소와 시간, 연락처를 안내합니다.",
+    metaTitle: "버지니아·워싱턴DC 탁구 장소",
+    metaDescription:
+      "북버지니아와 워싱턴DC 인근에서 탁구를 칠 수 있는 장소와 시간, 연락처를 워싱턴DC 한인탁구협회가 안내합니다.",
     hours: "시간",
     address: "주소",
     contact: "연락처",
@@ -184,6 +204,10 @@ export const ko = {
     close: "닫기",
     previous: "이전 이미지",
     next: "다음 이미지",
+    videoDialog: (label: string) => `${label} 동영상 보기`,
+    videoAlt: (label: string, n: number) => `${label} 동영상 ${n}`,
+    previousVideo: "이전 동영상",
+    nextVideo: "다음 동영상",
   },
 
   hero: {

@@ -12,7 +12,7 @@ export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
 export type UploadKind = "image" | "document" | "video";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
-/** 홈 화면에서 자동으로 재생되는 동영상이라 50MB 까지만 받습니다. 버킷에도 같은 한도를 걸어 두었습니다. */
+/** 홈 화면에서 자동으로 재생되거나 앨범에서 바로 재생되는 동영상이라 50MB 까지만 받습니다. 버킷에도 같은 한도를 걸어 두었습니다. */
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 /** 파일 이름이 겹치지 않아 내용이 바뀔 일이 없으므로 브라우저가 1년 동안 다시 받지 않게 합니다. (초) */
@@ -108,8 +108,8 @@ function planUpload(
   size: number,
 ): { location: string; contentType: string } {
   const rule = UPLOAD_RULES[kind];
-  if (kind === "video" && folder !== "hero") {
-    throw new UploadError("동영상은 메인 화면에만 올릴 수 있습니다.");
+  if (kind === "video" && folder !== "hero" && folder !== "gallery") {
+    throw new UploadError("동영상은 메인 화면과 갤러리에만 올릴 수 있습니다.");
   }
   if (!(size > 0)) throw new UploadError("빈 파일입니다.");
   if (size > rule.maxBytes) {

@@ -16,9 +16,11 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizeTournament } from "@/lib/i18n/localize";
 import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
+import { tournamentJsonLd } from "@/lib/structured-data";
 import { getTournament, listTournaments } from "@/lib/store/tournaments";
 import { AttachmentList } from "@/components/AttachmentList";
 import { ImageViewer } from "@/components/ImageViewer";
+import { JsonLd } from "@/components/JsonLd";
 import { LinkedText } from "@/components/LinkedText";
 import { StatusBadge } from "@/components/TournamentCard";
 import {
@@ -106,9 +108,11 @@ export default async function TournamentPage({ params }: Props) {
   // 영문 요강이 없으면 한국어 글을 대신 보여 주고, 그렇다는 것을 알려 줍니다.
   const englishFullText = lang === "en" && Boolean(stored.en?.fullText);
   const fullTextFallback = lang === "en" && !englishFullText;
+  const jsonLd = tournamentJsonLd(tournament, lang);
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 md:py-14">
+      {jsonLd && <JsonLd data={jsonLd} />}
       <Link
         href={localePath(lang, "/tournaments")}
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-brand-700"

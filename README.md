@@ -29,7 +29,7 @@ npm run dev     # http://localhost:3000
 | `/about` | 협회 소개 — 협회장 인사말, 임원진, 정관(PDF) |
 | `/tournaments` | 대회 정보 — 예정된 대회 / 지난 대회(연도별) |
 | `/tournaments/[id]` | 대회 상세 — 일시·장소·참가 안내, 포스터, 첨부 파일 |
-| `/gallery`, `/gallery/[id]` | 갤러리 — 앨범 목록과 사진 (사진을 골라 한꺼번에 내려받기) |
+| `/gallery`, `/gallery/[id]` | 갤러리 — 앨범 목록과 사진·동영상 (사진을 골라 한꺼번에 내려받기) |
 | `/community/news`, `/community/news/[id]` | 탁구 소식 — 신문 기사, 회원 안내 글 목록과 본문 |
 | `/community` | 탁구 장소 |
 | `/community/etiquette` | 탁구 에티켓 |
@@ -73,6 +73,7 @@ npm run dev     # http://localhost:3000
   (내 컴퓨터에서 실행할 때는 `.env.local` 의 값을 씁니다)
 - 큰 사진은 올릴 때 자동으로 긴 변 1600px 로 줄어듭니다.
 - 갤러리도 같은 화면의 **새 앨범 만들기**에서 사진을 올립니다.
+- 앨범에는 동영상도 넣을 수 있습니다 (**MP4·WEBM, 한 개에 50MB 이하**). 앨범 화면에서 사진 아래에 따로 모아 보여 주고, 누르면 그 자리에서 재생됩니다.
 - 첫 번째 이미지가 대회의 대표 포스터·앨범의 표지입니다. 다른 이미지 위의 **대표로 지정**·**표지로 지정**을 누르면 그 이미지가 맨 앞으로 옵니다.
 - 영어 화면(`/en`)에 보여 줄 글은 입력 화면의 **영어 화면용 (English)** 칸에 적습니다. 비워 두면 한국어 글이 나옵니다.
 - 아직 준비 중인 대회·앨범·소식은 입력 화면 맨 아래의 **방문자에게 숨기기**를 체크하고 저장하면 관리자 화면에서만 보입니다.
@@ -114,7 +115,7 @@ npm run dev     # http://localhost:3000
 | Supabase 테이블 `albums` | 갤러리 앨범 |
 | Supabase 테이블 `hero_media` | 메인 화면 동영상·이미지 목록(순서, 숨김 여부) |
 | Supabase 테이블 `news_posts` | 탁구 소식 |
-| Supabase Storage 버킷 `uploads` | 관리자 화면에서 올린 포스터·사진·첨부 파일·메인 화면 동영상 |
+| Supabase Storage 버킷 `uploads` | 관리자 화면에서 올린 포스터·사진·첨부 파일·동영상(메인 화면, 앨범) |
 | `lib/site.ts` | 협회 이름, 문의 이메일, 메뉴, 검색 사이트 인증 코드 |
 | `lib/content/` | 인사말·임원진, 탁구 장소, 탁구 에티켓 글 (한국어·영어) |
 | `lib/i18n/dictionaries/` | 메뉴·버튼·안내문 같은 화면 문구 (`ko.ts` 한국어, `en.ts` 영어) |
@@ -171,6 +172,18 @@ Wix 에서 산 도메인은 네임서버를 바꿀 수 없어서, DNS 레코드 
    (`google` 에는 Google 의 값, `naver` 에는 네이버의 값)
 3. 커밋해서 배포한 뒤, 각 사이트에서 **확인** 버튼을 누릅니다.
 4. 확인이 끝나면 사이트맵 `/sitemap.xml` 을 제출합니다. 네이버에는 RSS `/rss.xml` 도 함께 제출할 수 있습니다.
+
+검색 결과에 보이는 제목과 설명, 검색 사이트에 알려 주는 협회 정보는 아래에서 고칩니다.
+
+| 위치 | 내용 |
+| --- | --- |
+| `lib/i18n/dictionaries/` 의 `site.homeTitle` · `site.titleSuffix` | 홈 화면 제목, 다른 페이지 제목 뒤에 붙는 협회 이름 |
+| `lib/site.ts` 의 `description` | 홈 화면 설명 |
+| `lib/content/association.ts` 의 `homeIntro` | 홈 화면 인사말 아래의 협회 소개 글 (지역과 하는 일) |
+| `lib/structured-data.ts` | 협회의 다른 이름·활동 지역, 대회 일정 (화면에는 보이지 않습니다) |
+
+검색 순위는 다른 사이트가 이 홈페이지를 얼마나 링크하는지에 크게 좌우됩니다.
+재미대한탁구협회의 워싱턴DC 페이지(`kttausa.org/dc`), 기존 홈페이지(`www.kttava.org`), 신문 기사에 `www.kttaofdc.org` 가 실리도록 요청해 두면 좋습니다.
 
 ## Supabase 연결
 

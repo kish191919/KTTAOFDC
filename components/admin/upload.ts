@@ -1,4 +1,4 @@
-import type { Attachment, ImageRef } from "@/lib/types";
+import type { Attachment, ImageRef, VideoRef } from "@/lib/types";
 
 // 관리자 화면(브라우저)에서 파일을 저장소(Supabase)로 올리는 함수들입니다.
 
@@ -10,6 +10,10 @@ const MAX_DIMENSION = 1600;
 const KEEP_ORIGINAL_BYTES = 800 * 1024;
 /** 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
 export const MAX_VIDEO_MB = 50;
+/** 동영상 대표 화면의 긴 변 최대 길이(px) */
+const POSTER_DIMENSION = 960;
+/** 대표 화면을 잡으려고 동영상을 읽는 데 기다리는 시간(ms) */
+const POSTER_TIMEOUT_MS = 8000;
 /** 브라우저가 올린 파일을 다시 받지 않고 보관하는 시간(초). 서버(lib/store/files.ts)와 같게 둡니다. */
 const CACHE_SECONDS = "31536000";
 
@@ -120,13 +124,86 @@ export async function uploadDocument(
   return { url, name, size };
 }
 
-/** 메인 화면에 쓸 동영상을 그대로 올립니다. (브라우저에서는 동영상을 줄일 수 없습니다) */
-export async function uploadVideo(file: File): Promise<{ src: string }> {
+function checkVideoSize(file: File) {
   if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
     throw new Error(
       `${file.name}: 동영상이 너무 큽니다. ${MAX_VIDEO_MB}MB 이하로 줄여서 올려 주세요.`,
     );
   }
+}
+
+/** 메인 화면에 쓸 동영상을 그대로 올립니다. (브라우저에서는 동영상을 줄일 수 없습니다) */
+export async function uploadVideo(file: File): Promise<{ src: string }> {
+  checkVideoSize(file);
   const { url } = await send(file, file.name, "hero", "video");
   return { src: url };
+}
+
+type Poster = { blob: Blob; width: number; height: number };
+
+/**
+ * 동영상에서 대표 화면으로 쓸 한 장면을 잡습니다. width·height 는 동영상의 원래 크기입니다.
+ * 이 브라우저가 읽지 못하는 동영상이면 null
+ */
+function capturePoster(file: File): Promise<Poster | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const timer = setTimeout(() => finish(null), POSTER_TIMEOUT_MS);
+    function finish(poster: Poster | null) {
+      clearTimeout(timer);
+      // 정리하는 동안 생기는 이벤트로 다시 불리지 않게 합니다.
+      video.onerror = video.onloadeddata = video.onseeked = null;
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+      resolve(poster);
+    }
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.onerror = () => finish(null);
+    // 맨 처음 장면은 검거나 흔들릴 때가 많아 조금 뒤(1초, 짧은 동영상은 가운데)의 장면을 씁니다.
+    video.onloadeddata = () => {
+      const middle = video.duration / 2;
+      video.currentTime = Number.isFinite(middle) && middle > 0 ? Math.min(1, middle) : 0.1;
+    };
+    video.onseeked = () => {
+      const { videoWidth: width, videoHeight: height } = video;
+      const scale = Math.min(1, POSTER_DIMENSION / Math.max(width, height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const context = canvas.getContext("2d");
+      if (!context || !canvas.width || !canvas.height) return finish(null);
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => finish(blob ? { blob, width, height } : null),
+        "image/jpeg",
+        0.8,
+      );
+    };
+    video.src = url;
+  });
+}
+
+/**
+ * 앨범에 넣을 동영상을 그대로 올리고, 재생하기 전에 보여 줄 대표 화면도 함께 올립니다.
+ * 대표 화면을 만들지 못하면 동영상만 올립니다.
+ */
+export async function uploadAlbumVideo(file: File): Promise<VideoRef> {
+  checkVideoSize(file);
+  const poster = await capturePoster(file);
+  const { url: src } = await send(file, file.name, "gallery", "video");
+  if (!poster) return { src };
+
+  const name = `${file.name.replace(/\.[^.]+$/, "")}.jpg`;
+  const uploaded = await send(poster.blob, name, "gallery", "image").catch(() => null);
+  return {
+    src,
+    ...(uploaded ? { poster: uploaded.url } : {}),
+    width: poster.width,
+    height: poster.height,
+  };
 }

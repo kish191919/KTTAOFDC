@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { albumCover } from "@/lib/albums";
 import { formatDate } from "@/lib/dates";
 import { localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -9,6 +10,7 @@ import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { getAlbum, listAlbums } from "@/lib/store/albums";
 import { AlbumPhotos } from "@/components/AlbumPhotos";
+import { AlbumVideos } from "@/components/AlbumVideos";
 import { LinkedText } from "@/components/LinkedText";
 import { ArrowLeftIcon } from "@/components/icons";
 
@@ -32,13 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const album = localizeAlbum(stored, lang);
   const description =
     album.description ||
-    `${formatDate(album.date, true, lang)} · ${t.photoCount(album.photos.length)}`;
+    `${formatDate(album.date, true, lang)} · ${t.mediaCount(album.photos.length, album.videos?.length ?? 0)}`;
   return pageMetadata({
     lang,
     path: `/gallery/${album.id}`,
     title: album.title,
     description,
-    image: album.photos[0],
+    image: albumCover(album),
   });
 }
 
@@ -50,6 +52,7 @@ export default async function AlbumPage({ params }: Props) {
 
   const t = getDictionary(lang).gallery;
   const album = localizeAlbum(stored, lang);
+  const videos = album.videos ?? [];
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 md:py-14">
@@ -63,7 +66,7 @@ export default async function AlbumPage({ params }: Props) {
 
       <header className="mt-5 border-b border-brand-100 pb-8">
         <p className="text-sm font-semibold text-accent-600">
-          {formatDate(album.date, true, lang)} · {t.photoCount(album.photos.length)}
+          {formatDate(album.date, true, lang)} · {t.mediaCount(album.photos.length, videos.length)}
         </p>
         <h1 className="mt-2 text-3xl leading-tight font-black break-keep text-brand-950 md:text-4xl">
           {album.title}
@@ -76,10 +79,23 @@ export default async function AlbumPage({ params }: Props) {
         )}
       </header>
 
-      <div className="mt-10">
-        {album.photos.length > 0 ? (
+      <div className="mt-10 space-y-12">
+        {album.photos.length > 0 && (
           <AlbumPhotos photos={album.photos} title={album.title} lang={lang} />
-        ) : (
+        )}
+        {videos.length > 0 && (
+          <section aria-labelledby="album-videos">
+            <h2
+              id="album-videos"
+              className="mb-5 flex items-center gap-3 text-lg font-bold text-brand-700"
+            >
+              {t.videosTitle}
+              <span className="h-px flex-1 bg-brand-100" />
+            </h2>
+            <AlbumVideos videos={videos} title={album.title} lang={lang} />
+          </section>
+        )}
+        {album.photos.length === 0 && videos.length === 0 && (
           <p className="rounded-2xl border border-dashed border-brand-200 bg-brand-50/50 px-6 py-10 text-center text-slate-500">
             {t.noPhotos}
           </p>

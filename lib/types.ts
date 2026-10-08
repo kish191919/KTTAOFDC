@@ -4,6 +4,15 @@ export type ImageRef = {
   height?: number;
 };
 
+/** 앨범에 넣는 동영상 한 개 */
+export type VideoRef = {
+  src: string;
+  /** 재생하기 전에 보여 주는 대표 화면 (이미지 주소) */
+  poster?: string;
+  width?: number;
+  height?: number;
+};
+
 export type Attachment = {
   name: string;
   url: string;
@@ -111,6 +120,8 @@ export type Album = {
   en?: AlbumEnglish;
   /** 첫 번째 사진이 앨범 표지입니다. */
   photos: ImageRef[];
+  /** 사진 아래에 따로 묶어 보여 주는 동영상. 없으면 칸을 남기지 않습니다. */
+  videos?: VideoRef[];
   /** true 면 저장만 해 두고 방문자에게는 보이지 않습니다. (관리자 화면에서만 보입니다) */
   hidden?: boolean;
   createdAt: string;

@@ -18,8 +18,11 @@ export function useLightbox(count: number) {
   return { current, open: setCurrent, close, step };
 }
 
+/** 크게 보여 줄 항목 한 개. 동영상이면 src 가 동영상 주소이고 poster 는 재생하기 전에 보여 주는 화면입니다. */
+export type ViewerItem = ImageRef & { type?: "video"; poster?: string };
+
 type LightboxProps = {
-  images: ImageRef[];
+  images: ViewerItem[];
   /** 사진마다 붙일 설명의 앞부분 (예: 대회 이름) */
   label: string;
   /** 버튼 이름과 이미지 설명에 쓸 언어 */
@@ -30,14 +33,26 @@ type LightboxProps = {
   onClose: () => void;
 };
 
-/** 이미지 한 장을 화면 가득 보여 주는 창. Esc 로 닫고 ← → 로 넘깁니다. */
+/** 이미지 한 장(또는 동영상 한 개)을 화면 가득 보여 주는 창. Esc 로 닫고 ← → 로 넘깁니다. */
 export function Lightbox({ images, label, lang, current, onStep, onClose }: LightboxProps) {
   const t = getDictionary(lang).viewer;
   const count = images.length;
+  const item = images[current];
+  const isVideo = item.type === "video";
+  // 동영상은 화면과 원래 크기 안에서 비율대로 자리를 먼저 잡아, 재생이 시작될 때 크기가 바뀌지 않게 합니다.
+  const videoBox =
+    item.width && item.height
+      ? {
+          aspectRatio: `${item.width} / ${item.height}`,
+          width: `min(100vw - 1.5rem, (100dvh - 5rem) * ${item.width / item.height}, ${item.width}px)`,
+        }
+      : undefined;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      // 동영상에 초점이 있으면 ← → 는 넘기기가 아니라 앞뒤로 감는 데 쓰입니다.
+      if (event.target instanceof HTMLVideoElement) return;
       if (event.key === "ArrowLeft") onStep(-1);
       if (event.key === "ArrowRight") onStep(1);
     };
@@ -55,17 +70,33 @@ export function Lightbox({ images, label, lang, current, onStep, onClose }: Ligh
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={t.dialog(label)}
+      aria-label={isVideo ? t.videoDialog(label) : t.dialog(label)}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-950/95"
       onClick={onClose}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={images[current].src}
-        alt={t.alt(label, current + 1)}
-        className="max-h-[calc(100dvh-5rem)] max-w-[calc(100vw-1.5rem)] cursor-default rounded-lg object-contain shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      />
+      {isVideo ? (
+        <video
+          // 다음 동영상으로 넘기면 앞의 동영상이 멈추고 새로 시작하도록 따로 만듭니다.
+          key={item.src}
+          src={item.src}
+          poster={item.poster}
+          controls
+          autoPlay
+          playsInline
+          aria-label={t.videoAlt(label, current + 1)}
+          style={videoBox}
+          className="max-h-[calc(100dvh-5rem)] max-w-[calc(100vw-1.5rem)] rounded-lg bg-black shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.src}
+          alt={t.alt(label, current + 1)}
+          className="max-h-[calc(100dvh-5rem)] max-w-[calc(100vw-1.5rem)] cursor-default rounded-lg object-contain shadow-2xl"
+          onClick={(event) => event.stopPropagation()}
+        />
+      )}
 
       <button
         type="button"
@@ -85,7 +116,7 @@ export function Lightbox({ images, label, lang, current, onStep, onClose }: Ligh
               event.stopPropagation();
               onStep(-1);
             }}
-            aria-label={t.previous}
+            aria-label={isVideo ? t.previousVideo : t.previous}
             className="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25 sm:left-4"
           >
             <ChevronLeftIcon className="size-7" />
@@ -96,7 +127,7 @@ export function Lightbox({ images, label, lang, current, onStep, onClose }: Ligh
               event.stopPropagation();
               onStep(1);
             }}
-            aria-label={t.next}
+            aria-label={isVideo ? t.nextVideo : t.next}
             className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-white/10 p-2.5 text-white transition-colors hover:bg-white/25 sm:right-4"
           >
             <ChevronRightIcon className="size-7" />

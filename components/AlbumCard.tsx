@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { albumCover } from "@/lib/albums";
 import type { Album } from "@/lib/types";
 import { formatDate } from "@/lib/dates";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -8,7 +9,7 @@ import { ArrowRightIcon, ImageIcon } from "@/components/icons";
 /** album 은 보여 줄 언어에 맞춘(localizeAlbum 을 거친) 앨범입니다. */
 export function AlbumCard({ album, lang }: { album: Album; lang: Locale }) {
   const t = getDictionary(lang).gallery;
-  const cover = album.photos[0];
+  const cover = albumCover(album);
   return (
     <Link
       href={localePath(lang, `/gallery/${album.id}`)}
@@ -30,7 +31,7 @@ export function AlbumCard({ album, lang }: { album: Album; lang: Locale }) {
           </div>
         )}
         <span className="absolute right-3 bottom-3 rounded-full bg-navy-950/75 px-2.5 py-1 text-xs font-semibold text-white">
-          {t.photoCount(album.photos.length)}
+          {t.mediaCount(album.photos.length, album.videos?.length ?? 0)}
         </span>
       </div>
       <div className="flex flex-1 flex-col p-5">

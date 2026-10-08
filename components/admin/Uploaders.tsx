@@ -1,15 +1,22 @@
 "use client";
 
 import { useId, useState, type ChangeEvent } from "react";
-import type { Attachment, ImageRef } from "@/lib/types";
+import type { Attachment, ImageRef, VideoRef } from "@/lib/types";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CloseIcon,
   FileIcon,
+  PlayIcon,
   UploadIcon,
 } from "@/components/icons";
-import { uploadDocument, uploadImage, type UploadFolder } from "./upload";
+import {
+  MAX_VIDEO_MB,
+  uploadAlbumVideo,
+  uploadDocument,
+  uploadImage,
+  type UploadFolder,
+} from "./upload";
 
 type Progress = { done: number; total: number };
 
@@ -204,6 +211,142 @@ export function ImageUploader({
         disabled={disabled || Boolean(progress) || full}
         onChange={handleFiles}
       />
+      <UploadErrors errors={errors} />
+    </div>
+  );
+}
+
+type VideoUploaderProps = {
+  videos: VideoRef[];
+  onChange: (update: (videos: VideoRef[]) => VideoRef[]) => void;
+  onBusyChange?: (busy: boolean) => void;
+  max: number;
+  disabled?: boolean;
+};
+
+/** 앨범의 동영상을 올리고 순서를 바꾸거나 뺍니다. */
+export function VideoUploader({
+  videos,
+  onChange,
+  onBusyChange,
+  max,
+  disabled,
+}: VideoUploaderProps) {
+  const inputId = useId();
+  const { progress, errors, handleFiles } = useUploadQueue(
+    uploadAlbumVideo,
+    (video) => onChange((current) => [...current, video]),
+    max - videos.length,
+    onBusyChange,
+  );
+
+  const move = (index: number, delta: number) =>
+    onChange((current) => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+
+  const remove = (index: number) =>
+    onChange((current) => current.filter((_, position) => position !== index));
+
+  const full = videos.length >= max;
+
+  return (
+    <div>
+      {videos.length > 0 && (
+        <ul className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {videos.map((video, index) => (
+            <li
+              key={video.src}
+              className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+            >
+              <a
+                href={video.src}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`동영상 ${index + 1} 새 창에서 보기`}
+                className="relative block aspect-square w-full bg-navy-950"
+              >
+                {video.poster && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={video.poster}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                )}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <span className="flex size-9 items-center justify-center rounded-full bg-white/90 text-brand-700 shadow">
+                    <PlayIcon className="size-4" />
+                  </span>
+                </span>
+              </a>
+              <div className="flex items-center justify-between gap-1 border-t border-slate-200 bg-white p-1.5">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => move(index, -1)}
+                    disabled={disabled || index === 0}
+                    aria-label={`동영상 ${index + 1} 앞으로 옮기기`}
+                    className="rounded-md p-1.5 text-slate-600 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-30"
+                  >
+                    <ChevronLeftIcon className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(index, 1)}
+                    disabled={disabled || index === videos.length - 1}
+                    aria-label={`동영상 ${index + 1} 뒤로 옮기기`}
+                    className="rounded-md p-1.5 text-slate-600 hover:bg-brand-50 hover:text-brand-700 disabled:opacity-30"
+                  >
+                    <ChevronRightIcon className="size-4" />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => remove(index)}
+                  disabled={disabled}
+                  aria-label={`동영상 ${index + 1} 빼기`}
+                  className="rounded-md p-1.5 text-slate-500 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-30"
+                >
+                  <CloseIcon className="size-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <label
+        htmlFor={inputId}
+        className={`btn btn-ghost btn-sm ${
+          disabled || progress || full ? "pointer-events-none opacity-60" : "cursor-pointer"
+        }`}
+      >
+        <UploadIcon className="size-4" />
+        {progress
+          ? `올리는 중… (${progress.done}/${progress.total})`
+          : full
+            ? `최대 ${max}개까지 올릴 수 있습니다`
+            : "동영상 선택"}
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="video/mp4,video/webm"
+        multiple
+        className="sr-only"
+        disabled={disabled || Boolean(progress) || full}
+        onChange={handleFiles}
+      />
+      <p className="mt-2 text-xs text-slate-500">MP4·WEBM, 한 개에 최대 {MAX_VIDEO_MB}MB</p>
       <UploadErrors errors={errors} />
     </div>
   );

@@ -39,7 +39,7 @@ import {
   updateTournament,
   type TournamentInput,
 } from "@/lib/store/tournaments";
-import type { Attachment, ImageRef } from "@/lib/types";
+import type { Attachment, ImageRef, VideoRef } from "@/lib/types";
 
 export type FormState = {
   error?: string;
@@ -51,6 +51,7 @@ const MAX_TOURNAMENT_IMAGES = 20;
 const MAX_NEWS_IMAGES = 20;
 const MAX_ATTACHMENTS = 10;
 const MAX_ALBUM_PHOTOS = 300;
+const MAX_ALBUM_VIDEOS = 150;
 
 // ───────────────────────── 로그인 ─────────────────────────
 
@@ -130,6 +131,25 @@ function parseImages(list: unknown[] | null, max: number): ImageRef[] | null {
     );
   }
   return images;
+}
+
+/** 앨범의 동영상 목록. 동영상과 대표 화면 모두 갤러리 폴더에 올린 파일이어야 합니다. */
+function parseVideos(list: unknown[] | null, max: number): VideoRef[] | null {
+  if (!list || list.length > max) return null;
+  const videos: VideoRef[] = [];
+  for (const item of list) {
+    if (typeof item !== "object" || item === null) return null;
+    const { src, poster, width, height } = item as Record<string, unknown>;
+    if (!isUploadUrl(src, "gallery") || mediaTypeOf(src) !== "video") return null;
+    const hasPoster = isUploadUrl(poster, "gallery") && mediaTypeOf(poster) === "image";
+    if (poster !== undefined && !hasPoster) return null;
+    videos.push({
+      src,
+      ...(hasPoster ? { poster } : {}),
+      ...(isDimension(width) && isDimension(height) ? { width, height } : {}),
+    });
+  }
+  return videos;
 }
 
 function parseAttachments(list: unknown[] | null): Attachment[] | null {
@@ -330,7 +350,9 @@ export async function saveAlbumAction(
   if (!isValidDate(date)) fields.date = "행사 날짜를 선택해 주세요.";
   const photos = parseImages(jsonList(formData, "photos"), MAX_ALBUM_PHOTOS);
   if (!photos) fields.photos = "사진 정보를 읽지 못했습니다. 다시 올려 주세요.";
-  if (!photos || Object.keys(fields).length > 0) {
+  const videos = parseVideos(jsonList(formData, "videos"), MAX_ALBUM_VIDEOS);
+  if (!videos) fields.videos = "동영상 정보를 읽지 못했습니다. 다시 올려 주세요.";
+  if (!photos || !videos || Object.keys(fields).length > 0) {
     return { error: "입력 내용을 다시 확인해 주세요.", fields };
   }
 
@@ -340,6 +362,7 @@ export async function saveAlbumAction(
     title,
     date,
     photos,
+    ...(videos.length > 0 ? { videos } : {}),
     ...(description ? { description } : {}),
     ...(en ? { en } : {}),
     ...(isHiddenChecked(formData) ? { hidden: true } : {}),

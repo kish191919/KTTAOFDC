@@ -8,6 +8,8 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export const en: Dictionary = {
   site: {
     fullName: "Korean Table Tennis Association of DC",
+    homeTitle: "KTTA of DC | Korean Table Tennis Association of DC",
+    titleSuffix: "KTTA of DC",
     logoLines: ["Korean Table Tennis", "Association of DC"],
     otherName: "워싱턴DC 한인탁구협회",
     homeLabel: "KTTA of DC — Korean Table Tennis Association of DC, home",
@@ -82,8 +84,9 @@ export const en: Dictionary = {
   tournaments: {
     eyebrow: "Events",
     title: "Tournaments",
+    metaTitle: "Table Tennis Tournaments",
     metaDescription:
-      "Tournament schedules and entry details from the Korean Table Tennis Association of DC.",
+      "Table tennis tournament schedules and entry details for Virginia and the Washington, DC area, from the Korean Table Tennis Association of DC.",
     description: "Schedules and entry details for tournaments we host or attend together.",
     upcoming: "Upcoming",
     count: (n) => plural(n, "event", "events"),
@@ -122,7 +125,13 @@ export const en: Dictionary = {
     emptyTitle: "Photos coming soon",
     emptyDescription: "Event photos will appear here, organized by album.",
     year: (year) => String(year),
-    photoCount: (n) => plural(n, "photo", "photos"),
+    mediaCount: (photos, videos) =>
+      [
+        photos > 0 || videos === 0 ? plural(photos, "photo", "photos") : "",
+        videos > 0 ? plural(videos, "video", "videos") : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
     cardLink: "View photos",
     back: "Gallery",
     noPhotos: "No photos have been added yet.",
@@ -141,6 +150,8 @@ export const en: Dictionary = {
     photoAlt: (title, n) => `${title} — photo ${n}`,
     photoSelect: (title, n) => `Select photo ${n} of ${title}`,
     photoEnlarge: (title, n) => `Enlarge photo ${n} of ${title}`,
+    videosTitle: "Videos",
+    videoPlay: (title, n) => `Play video ${n} of ${title}`,
   },
 
   community: {
@@ -163,8 +174,9 @@ export const en: Dictionary = {
   },
 
   venues: {
+    metaTitle: "Where to Play Table Tennis in Northern Virginia",
     metaDescription:
-      "Places to play table tennis in Northern Virginia, with hours and contact details.",
+      "Places to play table tennis in Northern Virginia and near Washington, DC, with hours and contact details.",
     hours: "Hours",
     address: "Address",
     contact: "Contact",
@@ -183,6 +195,10 @@ export const en: Dictionary = {
     close: "Close",
     previous: "Previous image",
     next: "Next image",
+    videoDialog: (label) => `${label} — video`,
+    videoAlt: (label, n) => `${label} — video ${n}`,
+    previousVideo: "Previous video",
+    nextVideo: "Next video",
   },
 
   hero: {

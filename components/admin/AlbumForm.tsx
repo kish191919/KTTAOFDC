@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { startTransition, useActionState, useState, type FormEvent } from "react";
 import type { FormState } from "@/lib/actions";
-import type { Album, ImageRef } from "@/lib/types";
+import type { Album, ImageRef, VideoRef } from "@/lib/types";
 import { HiddenField } from "./HiddenControls";
-import { ImageUploader } from "./Uploaders";
+import { ImageUploader, VideoUploader } from "./Uploaders";
 
 type Props = {
   album?: Album;
@@ -15,13 +15,17 @@ type Props = {
 export function AlbumForm({ album, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const [photos, setPhotos] = useState<ImageRef[]>(album?.photos ?? []);
-  const [uploading, setUploading] = useState(false);
+  const [videos, setVideos] = useState<VideoRef[]>(album?.videos ?? []);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingVideos, setUploadingVideos] = useState(false);
+  const uploading = uploadingPhotos || uploadingVideos;
 
   // 서버에서 입력 오류를 돌려줘도 적어 둔 내용이 지워지지 않도록 직접 제출합니다.
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     formData.set("photos", JSON.stringify(photos));
+    formData.set("videos", JSON.stringify(videos));
     startTransition(() => formAction(formData));
   }
 
@@ -125,12 +129,28 @@ export function AlbumForm({ album, action }: Props) {
           folder="gallery"
           images={photos}
           onChange={setPhotos}
-          onBusyChange={setUploading}
+          onBusyChange={setUploadingPhotos}
           max={300}
           firstLabel="표지"
           disabled={pending}
         />
         {fieldError("photos")}
+      </div>
+
+      <div className="card p-6 md:p-7">
+        <h2 className="text-lg font-black text-brand-950">동영상</h2>
+        <p className="mt-1 mb-5 text-sm break-keep text-slate-500">
+          앨범 화면에서 사진 아래에 따로 모아 보여 주고, 누르면 그 자리에서 재생됩니다. 올리지
+          않아도 됩니다.
+        </p>
+        <VideoUploader
+          videos={videos}
+          onChange={setVideos}
+          onBusyChange={setUploadingVideos}
+          max={150}
+          disabled={pending}
+        />
+        {fieldError("videos")}
       </div>
 
       <div className="card p-6 md:p-7">
@@ -152,7 +172,9 @@ export function AlbumForm({ album, action }: Props) {
           {pending
             ? "저장하는 중…"
             : uploading
-              ? "사진 올리는 중…"
+              ? uploadingVideos
+                ? "동영상 올리는 중…"
+                : "사진 올리는 중…"
               : album
                 ? "수정 내용 저장"
                 : "앨범 만들기"}

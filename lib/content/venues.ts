@@ -15,8 +15,8 @@ export type Venue = {
 };
 
 export const venuesIntro: Localized = {
-  ko: "Northern Virginia 에서 탁구 칠 수 있는 장소를 소개합니다.",
-  en: "Places to play table tennis in Northern Virginia.",
+  ko: "북버지니아(Northern Virginia)와 워싱턴DC 인근에서 탁구 칠 수 있는 장소를 소개합니다.",
+  en: "Places to play table tennis in Northern Virginia, near Washington, DC.",
 };
 
 export const venues: Venue[] = [

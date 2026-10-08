@@ -218,6 +218,7 @@ export default async function AdminPage({ searchParams }: Props) {
                   <p className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                     {album.hidden && hiddenBadge}
                     {formatDate(album.date)} · 사진 {album.photos.length}장
+                    {album.videos?.length ? ` · 동영상 ${album.videos.length}개` : ""}
                   </p>
                   {/* 숨긴 앨범은 방문자용 페이지가 없으므로 수정 화면으로 보냅니다. */}
                   <Link
@@ -238,7 +239,9 @@ export default async function AdminPage({ searchParams }: Props) {
                   />
                   <DeleteButton
                     action={deleteAlbumAction.bind(null, album.id)}
-                    confirmMessage={`'${album.title}' 앨범을 삭제할까요?\n사진 ${album.photos.length}장도 함께 지워지며 되돌릴 수 없습니다.`}
+                    confirmMessage={`'${album.title}' 앨범을 삭제할까요?\n사진 ${album.photos.length}장${
+                      album.videos?.length ? `과 동영상 ${album.videos.length}개` : ""
+                    }도 함께 지워지며 되돌릴 수 없습니다.`}
                   />
                 </div>
               </li>

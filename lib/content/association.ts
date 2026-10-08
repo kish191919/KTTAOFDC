@@ -37,6 +37,13 @@ export const greeting = {
   photo: { src: "/images/president.jpg", width: 1184, height: 1504 },
 };
 
+// 홈 화면 인사말 아래에 놓는 협회 소개 한 단락.
+// 검색 사이트가 이 글로 협회가 어디에서 무엇을 하는 곳인지 알게 되므로, 지역과 하는 일을 빠뜨리지 않고 적습니다.
+export const homeIntro: Localized = {
+  ko: "워싱턴DC 한인탁구협회(KTTA of DC)는 버지니아와 워싱턴DC 지역의 한인 탁구 동호인들이 함께하는 탁구협회입니다. 미주 각 지역의 한인 탁구협회가 모인 재미한인탁구협회(KTTA in USA) 소속으로, 탁구대회 일정과 탁구 칠 수 있는 장소, 협회 소식을 안내합니다.",
+  en: "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area. A member of the Korean Table Tennis Association in USA (KTTA in USA), we share tournament schedules, places to play, and association news.",
+};
+
 // 홈 화면 인사말 옆에 놓는 회원 단체 사진. 사진을 바꾸면 가로·세로 크기도 함께 고칩니다.
 export const welcomePhoto = {
   src: "/images/welcome-group.jpg",

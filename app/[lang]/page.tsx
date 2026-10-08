@@ -1,18 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
-import { greeting, welcomePhoto } from "@/lib/content/association";
+import { greeting, homeIntro, welcomePhoto } from "@/lib/content/association";
 import { statusOf, today } from "@/lib/dates";
 import { localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizeAlbum, localizeTournament } from "@/lib/i18n/localize";
 import { readLang } from "@/lib/i18n/params";
 import { site } from "@/lib/site";
+import { siteJsonLd } from "@/lib/structured-data";
 import { listAlbums } from "@/lib/store/albums";
 import { listHeroMedia } from "@/lib/store/hero";
 import { listTournaments } from "@/lib/store/tournaments";
 import { AlbumCard } from "@/components/AlbumCard";
 import { ContactButton } from "@/components/ContactButton";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
+import { JsonLd } from "@/components/JsonLd";
 import { SectionHeading } from "@/components/PageHeader";
 import { TournamentCard } from "@/components/TournamentCard";
 import { ArrowRightIcon, MailIcon, MapPinIcon } from "@/components/icons";
@@ -43,6 +45,8 @@ export default async function HomePage({ params }: Props) {
 
   return (
     <>
+      <JsonLd data={siteJsonLd(lang)} />
+
       {/* 메인 화면 — 관리자 화면에서 올린 동영상·이미지가 있으면 그것을, 없으면 배너를 보여 줍니다 */}
       {slides.length > 0 ? (
         <HeroSlideshow items={slides} lang={lang} />
@@ -67,10 +71,12 @@ export default async function HomePage({ params }: Props) {
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 lg:grid-cols-5 lg:gap-12">
           <div className="text-center lg:col-span-2 lg:text-left">
             <span className="eyebrow mb-3">{t.welcomeEyebrow}</span>
-            <h2 className="text-2xl leading-snug font-bold text-balance break-keep text-brand-950 md:text-3xl">
+            {/* 이 화면의 큰 제목(h1). 검색 사이트가 협회 이름을 여기서 읽습니다. */}
+            <h1 className="text-2xl leading-snug font-bold text-balance break-keep text-brand-950 md:text-3xl">
               {greeting.welcome[lang]}
-            </h2>
-            <p className="mt-4 leading-relaxed text-balance break-keep text-slate-600">
+            </h1>
+            <p className="mt-4 leading-relaxed break-keep text-slate-600">{homeIntro[lang]}</p>
+            <p className="mt-3 leading-relaxed text-balance break-keep text-slate-600">
               {greeting.summary[lang]}
             </p>
             <Link href={localePath(lang, "/about")} className="btn btn-brand btn-sm mt-6">

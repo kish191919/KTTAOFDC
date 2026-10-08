@@ -13,6 +13,16 @@ export type AlbumInput = Omit<Album, "id" | "createdAt" | "updatedAt">;
 const newestFirst = (a: Album, b: Album) =>
   b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
 
+/** 앨범이 쓰는 업로드 파일의 주소 모두 (사진, 동영상, 동영상의 대표 화면) */
+function filesOf(album: Pick<Album, "photos" | "videos">): string[] {
+  return [
+    ...album.photos.map((photo) => photo.src),
+    ...(album.videos ?? []).flatMap((video) =>
+      video.poster ? [video.src, video.poster] : [video.src],
+    ),
+  ];
+}
+
 /** 관리자 화면처럼 숨긴 앨범까지 읽어야 할 때 `{ includeHidden: true }` 를 줍니다. */
 type ReadOptions = { includeHidden?: boolean };
 
@@ -54,11 +64,9 @@ export async function updateAlbum(
   };
   if (!(await replaceItem(TABLE, updated))) return null;
 
-  // 수정하면서 빠진 사진은 저장소에서도 지웁니다.
-  const kept = new Set(updated.photos.map((photo) => photo.src));
-  await removeUploads(
-    previous.photos.map((photo) => photo.src).filter((src) => !kept.has(src)),
-  );
+  // 수정하면서 빠진 사진·동영상은 저장소에서도 지웁니다.
+  const kept = new Set(filesOf(updated));
+  await removeUploads(filesOf(previous).filter((src) => !kept.has(src)));
   return updated;
 }
 
@@ -77,6 +85,6 @@ export async function setAlbumHidden(id: string, hidden: boolean): Promise<boole
 export async function deleteAlbum(id: string): Promise<boolean> {
   const removed = await removeItem<Album>(TABLE, id);
   if (!removed) return false;
-  await removeUploads(removed.photos.map((photo) => photo.src));
+  await removeUploads(filesOf(removed));
   return true;
 }

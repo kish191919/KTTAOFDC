@@ -27,12 +27,12 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   const { lang } = await params;
   if (!isLocale(lang)) return {};
   const d = getDictionary(lang);
-  const title = `${site.name} | ${d.site.fullName}`;
+  const title = d.site.homeTitle;
   const description = site.description[lang];
 
   return {
     metadataBase: new URL(siteUrl()),
-    title: { default: title, template: `%s | ${site.name}` },
+    title: { default: title, template: `%s | ${d.site.titleSuffix}` },
     description,
     keywords: d.site.keywords,
     openGraph: { ...sharedOpenGraph(lang), title, description },

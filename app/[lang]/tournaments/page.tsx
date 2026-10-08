@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return pageMetadata({
     lang,
     path: "/tournaments",
-    title: t.title,
+    title: t.metaTitle,
     description: t.metaDescription,
   });
 }

@@ -5,7 +5,7 @@ export const site = {
   nameEn: "Korean Table Tennis Association of DC",
   slogan: "Table Tennis Builds a Better Community",
   description: {
-    ko: "버지니아·워싱턴 DC 지역 한인 탁구인들의 모임, 워싱턴DC 한인탁구협회(KTTA of DC) 홈페이지입니다. 대회 정보와 탁구 장소, 협회 소식을 확인하세요.",
+    ko: "워싱턴DC 한인탁구협회(KTTA of DC)는 버지니아·워싱턴DC 지역 한인 탁구인들이 함께하는 탁구협회입니다. 탁구대회 일정과 탁구 칠 수 있는 장소, 협회 소식을 확인하세요.",
     en: "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area. Find tournaments, places to play, and association news.",
   },
   email: "kttaofdc@gmail.com",
