@@ -70,7 +70,6 @@ export type Leader = {
   /** 영문 이름을 따로 쓰지 않는 분은 영어 화면에 로마자 표기와 한글 이름을 함께 적습니다. */
   name: Localized;
   role: Localized;
-  note?: Localized;
 };
 
 export const leadership = {
@@ -103,18 +102,10 @@ export const leadership = {
     {
       name: { ko: "강병국 (Daniel Kang)", en: "Daniel Kang" },
       role: { ko: "고문", en: "Advisor" },
-      note: {
-        ko: "동부 한인탁구협회 부회장",
-        en: "Vice President, Eastern U.S. Korean Table Tennis Federation (KATTAEUSA)",
-      },
     },
     {
       name: { ko: "김성래 (Justin Kim)", en: "Justin Kim" },
       role: { ko: "고문", en: "Advisor" },
-      note: {
-        ko: "동부 한인탁구협회 사무총장",
-        en: "Secretary General, Eastern U.S. Korean Table Tennis Federation (KATTAEUSA)",
-      },
     },
   ] satisfies Leader[],
 };

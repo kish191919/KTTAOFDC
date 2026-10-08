@@ -102,16 +102,9 @@ export default async function AboutPage({ params }: Props) {
                     </>
                   )}
                 </p>
-                <div className="text-right sm:text-center">
-                  <p className="font-bold text-balance text-brand-950 sm:mt-2 sm:text-lg">
-                    {member.name[lang]}
-                  </p>
-                  {member.note && (
-                    <p className="text-xs break-keep text-slate-500 sm:mt-1.5 sm:text-sm">
-                      {member.note[lang]}
-                    </p>
-                  )}
-                </div>
+                <p className="text-right font-bold text-balance text-brand-950 sm:mt-2 sm:text-center sm:text-lg">
+                  {member.name[lang]}
+                </p>
               </li>
             ))}
           </ul>
