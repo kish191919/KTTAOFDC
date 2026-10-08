@@ -165,7 +165,7 @@ export function AlbumForm({ album, action }: Props) {
       )}
 
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Link href="/admin" className="btn btn-ghost">
+        <Link href="/admin/albums" className="btn btn-ghost">
           취소
         </Link>
         <button type="submit" disabled={pending || uploading} className="btn btn-brand">

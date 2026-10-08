@@ -314,14 +314,14 @@ export async function saveTournamentAction(
   if (!saved) return { error: "수정하려는 대회를 찾을 수 없습니다." };
 
   revalidateSite();
-  redirect(`/admin?saved=tournament&id=${encodeURIComponent(saved.id)}`);
+  redirect(`/admin/tournaments?saved=${encodeURIComponent(saved.id)}`);
 }
 
 export async function deleteTournamentAction(id: string): Promise<void> {
   if (await writeBlocker()) redirect("/admin");
   await deleteTournament(id);
   revalidateSite();
-  redirect("/admin?deleted=tournament");
+  redirect("/admin/tournaments?deleted=1");
 }
 
 /** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
@@ -371,14 +371,14 @@ export async function saveAlbumAction(
   if (!saved) return { error: "수정하려는 앨범을 찾을 수 없습니다." };
 
   revalidateSite();
-  redirect(`/admin?saved=album&id=${encodeURIComponent(saved.id)}`);
+  redirect(`/admin/albums?saved=${encodeURIComponent(saved.id)}`);
 }
 
 export async function deleteAlbumAction(id: string): Promise<void> {
   if (await writeBlocker()) redirect("/admin");
   await deleteAlbum(id);
   revalidateSite();
-  redirect("/admin?deleted=album");
+  redirect("/admin/albums?deleted=1");
 }
 
 /** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
@@ -435,14 +435,14 @@ export async function saveNewsPostAction(
   if (!saved) return { error: "수정하려는 소식을 찾을 수 없습니다." };
 
   revalidateSite();
-  redirect(`/admin?saved=news&id=${encodeURIComponent(saved.id)}`);
+  redirect(`/admin/news?saved=${encodeURIComponent(saved.id)}`);
 }
 
 export async function deleteNewsPostAction(id: string): Promise<void> {
   if (await writeBlocker()) redirect("/admin");
   await deleteNewsPost(id);
   revalidateSite();
-  redirect("/admin?deleted=news");
+  redirect("/admin/news?deleted=1");
 }
 
 /** 방문자에게 숨길지(true) 보일지(false) 정합니다. 관리자 목록은 그 자리에서 새로 그려집니다. */
