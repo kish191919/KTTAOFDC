@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { localePath, stripLocale, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { nav } from "@/lib/site";
-import { CloseIcon, MailIcon, MenuIcon } from "@/components/icons";
+import { CloseIcon, LockIcon, MailIcon, MenuIcon } from "@/components/icons";
+import { AdminLink } from "@/components/AdminLink";
 import { ContactButton } from "@/components/ContactButton";
 
 function isActive(pathname: string, href: string) {
@@ -115,6 +116,10 @@ export function MobileNav({ lang, t, contact }: MobileNavProps) {
                   <MailIcon className="size-4" />
                   {t.contact}
                 </ContactButton>
+                <AdminLink className="btn btn-ghost btn-sm flex-1">
+                  <LockIcon className="size-4" />
+                  {t.admin}
+                </AdminLink>
               </div>
             </nav>
           </div>
