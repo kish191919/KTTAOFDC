@@ -145,7 +145,7 @@ Wix 에서 산 도메인은 네임서버를 바꿀 수 없어서, DNS 레코드 
    | 종류 | Host | 값 |
    | --- | --- | --- |
    | A | 비워 둠 | Vercel 이 알려 주는 IP 주소 하나. Wix 주소(`185.230.63.x`)는 지웁니다. |
-   | CNAME | `www` | Vercel 이 알려 주는 주소 (`….vercel-dns-….com`) |
+   | CNAME | `www` | Vercel 이 알려 주는 주소 (`….vercel-dns-….com`). 복사할 때 끝에 붙는 점(`.`)은 빼고 넣습니다. |
 
 3. Vercel 의 **Settings → Environment Variables** 에 `NEXT_PUBLIC_SITE_URL` 을 `https://www.kttaofdc.org` 로 넣고 다시 배포합니다.
    링크 미리보기와 sitemap·RSS 에 적히는 주소가 이 값으로 만들어집니다.
