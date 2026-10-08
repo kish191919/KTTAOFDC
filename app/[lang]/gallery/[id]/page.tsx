@@ -74,7 +74,7 @@ export default async function AlbumPage({ params }: Props) {
         {album.description && (
           <LinkedText
             text={album.description}
-            className="mt-4 max-w-3xl text-lg leading-relaxed text-slate-600"
+            className="mt-4 max-w-3xl text-lg leading-relaxed break-keep text-slate-600"
           />
         )}
       </header>
