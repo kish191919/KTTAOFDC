@@ -6,13 +6,21 @@ import type { ImageRef } from "@/lib/types";
 
 const OG_LOCALE: Record<Locale, string> = { ko: "ko_KR", en: "en_US" };
 
-/** 카카오톡·SNS 에 링크를 붙였을 때 보이는 미리보기의 공통 정보 */
+// 대표 이미지가 없는 페이지는 사이트 배너(app/opengraph-image.jpg)를 미리보기로 씁니다.
+const DEFAULT_IMAGE = { url: "/opengraph-image.jpg", width: 1200, height: 630 };
+
+/**
+ * 카카오톡·SNS 에 링크를 붙였을 때 보이는 미리보기의 공통 정보.
+ * openGraph 는 레이아웃이나 페이지에서 다시 적으면 통째로 바뀌므로, 배너 이미지도 여기에 넣어
+ * 홈처럼 이미지를 따로 정하지 않는 화면에도 미리보기가 나오게 합니다.
+ */
 export function sharedOpenGraph(lang: Locale) {
   return {
-    type: "website",
+    type: "website" as const,
     locale: OG_LOCALE[lang],
     siteName: site.name,
-  } as const;
+    images: [DEFAULT_IMAGE],
+  };
 }
 
 /**
@@ -33,9 +41,6 @@ export function languageAlternates(lang: Locale, path: string) {
     },
   };
 }
-
-// 대표 이미지가 없는 페이지는 사이트 배너(app/opengraph-image.jpg)를 미리보기로 씁니다.
-const DEFAULT_IMAGE = { url: "/opengraph-image.jpg", width: 1200, height: 630 };
 
 /** 페이지 제목·설명과 링크 미리보기 정보를 한 번에 만듭니다. */
 export function pageMetadata({
