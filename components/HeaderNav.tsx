@@ -6,9 +6,8 @@ import { useEffect, useState } from "react";
 import { localePath, stripLocale, type Locale } from "@/lib/i18n/config";
 import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { nav } from "@/lib/site";
-import { CloseIcon, LockIcon, MailIcon, MenuIcon } from "@/components/icons";
+import { CloseIcon, LockIcon, MenuIcon } from "@/components/icons";
 import { AdminLink } from "@/components/AdminLink";
-import { ContactButton } from "@/components/ContactButton";
 
 function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -51,10 +50,9 @@ export function DesktopNav({ lang, label }: { lang: Locale; label: string }) {
 type MobileNavProps = {
   lang: Locale;
   t: Dictionary["nav"];
-  contact: Dictionary["contact"];
 };
 
-export function MobileNav({ lang, t, contact }: MobileNavProps) {
+export function MobileNav({ lang, t }: MobileNavProps) {
   const pathname = useCurrentPath();
   const [open, setOpen] = useState(false);
 
@@ -112,10 +110,6 @@ export function MobileNav({ lang, t, contact }: MobileNavProps) {
                 );
               })}
               <div className="mt-2 flex gap-2 border-t border-slate-100 pt-3">
-                <ContactButton t={contact} className="btn btn-accent btn-sm flex-1">
-                  <MailIcon className="size-4" />
-                  {t.contact}
-                </ContactButton>
                 <AdminLink className="btn btn-ghost btn-sm flex-1">
                   <LockIcon className="size-4" />
                   {t.admin}

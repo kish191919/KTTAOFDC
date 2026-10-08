@@ -28,7 +28,6 @@ export const en: Dictionary = {
     open: "Open menu",
     close: "Close menu",
     quickLinks: "Quick links",
-    contact: "Contact",
     admin: "Admin",
   },
 

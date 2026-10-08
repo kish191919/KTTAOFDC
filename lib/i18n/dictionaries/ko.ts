@@ -28,7 +28,6 @@ export const ko = {
     open: "메뉴 열기",
     close: "메뉴 닫기",
     quickLinks: "바로가기",
-    contact: "문의하기",
     admin: "관리자",
   },
 
