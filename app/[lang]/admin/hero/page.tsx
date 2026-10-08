@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { listHeroMedia, MAX_HERO_MEDIA } from "@/lib/store/hero";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { HeroManager } from "@/components/admin/HeroManager";
 import { ArrowLeftIcon, ExternalLinkIcon } from "@/components/icons";
 
@@ -30,7 +29,7 @@ export default async function AdminHeroPage() {
           <ExternalLinkIcon className="size-4" />
         </Link>
       </div>
-      <HeroManager items={items} max={MAX_HERO_MEDIA} readOnly={!STORE_WRITABLE} />
+      <HeroManager items={items} max={MAX_HERO_MEDIA} />
     </div>
   );
 }

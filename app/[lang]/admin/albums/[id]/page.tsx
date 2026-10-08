@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { saveAlbumAction } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
 import { getAlbum } from "@/lib/store/albums";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { AlbumForm } from "@/components/admin/AlbumForm";
 import { ArrowLeftIcon } from "@/components/icons";
 
@@ -25,11 +24,7 @@ export default async function EditAlbumPage({ params }: Props) {
         홈페이지 관리
       </Link>
       <h1 className="mt-4 mb-8 text-3xl font-black text-brand-950">앨범 수정</h1>
-      <AlbumForm
-        album={album}
-        action={saveAlbumAction.bind(null, album.id)}
-        readOnly={!STORE_WRITABLE}
-      />
+      <AlbumForm album={album} action={saveAlbumAction.bind(null, album.id)} />
     </div>
   );
 }

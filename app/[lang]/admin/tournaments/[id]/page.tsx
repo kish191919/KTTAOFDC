@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { saveTournamentAction } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { getTournament } from "@/lib/store/tournaments";
 import { TournamentForm } from "@/components/admin/TournamentForm";
 import { ArrowLeftIcon } from "@/components/icons";
@@ -28,7 +27,6 @@ export default async function EditTournamentPage({ params }: Props) {
       <TournamentForm
         tournament={tournament}
         action={saveTournamentAction.bind(null, tournament.id)}
-        readOnly={!STORE_WRITABLE}
       />
     </div>
   );

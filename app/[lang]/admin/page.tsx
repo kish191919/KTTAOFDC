@@ -12,7 +12,6 @@ import { requireAdmin } from "@/lib/auth";
 import { formatDate, formatDateRange, statusLabel, statusOf, today } from "@/lib/dates";
 import { listAlbums } from "@/lib/store/albums";
 import { listHeroMedia } from "@/lib/store/hero";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { listNewsPosts } from "@/lib/store/news";
 import { listTournaments } from "@/lib/store/tournaments";
 import { DeleteButton } from "@/components/admin/DeleteButton";
@@ -21,7 +20,6 @@ import {
   CheckIcon,
   ExternalLinkIcon,
   FilmIcon,
-  InfoIcon,
   LogOutIcon,
   PencilIcon,
   PlusIcon,
@@ -82,13 +80,6 @@ export default async function AdminPage({ searchParams }: Props) {
         </form>
       </div>
 
-      {!STORE_WRITABLE && (
-        <p className="mt-6 flex gap-2.5 rounded-xl border border-accent-200 bg-accent-50 p-4 text-sm leading-relaxed break-keep text-accent-700">
-          <InfoIcon className="mt-0.5 size-4 shrink-0" />
-          이 서버는 읽기 전용입니다. 데이터베이스를 연결하기 전까지는 내 컴퓨터에서 내용을
-          수정한 뒤 다시 배포해야 반영됩니다.
-        </p>
-      )}
       {savedItem && (
         <p className="mt-6 flex flex-wrap items-center gap-2.5 rounded-xl border border-brand-200 bg-white p-4 text-sm font-medium text-brand-800">
           <CheckIcon className="size-4 shrink-0" />
@@ -189,12 +180,10 @@ export default async function AdminPage({ searchParams }: Props) {
                     <HiddenToggle
                       hidden={Boolean(tournament.hidden)}
                       action={setTournamentHiddenAction.bind(null, tournament.id)}
-                      disabled={!STORE_WRITABLE}
                     />
                     <DeleteButton
                       action={deleteTournamentAction.bind(null, tournament.id)}
                       confirmMessage={`'${tournament.title}' 대회를 삭제할까요?\n포스터와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`}
-                      disabled={!STORE_WRITABLE}
                     />
                   </div>
                 </li>
@@ -246,12 +235,10 @@ export default async function AdminPage({ searchParams }: Props) {
                   <HiddenToggle
                     hidden={Boolean(album.hidden)}
                     action={setAlbumHiddenAction.bind(null, album.id)}
-                    disabled={!STORE_WRITABLE}
                   />
                   <DeleteButton
                     action={deleteAlbumAction.bind(null, album.id)}
                     confirmMessage={`'${album.title}' 앨범을 삭제할까요?\n사진 ${album.photos.length}장도 함께 지워지며 되돌릴 수 없습니다.`}
-                    disabled={!STORE_WRITABLE}
                   />
                 </div>
               </li>
@@ -300,12 +287,10 @@ export default async function AdminPage({ searchParams }: Props) {
                   <HiddenToggle
                     hidden={Boolean(post.hidden)}
                     action={setNewsPostHiddenAction.bind(null, post.id)}
-                    disabled={!STORE_WRITABLE}
                   />
                   <DeleteButton
                     action={deleteNewsPostAction.bind(null, post.id)}
                     confirmMessage={`'${post.title}' 소식을 삭제할까요?\n이미지와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`}
-                    disabled={!STORE_WRITABLE}
                   />
                 </div>
               </li>

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { nav, site } from "@/lib/site";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import { MailIcon } from "@/components/icons";
 import { AdminLink } from "@/components/AdminLink";
 
@@ -71,9 +70,7 @@ export function Footer({ lang }: { lang: Locale }) {
               Community <span className="text-accent-400">•</span> Health{" "}
               <span className="text-accent-400">•</span> Friendship
             </p>
-            {STORE_WRITABLE && (
-              <AdminLink className="transition-colors hover:text-white">{d.nav.admin}</AdminLink>
-            )}
+            <AdminLink className="transition-colors hover:text-white">{d.nav.admin}</AdminLink>
           </div>
         </div>
       </div>

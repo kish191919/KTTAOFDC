@@ -28,16 +28,15 @@ type ToggleProps = {
   hidden: boolean;
   /** 숨길지(true) 보일지(false)를 받아 저장하는 서버 액션 */
   action: (hidden: boolean) => Promise<void>;
-  disabled?: boolean;
 };
 
 /** 관리자 목록에서 한 번 눌러 숨기거나 다시 보이게 하는 버튼 */
-export function HiddenToggle({ hidden, action, disabled }: ToggleProps) {
+export function HiddenToggle({ hidden, action }: ToggleProps) {
   const [pending, startTransition] = useTransition();
   return (
     <button
       type="button"
-      disabled={disabled || pending}
+      disabled={pending}
       onClick={() => startTransition(() => action(!hidden))}
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
     >

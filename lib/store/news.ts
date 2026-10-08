@@ -1,12 +1,12 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import type { NewsPost } from "@/lib/types";
-import { dataFile, mutateCollection, readCollection } from "./json-file";
+import { insertItem, readAll, readOne, removeItem, replaceItem } from "./db";
 import { removeUploads } from "./files";
 
-// 탁구 소식 저장소. 데이터베이스로 옮길 때는 아래 함수들의 내부만 바꾸면 됩니다.
+// 탁구 소식 저장소. Supabase 의 news_posts 테이블을 씁니다.
 
-const FILE = dataFile("news.json");
+const TABLE = "news_posts";
 
 export type NewsPostInput = Omit<NewsPost, "id" | "createdAt" | "updatedAt">;
 
@@ -25,72 +25,62 @@ type ReadOptions = { includeHidden?: boolean };
 export async function listNewsPosts({ includeHidden = false }: ReadOptions = {}): Promise<
   NewsPost[]
 > {
-  const posts = (await readCollection<NewsPost>(FILE)).sort(newestFirst);
+  const posts = (await readAll<NewsPost>(TABLE)).sort(newestFirst);
   return includeHidden ? posts : posts.filter((post) => !post.hidden);
 }
 
-export async function getNewsPost(id: string, options?: ReadOptions): Promise<NewsPost | null> {
-  return (await listNewsPosts(options)).find((post) => post.id === id) ?? null;
+export async function getNewsPost(
+  id: string,
+  { includeHidden = false }: ReadOptions = {},
+): Promise<NewsPost | null> {
+  const post = await readOne<NewsPost>(TABLE, id);
+  return post && (includeHidden || !post.hidden) ? post : null;
 }
 
 export async function createNewsPost(input: NewsPostInput): Promise<NewsPost> {
   const now = new Date().toISOString();
-  return mutateCollection<NewsPost, NewsPost>(FILE, (items) => {
-    let id: string;
-    do {
-      id = `${input.date}-${randomBytes(2).toString("hex")}`;
-    } while (items.some((post) => post.id === id));
+  for (;;) {
+    const id = `${input.date}-${randomBytes(2).toString("hex")}`;
     const created: NewsPost = { ...input, id, createdAt: now, updatedAt: now };
-    return { items: [...items, created].sort(newestFirst), result: created };
-  });
+    // 같은 id 가 이미 있으면 다른 id 로 다시 넣습니다.
+    if (await insertItem(TABLE, created)) return created;
+  }
 }
 
 export async function updateNewsPost(
   id: string,
   input: NewsPostInput,
 ): Promise<NewsPost | null> {
-  const change = await mutateCollection<
-    NewsPost,
-    { previous: NewsPost; updated: NewsPost } | null
-  >(FILE, (items) => {
-    const previous = items.find((post) => post.id === id);
-    if (!previous) return { items, result: null };
-    const updated: NewsPost = {
-      ...input,
-      id,
-      createdAt: previous.createdAt,
-      updatedAt: new Date().toISOString(),
-    };
-    return {
-      items: items.map((post) => (post.id === id ? updated : post)).sort(newestFirst),
-      result: { previous, updated },
-    };
-  });
-  if (!change) return null;
+  const previous = await readOne<NewsPost>(TABLE, id);
+  if (!previous) return null;
+  const updated: NewsPost = {
+    ...input,
+    id,
+    createdAt: previous.createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+  if (!(await replaceItem(TABLE, updated))) return null;
 
-  // 수정하면서 빠진 이미지·첨부 파일은 디스크에서도 지웁니다.
-  const kept = new Set(uploadsOf(change.updated));
-  await removeUploads(uploadsOf(change.previous).filter((url) => !kept.has(url)));
-  return change.updated;
+  // 수정하면서 빠진 이미지·첨부 파일은 저장소에서도 지웁니다.
+  const kept = new Set(uploadsOf(updated));
+  await removeUploads(uploadsOf(previous).filter((url) => !kept.has(url)));
+  return updated;
 }
 
 /** 방문자에게 숨길지(true) 보일지(false) 정합니다. */
 export async function setNewsPostHidden(id: string, hidden: boolean): Promise<boolean> {
-  const updatedAt = new Date().toISOString();
-  return mutateCollection<NewsPost, boolean>(FILE, (items) => ({
-    items: items.map((post) =>
-      // 보이는 소식에는 hidden 값을 아예 남기지 않습니다. (undefined 는 파일에 쓰이지 않습니다)
-      post.id === id ? { ...post, hidden: hidden || undefined, updatedAt } : post,
-    ),
-    result: items.some((post) => post.id === id),
-  }));
+  const post = await readOne<NewsPost>(TABLE, id);
+  if (!post) return false;
+  return replaceItem(TABLE, {
+    ...post,
+    // 보이는 소식에는 hidden 값을 아예 남기지 않습니다. (undefined 는 저장되지 않습니다)
+    hidden: hidden || undefined,
+    updatedAt: new Date().toISOString(),
+  });
 }
 
 export async function deleteNewsPost(id: string): Promise<boolean> {
-  const removed = await mutateCollection<NewsPost, NewsPost | null>(FILE, (items) => ({
-    items: items.filter((post) => post.id !== id),
-    result: items.find((post) => post.id === id) ?? null,
-  }));
+  const removed = await removeItem<NewsPost>(TABLE, id);
   if (!removed) return false;
   await removeUploads(uploadsOf(removed));
   return true;

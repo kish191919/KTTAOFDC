@@ -1,13 +1,14 @@
 import { isAdmin } from "@/lib/auth";
 import {
-  saveUpload,
+  createUpload,
   UPLOAD_FOLDERS,
   UploadError,
   type UploadFolder,
 } from "@/lib/store/files";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 
-// 관리자 화면에서 포스터·사진·첨부 파일·메인 화면 동영상을 한 개씩 올리는 주소입니다.
+// 관리자 화면에서 포스터·사진·첨부 파일·메인 화면 동영상을 올릴 때 먼저 부르는 주소입니다.
+// 파일 자체는 받지 않습니다. 로그인과 파일 종류·크기를 확인한 뒤,
+// 브라우저가 Supabase 로 파일을 바로 보낼 수 있는 일회용 주소를 돌려줍니다.
 
 const fail = (error: string, status: number) => Response.json({ error }, { status });
 
@@ -26,19 +27,18 @@ function isSameOrigin(request: Request): boolean {
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return fail("허용되지 않은 요청입니다.", 403);
   if (!(await isAdmin())) return fail("로그인이 필요합니다.", 401);
-  if (!STORE_WRITABLE) return fail("이 서버에서는 파일을 올릴 수 없습니다.", 403);
 
-  let form: FormData;
+  let body: unknown;
   try {
-    form = await request.formData();
+    body = await request.json();
   } catch {
     return fail("요청 형식이 올바르지 않습니다.", 400);
   }
 
-  const file = form.get("file");
-  const folder = form.get("folder");
-  const kind = form.get("kind");
-  if (!(file instanceof File)) return fail("파일이 없습니다.", 400);
+  const { folder, kind, name, size } = (body ?? {}) as Record<string, unknown>;
+  if (typeof name !== "string" || !name || typeof size !== "number") {
+    return fail("파일이 없습니다.", 400);
+  }
   if (
     typeof folder !== "string" ||
     !UPLOAD_FOLDERS.includes(folder as UploadFolder)
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(await saveUpload(folder as UploadFolder, file, kind));
+    return Response.json(await createUpload(folder as UploadFolder, kind, name, size));
   } catch (error) {
     if (error instanceof UploadError) return fail(error.message, 400);
     throw error;

@@ -29,11 +29,9 @@ const iconButtonClass =
 type Props = {
   items: HeroMedia[];
   max: number;
-  /** 저장할 수 없는 환경(읽기 전용)일 때 true */
-  readOnly?: boolean;
 };
 
-export function HeroManager({ items, max, readOnly = false }: Props) {
+export function HeroManager({ items, max }: Props) {
   const titleId = useId();
   const fileId = useId();
   const [title, setTitle] = useState("");
@@ -86,7 +84,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
     }
   }
 
-  const uploadDisabled = readOnly || busy || full;
+  const uploadDisabled = busy || full;
 
   return (
     <div className="space-y-6">
@@ -109,7 +107,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
             onChange={(event) => setTitle(event.target.value)}
             maxLength={150}
             placeholder="예) 2026 봄 친선 탁구대회 하이라이트"
-            disabled={readOnly || busy}
+            disabled={busy}
             className="field"
           />
           <p className="hint">
@@ -211,7 +209,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
                   <button
                     type="button"
                     onClick={() => run(() => moveHeroMediaAction(item.id, "up"))}
-                    disabled={readOnly || busy || index === 0}
+                    disabled={busy || index === 0}
                     aria-label={`'${item.title}' 위로 옮기기`}
                     title="위로"
                     className={iconButtonClass}
@@ -221,7 +219,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
                   <button
                     type="button"
                     onClick={() => run(() => moveHeroMediaAction(item.id, "down"))}
-                    disabled={readOnly || busy || index === items.length - 1}
+                    disabled={busy || index === items.length - 1}
                     aria-label={`'${item.title}' 아래로 옮기기`}
                     title="아래로"
                     className={iconButtonClass}
@@ -231,7 +229,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
                   <button
                     type="button"
                     onClick={() => run(() => setHeroMediaActiveAction(item.id, !item.active))}
-                    disabled={readOnly || busy}
+                    disabled={busy}
                     aria-label={`'${item.title}' ${item.active ? "숨기기" : "홈 화면에 표시하기"}`}
                     title={item.active ? "숨기기" : "표시하기"}
                     className={iconButtonClass}
@@ -248,7 +246,7 @@ export function HeroManager({ items, max, readOnly = false }: Props) {
                       const message = `'${item.title || "이 항목"}' 을(를) 삭제할까요?\n올린 파일도 함께 지워지며 되돌릴 수 없습니다.`;
                       if (window.confirm(message)) run(() => deleteHeroMediaAction(item.id));
                     }}
-                    disabled={readOnly || busy}
+                    disabled={busy}
                     aria-label={`'${item.title}' 삭제`}
                     title="삭제"
                     className={`${iconButtonClass} hover:bg-accent-50 hover:text-accent-700`}

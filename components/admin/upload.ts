@@ -1,6 +1,6 @@
 import type { Attachment, ImageRef } from "@/lib/types";
 
-// 관리자 화면(브라우저)에서 파일을 서버로 올리는 함수들입니다.
+// 관리자 화면(브라우저)에서 파일을 저장소(Supabase)로 올리는 함수들입니다.
 
 export type UploadFolder = "tournaments" | "gallery" | "hero" | "news";
 
@@ -10,6 +10,8 @@ const MAX_DIMENSION = 1600;
 const KEEP_ORIGINAL_BYTES = 800 * 1024;
 /** 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
 export const MAX_VIDEO_MB = 50;
+/** 브라우저가 올린 파일을 다시 받지 않고 보관하는 시간(초). 서버(lib/store/files.ts)와 같게 둡니다. */
+const CACHE_SECONDS = "31536000";
 
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -33,12 +35,12 @@ async function send(
   folder: UploadFolder,
   kind: "image" | "document" | "video",
 ): Promise<{ url: string; name: string; size: number }> {
-  const body = new FormData();
-  body.set("file", file, filename);
-  body.set("folder", folder);
-  body.set("kind", kind);
-
-  const response = await fetch("/api/admin/upload", { method: "POST", body });
+  // 1) 서버에서 로그인과 파일 종류·크기를 확인받고, 파일을 보낼 일회용 주소를 받습니다.
+  const response = await fetch("/api/admin/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder, kind, name: filename, size: file.size }),
+  });
   const result: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -47,7 +49,24 @@ async function send(
         : "파일을 올리지 못했습니다.";
     throw new Error(`${filename}: ${message}`);
   }
-  return result as { url: string; name: string; size: number };
+  const ticket = result as {
+    uploadUrl: string;
+    contentType: string;
+    url: string;
+    name: string;
+    size: number;
+  };
+
+  // 2) 파일은 서버를 거치지 않고 Supabase 로 바로 보냅니다.
+  //    (배포된 서버는 4.5MB 가 넘는 요청을 받지 못합니다)
+  const body = new FormData();
+  body.set("cacheControl", CACHE_SECONDS);
+  // 파일 형식은 브라우저가 짐작한 값이 아니라 서버가 확장자로 정한 값을 씁니다.
+  body.set("", file.slice(0, file.size, ticket.contentType));
+  const uploaded = await fetch(ticket.uploadUrl, { method: "PUT", body }).catch(() => null);
+  if (!uploaded?.ok) throw new Error(`${filename}: 파일을 올리지 못했습니다.`);
+
+  return { url: ticket.url, name: ticket.name, size: ticket.size };
 }
 
 /**

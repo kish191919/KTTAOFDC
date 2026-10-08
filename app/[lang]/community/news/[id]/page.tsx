@@ -16,6 +16,10 @@ import { ArrowLeftIcon, ExternalLinkIcon } from "@/components/icons";
 
 type Props = { params: Promise<{ lang: string; id: string }> };
 
+// 저장하면 바로 새로 만들어지지만, 이 사이트 밖(내 컴퓨터·스크립트)에서 고친 내용도
+// 반영되도록 한 시간마다 새로 만듭니다.
+export const revalidate = 3600;
+
 export async function generateStaticParams() {
   return (await listNewsPosts()).map((post) => ({ id: post.id }));
 }

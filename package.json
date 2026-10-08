@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/postgrest-js": "2.109.0",
+    "@supabase/storage-js": "2.109.0",
     "jszip": "^3.10.2",
     "next": "16.3.8",
     "react": "19.2.8",

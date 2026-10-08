@@ -10,11 +10,9 @@ import { ImageUploader } from "./Uploaders";
 type Props = {
   album?: Album;
   action: (state: FormState, formData: FormData) => Promise<FormState>;
-  /** 저장할 수 없는 환경(읽기 전용)일 때 true */
-  readOnly?: boolean;
 };
 
-export function AlbumForm({ album, action, readOnly = false }: Props) {
+export function AlbumForm({ album, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const [photos, setPhotos] = useState<ImageRef[]>(album?.photos ?? []);
   const [uploading, setUploading] = useState(false);
@@ -130,7 +128,7 @@ export function AlbumForm({ album, action, readOnly = false }: Props) {
           onBusyChange={setUploading}
           max={300}
           firstLabel="표지"
-          disabled={readOnly || pending}
+          disabled={pending}
         />
         {fieldError("photos")}
       </div>
@@ -150,11 +148,7 @@ export function AlbumForm({ album, action, readOnly = false }: Props) {
         <Link href="/admin" className="btn btn-ghost">
           취소
         </Link>
-        <button
-          type="submit"
-          disabled={pending || uploading || readOnly}
-          className="btn btn-brand"
-        >
+        <button type="submit" disabled={pending || uploading} className="btn btn-brand">
           {pending
             ? "저장하는 중…"
             : uploading

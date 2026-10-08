@@ -18,7 +18,6 @@ import {
   moveHeroMedia,
   setHeroMediaActive,
 } from "@/lib/store/hero";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
 import {
   createAlbum,
   deleteAlbum,
@@ -93,12 +92,9 @@ export async function logoutAction(): Promise<void> {
 
 // ───────────────────────── 공통 ─────────────────────────
 
-/** 저장·삭제 전에 권한과 저장 가능 여부를 확인합니다. 문제가 있으면 안내 문구를 돌려줍니다. */
+/** 저장·삭제 전에 권한을 확인합니다. 문제가 있으면 안내 문구를 돌려줍니다. */
 async function writeBlocker(): Promise<string | null> {
   if (!(await isAdmin())) return "로그인이 만료되었습니다. 다시 로그인해 주세요.";
-  if (!STORE_WRITABLE) {
-    return "이 서버에서는 내용을 저장할 수 없습니다. 내 컴퓨터에서 수정한 뒤 다시 배포해 주세요.";
-  }
   return null;
 }
 
@@ -460,7 +456,7 @@ export async function addHeroMediaAction(input: {
     active: true,
   });
   if (!saved) {
-    // 등록하지 못한 파일이 디스크에 남지 않게 지웁니다.
+    // 등록하지 못한 파일이 저장소에 남지 않게 지웁니다.
     await removeUploads([src]);
     return { error: `메인 화면에는 최대 ${MAX_HERO_MEDIA}개까지 올릴 수 있습니다.` };
   }

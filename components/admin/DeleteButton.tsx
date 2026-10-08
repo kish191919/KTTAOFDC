@@ -7,15 +7,14 @@ type Props = {
   action: () => Promise<void>;
   /** 삭제 전에 한 번 더 물어볼 문구 */
   confirmMessage: string;
-  disabled?: boolean;
 };
 
-export function DeleteButton({ action, confirmMessage, disabled }: Props) {
+export function DeleteButton({ action, confirmMessage }: Props) {
   const [pending, startTransition] = useTransition();
   return (
     <button
       type="button"
-      disabled={disabled || pending}
+      disabled={pending}
       onClick={() => {
         if (window.confirm(confirmMessage)) startTransition(() => action());
       }}

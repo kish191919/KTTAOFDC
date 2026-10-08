@@ -1,7 +1,7 @@
 # KTTA of DC 홈페이지
 
 워싱턴DC 한인탁구협회(Korean Table Tennis Association of DC) 홈페이지입니다.
-Next.js 16 · React 19 · Tailwind CSS 4 로 만들었고, 데이터베이스 없이 프로젝트 안의 파일에 내용을 저장합니다.
+Next.js 16 · React 19 · Tailwind CSS 4 로 만들었고, 글 내용과 사진·동영상은 Supabase 에 저장합니다.
 
 ## 실행하기
 
@@ -11,6 +11,9 @@ Node.js 20.9 이상이 필요합니다.
 npm install     # 처음 한 번만
 npm run dev     # http://localhost:3000
 ```
+
+처음 실행하기 전에 `.env.example` 을 `.env.local` 로 복사하고 Supabase 주소·키와 관리자 비밀번호를 채워 주세요.
+([Supabase 연결](#supabase-연결) 참고. 값이 없으면 페이지가 열리지 않고 어떤 값이 빠졌는지 알려 줍니다)
 
 | 명령 | 설명 |
 | --- | --- |
@@ -61,18 +64,20 @@ npm run dev     # http://localhost:3000
 
 ## 대회 정보 올리기
 
-1. `http://localhost:3000/admin` 에 접속해 관리자 비밀번호로 로그인합니다.
+1. 홈페이지 맨 아래의 **관리자**를 누르거나 주소 뒤에 `/admin` 을 붙여 접속한 뒤, 관리자 비밀번호로 로그인합니다.
+   (예: `https://www.kttaofdc.org/admin` — 휴대폰에서도 됩니다)
 2. **새 대회 등록**을 눌러 대회 이름·날짜·장소 등을 적고, 포스터 이미지와 요강 파일(PDF 등)을 올립니다.
 3. 저장하면 대회 정보 페이지와 홈 화면에 바로 나타납니다. 날짜가 지나면 자동으로 ‘지난 대회’로 넘어갑니다.
 
-- 관리자 비밀번호는 `.env.local` 파일의 `ADMIN_PASSWORD` 입니다. 바꾼 뒤에는 서버를 다시 시작하세요.
+- 관리자 비밀번호는 Vercel 의 **Settings → Environment Variables** 에 있는 `ADMIN_PASSWORD` 입니다. 바꾼 뒤에는 다시 배포(Redeploy)해야 적용됩니다.
+  (내 컴퓨터에서 실행할 때는 `.env.local` 의 값을 씁니다)
 - 큰 사진은 올릴 때 자동으로 긴 변 1600px 로 줄어듭니다.
 - 갤러리도 같은 화면의 **새 앨범 만들기**에서 사진을 올립니다.
 - 첫 번째 이미지가 대회의 대표 포스터·앨범의 표지입니다. 다른 이미지 위의 **대표로 지정**·**표지로 지정**을 누르면 그 이미지가 맨 앞으로 옵니다.
 - 영어 화면(`/en`)에 보여 줄 글은 입력 화면의 **영어 화면용 (English)** 칸에 적습니다. 비워 두면 한국어 글이 나옵니다.
 - 아직 준비 중인 대회·앨범·소식은 입력 화면 맨 아래의 **방문자에게 숨기기**를 체크하고 저장하면 관리자 화면에서만 보입니다.
   관리자 목록의 **보이기**·**숨기기** 버튼으로도 바로 바꿀 수 있습니다.
-  (숨김은 임시 저장용입니다. `data/` 와 올린 파일은 GitHub 저장소에 함께 올라가므로 공개하면 안 되는 자료를 넣어 두는 용도로는 쓰지 마세요.)
+  (숨김은 임시 저장용입니다. 올린 사진·파일은 주소를 아는 사람이면 누구나 열 수 있으므로 공개하면 안 되는 자료를 넣어 두는 용도로는 쓰지 마세요.)
 - 방문자는 앨범 화면의 **사진 내려받기**로 사진을 골라 받을 수 있습니다. 여러 장은 ZIP 파일 하나로 묶입니다.
 
 ## 탁구 소식 올리기
@@ -95,7 +100,7 @@ npm run dev     # http://localhost:3000
 2. 제목(선택)을 적고 **파일 선택**으로 동영상이나 이미지를 올리면 바로 홈 화면에 나타납니다.
 3. 목록의 화살표로 순서를 바꾸고, 눈 모양 버튼으로 잠시 숨기거나, 휴지통 버튼으로 삭제합니다.
 
-- 동영상은 **MP4·WEBM, 한 개에 50MB 이하**만 올릴 수 있습니다. (파일을 git 에 함께 올리기 때문입니다)
+- 동영상은 **MP4·WEBM, 한 개에 50MB 이하**만 올릴 수 있습니다. (홈 화면에서 자동으로 재생되므로 너무 큰 파일은 받지 않습니다)
   iPhone 으로 찍은 MOV 파일은 MP4 로 바꿔서 올려 주세요.
 - 동영상은 소리가 꺼진 채 자동으로 재생되고, 방문자가 화면의 스피커 버튼으로 소리를 켤 수 있습니다.
 - 동영상은 끝까지 재생한 뒤, 이미지는 5초 뒤에 다음으로 넘어갑니다. 한 개만 올리면 계속 되풀이됩니다.
@@ -105,31 +110,35 @@ npm run dev     # http://localhost:3000
 
 | 위치 | 내용 |
 | --- | --- |
-| `data/tournaments.json` | 대회 정보 |
-| `data/albums.json` | 갤러리 앨범 |
-| `data/hero.json` | 메인 화면 동영상·이미지 목록(순서, 숨김 여부) |
-| `data/news.json` | 탁구 소식 (첫 소식을 저장할 때 만들어집니다) |
-| `public/uploads/` | 관리자 화면에서 올린 포스터·사진·첨부 파일·메인 화면 동영상 |
+| Supabase 테이블 `tournaments` | 대회 정보 |
+| Supabase 테이블 `albums` | 갤러리 앨범 |
+| Supabase 테이블 `hero_media` | 메인 화면 동영상·이미지 목록(순서, 숨김 여부) |
+| Supabase 테이블 `news_posts` | 탁구 소식 |
+| Supabase Storage 버킷 `uploads` | 관리자 화면에서 올린 포스터·사진·첨부 파일·메인 화면 동영상 |
 | `lib/site.ts` | 협회 이름, 문의 이메일, 메뉴, 검색 사이트 인증 코드 |
 | `lib/content/` | 인사말·임원진, 탁구 장소, 탁구 에티켓 글 (한국어·영어) |
 | `lib/i18n/dictionaries/` | 메뉴·버튼·안내문 같은 화면 문구 (`ko.ts` 한국어, `en.ts` 영어) |
 | `public/images/` | 로고, 배너 |
 
-`data/` 와 `public/uploads/` 가 곧 사이트의 내용이므로 git 에 함께 올립니다.
+관리자 화면에서 올린 내용은 Supabase 에만 있고 git 에는 올라가지 않습니다. 코드를 고쳐 다시 배포해도 내용은 그대로입니다.
 
 ## Vercel 에 배포하기
 
 1. 이 폴더를 GitHub 저장소로 올린 뒤, Vercel 에서 **Add New → Project** 로 그 저장소를 불러옵니다. 설정은 기본값 그대로 두면 됩니다.
-2. 도메인은 아래 **도메인 연결하기** 순서대로 붙입니다.
+2. **Settings → Environment Variables** 에 아래 값을 넣습니다. 값이 없으면 배포(빌드)가 실패합니다.
+3. 도메인은 아래 **도메인 연결하기** 순서대로 붙입니다.
 
-**데이터베이스를 연결하기 전에는 배포된 사이트가 ‘읽기 전용’입니다.**
-Vercel 서버는 파일을 저장해 둘 수 없기 때문에 배포된 사이트에서는 저장이 막혀 있고, 관리자 메뉴도 보이지 않습니다.
-(그래서 지금은 `ADMIN_PASSWORD`, `SESSION_SECRET` 을 Vercel 에 넣지 않아도 됩니다. 데이터베이스를 연결할 때 함께 넣습니다.)
-그동안은 아래 순서로 내용을 올립니다.
+| 이름 | 값 |
+| --- | --- |
+| `SUPABASE_URL` | Supabase 프로젝트의 Project URL |
+| `SUPABASE_SECRET_KEY` | Supabase 프로젝트의 Secret key |
+| `ADMIN_PASSWORD` | 관리자 로그인 비밀번호. 누구나 로그인 화면에 들어올 수 있으므로 길고 추측하기 어렵게 정합니다. |
+| `SESSION_SECRET` | 로그인 쿠키 서명용 값. `openssl rand -hex 32` 로 만듭니다. |
+| `NEXT_PUBLIC_SITE_URL` | 홈페이지 주소 `https://www.kttaofdc.org` (아래 **도메인 연결하기** 참고) |
 
-1. 내 컴퓨터에서 `npm run dev` 로 실행하고 관리자 화면에서 내용을 수정합니다.
-2. 바뀐 `data/`, `public/uploads/` 를 커밋해서 GitHub 에 올립니다.
-3. Vercel 이 자동으로 다시 배포하면 공개 사이트에 반영됩니다.
+배포한 뒤에는 **공개 사이트의 관리자 화면에서 바로** 내용을 올리고 고칩니다. 저장하면 곧바로 사이트에 나타나며, 다시 배포할 필요가 없습니다.
+
+- 내 컴퓨터에서 `npm run dev` 로 띄운 관리자 화면도 같은 Supabase 에 저장합니다. 다만 그렇게 고친 내용은 공개 사이트에 최대 한 시간 뒤에 반영됩니다.
 
 ## 도메인 연결하기
 
@@ -163,18 +172,28 @@ Wix 에서 산 도메인은 네임서버를 바꿀 수 없어서, DNS 레코드 
 3. 커밋해서 배포한 뒤, 각 사이트에서 **확인** 버튼을 누릅니다.
 4. 확인이 끝나면 사이트맵 `/sitemap.xml` 을 제출합니다. 네이버에는 RSS `/rss.xml` 도 함께 제출할 수 있습니다.
 
-## 나중에 데이터베이스를 연결할 때
+## Supabase 연결
 
-저장과 관련된 코드는 `lib/store/` 에만 모여 있습니다. 화면과 관리자 기능은 아래 함수만 호출하므로,
-이 파일들의 내부만 데이터베이스용으로 바꾸면 됩니다.
+글 내용과 올린 파일은 협회 계정(kttaofdc@gmail.com)의 Supabase 프로젝트에 저장합니다.
+(조직 **Korean Table Tennis Association of DC**, Pro 요금제, 지역 East US)
+프로젝트를 새로 만들어야 할 때는 아래 순서로 연결합니다.
 
-| 파일 | 역할 | 바꿀 내용 |
-| --- | --- | --- |
-| `lib/store/tournaments.ts` | 대회 정보 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
-| `lib/store/albums.ts` | 갤러리 앨범 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
-| `lib/store/hero.ts` | 메인 화면 동영상·이미지 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
-| `lib/store/news.ts` | 탁구 소식 읽기·쓰기 | JSON 파일 → 데이터베이스 테이블 |
-| `lib/store/files.ts` | 업로드 파일 저장·삭제 | `public/uploads` → 파일 저장소(Vercel Blob, Supabase Storage 등) |
-| `lib/store/json-file.ts` | 파일 저장 공통 코드 | `STORE_WRITABLE` 을 `true` 로 (읽기 전용 해제) |
+1. [supabase.com](https://supabase.com) 에서 **New project** 를 만듭니다. 지역은 방문자와 가까운 미국 동부(**East US**)를 고릅니다.
+2. **SQL Editor** 에 [`supabase/schema.sql`](supabase/schema.sql) 의 내용을 통째로 붙여 넣고 **Run** 을 누릅니다.
+   테이블 4개와 파일을 담는 `uploads` 버킷이 만들어집니다.
+3. **Project Settings → API Keys** 에서 Project URL 과 **Secret key** 를 복사해 `.env.local` 과 Vercel 환경 변수에 넣습니다.
+   Secret key 로는 모든 내용을 읽고 쓸 수 있으므로 다른 사람에게 보여 주지 않습니다.
 
-기존 `data/*.json` 의 내용은 테이블 구조(`lib/types.ts`)와 같으므로 그대로 옮겨 넣을 수 있습니다.
+저장과 관련된 코드는 `lib/store/` 에만 모여 있고, 화면과 관리자 기능은 이 파일들의 함수만 호출합니다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `lib/store/supabase.ts` | Supabase 연결 (서버에서만 사용) |
+| `lib/store/db.ts` | 테이블을 읽고 쓰는 공통 코드 |
+| `lib/store/tournaments.ts` · `albums.ts` · `news.ts` · `hero.ts` | 대회 정보 · 갤러리 앨범 · 탁구 소식 · 메인 화면 |
+| `lib/store/files.ts` | 업로드 파일 저장·삭제 |
+
+- 테이블은 항목 하나가 한 줄이고, `data` 칸에 `lib/types.ts` 의 모양 그대로 들어 있습니다. 입력 칸을 늘려도 테이블을 고칠 필요가 없습니다.
+- 큰 파일도 올릴 수 있도록, 파일은 서버를 거치지 않고 관리자의 브라우저에서 Supabase 로 바로 올라갑니다.
+  서버(`app/api/admin/upload`)는 로그인과 파일 종류를 확인하고 한 번만 쓸 수 있는 업로드 주소를 내줍니다.
+- 파일 한 개는 50MB 까지 받습니다 (`uploads` 버킷에 걸어 둔 한도). 사용량은 Supabase 대시보드의 **Usage** 에서 볼 수 있습니다.

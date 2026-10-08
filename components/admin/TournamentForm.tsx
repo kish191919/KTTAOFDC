@@ -11,11 +11,9 @@ import { FileUploader, ImageUploader } from "./Uploaders";
 type Props = {
   tournament?: Tournament;
   action: (state: FormState, formData: FormData) => Promise<FormState>;
-  /** 저장할 수 없는 환경(읽기 전용)일 때 true */
-  readOnly?: boolean;
 };
 
-export function TournamentForm({ tournament, action, readOnly = false }: Props) {
+export function TournamentForm({ tournament, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const [images, setImages] = useState<ImageRef[]>(tournament?.images ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(
@@ -433,7 +431,7 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
           onBusyChange={trackUploads}
           max={20}
           firstLabel="대표"
-          disabled={readOnly || pending}
+          disabled={pending}
         />
         {fieldError("images")}
       </Section>
@@ -445,7 +443,7 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
           onChange={setAttachments}
           onBusyChange={trackUploads}
           max={10}
-          disabled={readOnly || pending}
+          disabled={pending}
         />
         {fieldError("attachments")}
       </Section>
@@ -464,7 +462,7 @@ export function TournamentForm({ tournament, action, readOnly = false }: Props) 
         <Link href="/admin" className="btn btn-ghost">
           취소
         </Link>
-        <button type="submit" disabled={busy || readOnly} className="btn btn-brand">
+        <button type="submit" disabled={busy} className="btn btn-brand">
           {pending
             ? "저장하는 중…"
             : uploading > 0

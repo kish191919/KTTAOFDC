@@ -33,6 +33,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // API, 올린 파일, Next.js 내부 파일, 확장자가 있는 파일(이미지·rss.xml·sitemap.xml 등)은 건드리지 않습니다.
-  matcher: ["/((?!api/|uploads/|_next/|.*\\.[\\w]+$).*)"],
+  // API, Next.js 내부 파일, 확장자가 있는 파일(이미지·rss.xml·sitemap.xml 등)은 건드리지 않습니다.
+  matcher: ["/((?!api/|_next/|.*\\.[\\w]+$).*)"],
 };

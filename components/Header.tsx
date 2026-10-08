@@ -3,9 +3,7 @@ import Link from "next/link";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { site } from "@/lib/site";
-import { STORE_WRITABLE } from "@/lib/store/json-file";
-import { LockIcon, MailIcon } from "@/components/icons";
-import { AdminLink } from "@/components/AdminLink";
+import { MailIcon } from "@/components/icons";
 import { ContactButton } from "@/components/ContactButton";
 import { DesktopNav, MobileNav } from "@/components/HeaderNav";
 import { LangToggle } from "@/components/LangToggle";
@@ -45,14 +43,7 @@ export function Header({ lang }: { lang: Locale }) {
             <MailIcon className="size-4" />
             {d.nav.contact}
           </ContactButton>
-          {/* 저장이 막힌 배포 환경(읽기 전용)에서는 관리자 메뉴를 보이지 않습니다. */}
-          {STORE_WRITABLE && (
-            <AdminLink className="hidden items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 lg:inline-flex">
-              <LockIcon className="size-3.5" />
-              {d.nav.admin}
-            </AdminLink>
-          )}
-          <MobileNav lang={lang} showAdmin={STORE_WRITABLE} t={d.nav} contact={d.contact} />
+          <MobileNav lang={lang} t={d.nav} contact={d.contact} />
         </div>
       </div>
     </header>

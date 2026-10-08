@@ -13,11 +13,9 @@ type Props = {
   /** 새 소식을 쓸 때 날짜 칸에 미리 넣어 둘 날짜 (YYYY-MM-DD) */
   defaultDate?: string;
   action: (state: FormState, formData: FormData) => Promise<FormState>;
-  /** 저장할 수 없는 환경(읽기 전용)일 때 true */
-  readOnly?: boolean;
 };
 
-export function NewsForm({ post, defaultDate, action, readOnly = false }: Props) {
+export function NewsForm({ post, defaultDate, action }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const [images, setImages] = useState<ImageRef[]>(post?.images ?? []);
   const [attachments, setAttachments] = useState<Attachment[]>(post?.attachments ?? []);
@@ -184,7 +182,7 @@ export function NewsForm({ post, defaultDate, action, readOnly = false }: Props)
           onBusyChange={trackUploads}
           max={20}
           firstLabel="대표"
-          disabled={readOnly || pending}
+          disabled={pending}
         />
         {fieldError("images")}
       </Section>
@@ -196,7 +194,7 @@ export function NewsForm({ post, defaultDate, action, readOnly = false }: Props)
           onChange={setAttachments}
           onBusyChange={trackUploads}
           max={10}
-          disabled={readOnly || pending}
+          disabled={pending}
         />
         {fieldError("attachments")}
       </Section>
@@ -215,7 +213,7 @@ export function NewsForm({ post, defaultDate, action, readOnly = false }: Props)
         <Link href="/admin" className="btn btn-ghost">
           취소
         </Link>
-        <button type="submit" disabled={busy || readOnly} className="btn btn-brand">
+        <button type="submit" disabled={busy} className="btn btn-brand">
           {pending
             ? "저장하는 중…"
             : uploading > 0
