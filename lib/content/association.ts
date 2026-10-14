@@ -16,8 +16,8 @@ export const greeting = {
   // 홈 화면에는 이 한 문장만 보여 줍니다. 전체 글(paragraphs)은 협회 소개에 나옵니다.
   // 끊어 읽는 단위로 나눠 적습니다. 칸이 좁아 줄이 바뀔 때 이 단위 사이에서만 바뀝니다.
   summary: {
-    ko: ["탁구로 하나 되어 만들어갈 더 밝은 미래를", "여러분과 함께 꿈꿉니다."],
-    en: ["United by table tennis,", "we look forward to building", "a brighter future together."],
+    ko: ["탁구로 하나 되는 밝은 미래,", "여러분과 함께 만들어 가겠습니다."],
+    en: ["United by table tennis,", "we hope to build", "a brighter future with you."],
   },
   paragraphs: {
     ko: [
@@ -48,12 +48,12 @@ export const greeting = {
 // (영어 글의   는 줄이 바뀌지 않는 띄어쓰기입니다. "Washington, DC" 가 두 줄로 갈라지지 않게 합니다)
 export const homeIntro: Localized<string[]> = {
   ko: [
-    "워싱턴DC 한인탁구협회(KTTA of DC)는 버지니아와 워싱턴DC 지역의 한인 탁구 동호인들이 함께하는 탁구협회입니다.",
-    "미주 각 지역의 한인 탁구협회가 모인 재미한인탁구협회(KTTA in USA) 소속으로, 탁구대회 일정과 탁구 칠 수 있는 장소, 협회 소식을 안내합니다.",
+    "KTTA of DC는 버지니아와 워싱턴DC 지역 한인 탁구인들이 함께하는 협회입니다.",
+    "재미한인탁구협회(KTTA in USA) 소속으로, 대회 일정과 탁구 장소, 협회 소식을 안내해 드립니다.",
   ],
   en: [
-    "The Korean Table Tennis Association of DC (KTTA of DC) brings together Korean American table tennis players across Virginia and the Washington, DC area.",
-    "A member of the Korean Table Tennis Association in USA (KTTA in USA), we share tournament schedules, places to play, and association news.",
+    "KTTA of DC brings together Korean American table tennis players across Virginia and the Washington, DC area.",
+    "As a member of KTTA in USA, we share tournament schedules, places to play, and association news.",
   ],
 };
 

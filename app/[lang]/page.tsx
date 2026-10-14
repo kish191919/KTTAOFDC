@@ -38,6 +38,7 @@ export default async function HomePage({ params }: Props) {
   const slides = heroMedia.filter((item) => item.active);
 
   // 다가오는 대회를 가까운 순서로 먼저 보여 주고, 모자라면 최근 대회로 채웁니다.
+  // 카드가 한 줄로 쌓이는 휴대폰 화면에서는 끝난 대회를 빼고 다가오는 대회만 보여 줍니다.
   const upcoming = tournaments.filter((item) => statusOf(item, now) !== "past").reverse();
   const past = tournaments.filter((item) => statusOf(item, now) === "past");
   const featured = [...upcoming, ...past]
@@ -122,16 +123,24 @@ export default async function HomePage({ params }: Props) {
             description={t.tournamentsDescription}
           />
           {featured.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-3">
-              {featured.map((tournament) => (
-                <TournamentCard
-                  key={tournament.id}
-                  tournament={tournament}
-                  now={now}
-                  lang={lang}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-6 md:grid-cols-3">
+                {featured.map((tournament) => (
+                  <TournamentCard
+                    key={tournament.id}
+                    tournament={tournament}
+                    now={now}
+                    lang={lang}
+                    className={statusOf(tournament, now) === "past" ? "max-md:hidden" : ""}
+                  />
+                ))}
+              </div>
+              {upcoming.length === 0 && (
+                <p className="card mx-auto max-w-xl px-6 py-10 text-center break-keep text-slate-500 md:hidden">
+                  {d.tournaments.upcomingEmpty}
+                </p>
+              )}
+            </>
           ) : (
             <p className="card mx-auto max-w-xl px-6 py-10 text-center text-slate-500">
               {t.tournamentsEmpty}

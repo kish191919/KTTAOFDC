@@ -52,6 +52,7 @@ export function TournamentCard({
   now,
   lang,
   compact = false,
+  className = "",
 }: {
   /** 보여 줄 언어에 맞춘(localizeTournament 를 거친) 대회 */
   tournament: Tournament;
@@ -59,6 +60,7 @@ export function TournamentCard({
   lang: Locale;
   /** 휴대폰 화면에서는 포스터를 빼고 날짜·제목·장소만 한 줄 목록처럼 보여 줍니다. */
   compact?: boolean;
+  className?: string;
 }) {
   const poster = tournament.images[0];
   const place = tournament.venue || tournament.address;
@@ -67,7 +69,7 @@ export function TournamentCard({
   return (
     <Link
       href={localePath(lang, `/tournaments/${tournament.id}`)}
-      className="group card flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg"
+      className={`group card flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg ${className}`}
     >
       <div
         className={`relative aspect-[4/3] overflow-hidden bg-brand-50 ${compact ? "hidden sm:block" : ""}`}
