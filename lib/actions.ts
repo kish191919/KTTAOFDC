@@ -13,10 +13,12 @@ import { isValidDate, TIME_RE, today } from "@/lib/dates";
 import { applyAdminOp, type DrawOp } from "@/lib/draw/admin";
 import {
   applyScore,
+  applyTable,
   canVisitorsScore,
   type ScoreError,
   type ScoreInput,
   type ScoreRequest,
+  type TableRequest,
 } from "@/lib/draw/play";
 import { changeDraw, createDraw } from "@/lib/store/draws";
 import { isUploadUrl, mediaTypeOf, removeUploads } from "@/lib/store/files";
@@ -411,6 +413,41 @@ export async function submitDrawScoreAction(
       { event, match, previous, input: input as ScoreInput },
       { admin, now },
     );
+  });
+  if (!result) return { error: "notFound" };
+  if ("busy" in result) return { error: "busy" };
+  return result;
+}
+
+/**
+ * 실시간 대진표에서 경기를 테이블에 올리거나(시작) 내립니다. 점수 입력처럼 누구나 씁니다.
+ * 관리자로 로그인한 상태면 방문자 입력을 막아 둔 때에도, 다른 조의 테이블이나 경기 중인 테이블에도 올릴 수 있습니다.
+ */
+export async function setDrawTableAction(
+  tournamentId: string,
+  request: TableRequest,
+): Promise<ScoreActionResult> {
+  const { event, match, table, occupant } = (request ?? {}) as Record<string, unknown>;
+  if (
+    typeof tournamentId !== "string" ||
+    typeof event !== "string" ||
+    typeof match !== "string" ||
+    typeof occupant !== "string" ||
+    (table !== null && typeof table !== "number")
+  ) {
+    return { error: "notFound" };
+  }
+
+  const admin = await isAdmin();
+  const tournament = await getTournament(tournamentId, { includeHidden: admin });
+  if (!tournament) return { error: "notFound" };
+
+  const now = new Date().toISOString();
+  const result = await changeDraw(tournamentId, (draw) => {
+    if (!admin && !canVisitorsScore(draw, tournament, today())) {
+      return { error: "closed" as const };
+    }
+    return applyTable(draw, { event, match, table, occupant }, { admin, now });
   });
   if (!result) return { error: "notFound" };
   if ("busy" in result) return { error: "busy" };

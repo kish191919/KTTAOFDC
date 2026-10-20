@@ -1,5 +1,5 @@
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
-import { winnerOf, type EventContext, type QueueItem } from "./play";
+import { winnerOf, type EventContext, type TableBoard } from "./play";
 
 // 화면에 보여 줄 때 필요한 계산 (최종 순위, 참가자별 지금 상태).
 
@@ -66,14 +66,15 @@ export function podium(context: EventContext): Podium | null {
 }
 
 export type EntryStatus =
-  | { kind: "playing"; match: DrawMatch; opponent: string }
+  | { kind: "playing"; match: DrawMatch; opponent: string; table?: number }
   | {
-      kind: "queued";
+      kind: "ready";
       match: DrawMatch;
       opponent: string;
-      position: number;
+      /** 그 경기를 치는 조 테이블. 본선 경기는 빈 테이블에서 시작하므로 비어 있습니다. */
+      table?: number;
       busy: boolean;
-      /** 도착 확인 전이라 테이블에 부르지 않는 중 */
+      /** 도착 확인 전이라 시작할 수 없는 중 */
       absent: boolean;
     }
   | { kind: "excluded" }
@@ -86,10 +87,10 @@ export type EntryStatus =
   | { kind: "finished" }
   | { kind: "notStarted" };
 
-/** 참가자 한 명(팀)의 지금 상태: 경기 중인지, 몇 번째로 기다리는지, 어디서 경기를 마쳤는지 */
+/** 참가자 한 명(팀)의 지금 상태: 경기 중인지, 다음 경기가 어느 테이블인지, 어디서 경기를 마쳤는지 */
 export function entryStatus(
   context: EventContext,
-  queue: QueueItem[],
+  board: TableBoard,
   entryId: string,
 ): EntryStatus {
   const { event } = context;
@@ -115,12 +116,16 @@ export function entryStatus(
   const playing = event.matches.find(
     (m) => sideOf(m) && context.stateOf(m) === "playing",
   );
-  if (playing) return { kind: "playing", match: playing, opponent: opponentOf(playing) };
+  if (playing) {
+    const table = board.tableOf(playing);
+    return { kind: "playing", match: playing, opponent: opponentOf(playing), ...(table ? { table } : {}) };
+  }
 
-  const index = queue.findIndex((item) => item.event.id === event.id && sideOf(item.match));
-  if (index >= 0) {
-    const { match, busy, absent } = queue[index];
-    return { kind: "queued", match, opponent: opponentOf(match), position: index + 1, busy, absent };
+  const next = board.queue.find((item) => item.event.id === event.id && sideOf(item.match));
+  if (next) {
+    const { match, busy, absent } = next;
+    const table = match.stage === "group" ? board.groupTable(event, match.group ?? 0) : undefined;
+    return { kind: "ready", match, opponent: opponentOf(match), ...(table ? { table } : {}), busy, absent };
   }
 
   const waiting = event.matches.find((m) => sideOf(m) && context.stateOf(m) === "pending");

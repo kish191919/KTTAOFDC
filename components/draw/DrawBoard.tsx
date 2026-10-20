@@ -4,11 +4,14 @@ import { useMemo, useState } from "react";
 import { entryName } from "@/lib/draw/entries";
 import {
   eventContext,
-  waitingQueue,
+  tableBoard,
   winnerOf,
+  withGroupTables,
   type EventContext,
   type MatchState,
   type QueueItem,
+  type TableBoard,
+  type TableSlot,
 } from "@/lib/draw/play";
 import {
   entryStatus,
@@ -21,10 +24,11 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
-import { SearchIcon } from "@/components/icons";
+import { PlusIcon, SearchIcon } from "@/components/icons";
 import { clockTime, eventName, matchLabel, pointsText, sideName, slotLabel } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
+import { startableAt, TablePicker } from "./TablePicker";
 
 type T = Dictionary["draw"];
 
@@ -43,15 +47,19 @@ type Props = {
 type Opened = { event: string; match: string };
 
 /** 실시간 대진표 본 화면: 내 경기 찾기, 테이블 현황, 종목별 조 편성과 본선 대진표 */
-export function DrawBoard({ tournamentId, lang, draw, scoring, admin = false, onDraw, onRefresh }: Props) {
+export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = false, onDraw, onRefresh }: Props) {
   const t = getDictionary(lang).draw;
+  // 조 테이블을 아직 정하지 않은 대진표는 저장할 때와 똑같이 채워서 그립니다.
+  const draw = useMemo(() => withGroupTables(saved), [saved]);
   const live = draw.events.filter((event) => event.status === "live");
   const contexts = useMemo(() => draw.events.map(eventContext), [draw]);
-  const queue = useMemo(() => waitingQueue(draw, contexts), [draw, contexts]);
+  const board = useMemo(() => tableBoard(draw, contexts), [draw, contexts]);
   const contextOf = (event: DrawEvent) => contexts[draw.events.indexOf(event)];
 
   const [tab, setTab] = useState<string>(draw.tables > 0 ? "tables" : (live[0]?.id ?? "tables"));
   const [opened, setOpened] = useState<Opened | null>(null);
+  /** 경기를 고르고 있는 빈 테이블 */
+  const [picking, setPicking] = useState<number | null>(null);
 
   if (live.length === 0) {
     return (
@@ -64,16 +72,19 @@ export function DrawBoard({ tournamentId, lang, draw, scoring, admin = false, on
   const open = (event: DrawEvent, match: DrawMatch) => setOpened({ event: event.id, match: match.id });
   const openedEvent = opened && draw.events.find((e) => e.id === opened.event);
   const openedMatch = openedEvent?.matches.find((m) => m.id === opened?.match);
-  const current = live.find((event) => event.id === tab);
+  // 테이블이 없는 대회는 테이블 현황 탭 없이 첫 종목을 보여 줍니다.
+  const current =
+    live.find((event) => event.id === tab) ??
+    (draw.tables > 0 || (tab === "log" && admin) ? undefined : live[0]);
   const tabs = [
-    ...(draw.tables > 0 || live.length > 1 ? [{ id: "tables", label: draw.tables > 0 ? t.tablesTab : t.upNext }] : []),
+    ...(draw.tables > 0 ? [{ id: "tables", label: t.tablesTab }] : []),
     ...live.map((event) => ({ id: event.id, label: eventName(event, lang) })),
     ...(admin ? [{ id: "log", label: "입력 기록" }] : []),
   ];
 
   return (
     <div className="space-y-6">
-      <EntryFinder lang={lang} live={live} contextOf={contextOf} queue={queue} onOpen={open} />
+      <EntryFinder lang={lang} live={live} contextOf={contextOf} board={board} onOpen={open} />
 
       <div role="tablist" aria-label={t.viewsLabel} className="flex flex-wrap gap-2">
         {tabs.map((item) => {
@@ -98,11 +109,18 @@ export function DrawBoard({ tournamentId, lang, draw, scoring, admin = false, on
       </div>
 
       {current ? (
-        <EventView lang={lang} event={current} context={contextOf(current)} onOpen={open} />
+        <EventView lang={lang} event={current} context={contextOf(current)} board={board} onOpen={open} />
       ) : tab === "log" && admin ? (
         <LogView lang={lang} draw={draw} contextOf={contextOf} />
       ) : (
-        <TablesView lang={lang} draw={draw} live={live} contextOf={contextOf} queue={queue} onOpen={open} />
+        <TablesView
+          lang={lang}
+          board={board}
+          contextOf={contextOf}
+          canStart={(table) => (scoring || admin) && startableAt(draw, board, contexts, table, admin).length > 0}
+          onOpen={open}
+          onPick={setPicking}
+        />
       )}
 
       {openedEvent && openedMatch && (
@@ -115,10 +133,28 @@ export function DrawBoard({ tournamentId, lang, draw, scoring, admin = false, on
           context={contextOf(openedEvent)}
           scoring={scoring}
           admin={admin}
-          tables={draw.tables}
+          draw={draw}
+          board={board}
+          contexts={contexts}
           onSaved={onDraw}
           onConflict={onRefresh}
           onClose={() => setOpened(null)}
+        />
+      )}
+
+      {picking !== null && picking <= draw.tables && (
+        <TablePicker
+          key={picking}
+          tournamentId={tournamentId}
+          lang={lang}
+          draw={draw}
+          board={board}
+          contexts={contexts}
+          table={picking}
+          admin={admin}
+          onSaved={onDraw}
+          onConflict={onRefresh}
+          onClose={() => setPicking(null)}
         />
       )}
     </div>
@@ -128,12 +164,12 @@ export function DrawBoard({ tournamentId, lang, draw, scoring, admin = false, on
 // ───────────────────────── 공통 조각 ─────────────────────────
 
 /** 경기 상태 표시. 경기 중이면 테이블 번호를 함께 적습니다. */
-function StateChip({ state, match, t }: { state: MatchState; match: DrawMatch; t: T }) {
+function StateChip({ state, table, t }: { state: MatchState; table?: number; t: T }) {
   if (state === "playing") {
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-50 px-2.5 py-1 text-xs font-bold text-accent-700 ring-1 ring-accent-200">
         <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
-        {match.table ? t.table(match.table) : t.state.playing}
+        {table ? t.table(table) : t.state.playing}
       </span>
     );
   }
@@ -159,6 +195,7 @@ function MatchLine({
   onOpen,
   label,
   chip = true,
+  table,
   compact = false,
 }: {
   event: DrawEvent;
@@ -168,6 +205,8 @@ function MatchLine({
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
   label?: string;
   chip?: boolean;
+  /** 경기 중인 테이블 (상태 표시에 적습니다) */
+  table?: number;
   /** 테이블 카드처럼 좁은 칸에 넣을 때 */
   compact?: boolean;
 }) {
@@ -198,7 +237,7 @@ function MatchLine({
           <span className="mt-1 block text-xs text-slate-400 tabular-nums">{pointsText(match)}</span>
         )}
       </span>
-      {chip && <StateChip state={state} match={match} t={t} />}
+      {chip && <StateChip state={state} table={table} t={t} />}
     </button>
   );
 }
@@ -211,13 +250,13 @@ function EntryFinder({
   lang,
   live,
   contextOf,
-  queue,
+  board,
   onOpen,
 }: {
   lang: Locale;
   live: DrawEvent[];
   contextOf: (event: DrawEvent) => EventContext;
-  queue: QueueItem[];
+  board: TableBoard;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
@@ -250,7 +289,7 @@ function EntryFinder({
         <ul className="mt-3 space-y-3">
           {found.map(({ event, entry }) => {
             const context = contextOf(event);
-            const status = entryStatus(context, queue, entry.id);
+            const status = entryStatus(context, board, entry.id);
             const group = event.groups.findIndex((members) => members.includes(entry.id));
             const row = group >= 0 ? context.standings(group).find((r) => r.entry === entry.id) : undefined;
             return (
@@ -298,15 +337,15 @@ function StatusLine({
 
   switch (status.kind) {
     case "playing":
-    case "queued": {
+    case "ready": {
       const headline =
         status.kind === "playing"
-          ? status.match.table
-            ? t.status.playingAt(t.table(status.match.table))
+          ? status.table
+            ? t.status.playingAt(t.table(status.table))
             : t.status.playing
-          : status.position === 1
-            ? t.status.first
-            : t.status.queue(status.position);
+          : status.table
+            ? t.status.nextAt(t.table(status.table))
+            : t.status.nextFree;
       return (
         <>
           <p
@@ -315,13 +354,13 @@ function StatusLine({
             }`}
           >
             {headline}
-            {status.kind === "queued" && (status.absent || status.busy) && (
+            {status.kind === "ready" && (status.absent || status.busy) && (
               <span className="ml-2 font-semibold text-slate-500">
                 ({status.absent ? t.notArrived : t.playerBusy})
               </span>
             )}
           </p>
-          {status.kind === "queued" && status.absent && (
+          {status.kind === "ready" && status.absent && (
             <p className="px-4 pt-1 text-xs break-keep text-accent-700">{t.status.checkInFirst}</p>
           )}
           <div className="mt-1 border-t border-brand-100">
@@ -369,128 +408,186 @@ function StatusLine({
 
 function TablesView({
   lang,
-  draw,
-  live,
+  board,
   contextOf,
-  queue,
+  canStart,
   onOpen,
+  onPick,
 }: {
   lang: Locale;
-  draw: Draw;
-  live: DrawEvent[];
+  board: TableBoard;
   contextOf: (event: DrawEvent) => EventContext;
-  queue: QueueItem[];
+  /** 빈 테이블에서 시작할 수 있는 경기가 있는지 (점수 입력을 할 수 있을 때만) */
+  canStart: (table: number) => boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
+  onPick: (table: number) => void;
 }) {
   const t = getDictionary(lang).draw;
-  const onTable = new Map<number, { event: DrawEvent; match: DrawMatch }>();
-  for (const event of live) {
-    for (const match of event.matches) {
-      if (match.table && contextOf(event).stateOf(match) === "playing") {
-        onTable.set(match.table, { event, match });
-      }
-    }
-  }
-  // 테이블 없이 진행 중인 경기 (테이블을 정하지 않은 대회)
-  const playingElsewhere = live.flatMap((event) =>
-    event.matches
-      .filter((m) => !m.table && contextOf(event).stateOf(m) === "playing")
-      .map((match) => ({ event, match })),
-  );
+  const queued = new Map(board.queue.map((item) => [item.match, item]));
+  const hasGroups = board.tables.some((slot) => slot.groups.length > 0);
 
   return (
     <div className="space-y-8">
-      {draw.tables > 0 ? (
-        <section aria-label={t.tablesTab}>
-          <ul className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
-            {Array.from({ length: draw.tables }, (_, i) => i + 1).map((table) => {
-              const item = onTable.get(table);
-              return (
-                <li
-                  key={table}
-                  className={`card overflow-hidden ${item ? "border-accent-200" : "bg-slate-50/60"}`}
-                >
-                  <div
-                    className={`flex flex-wrap items-baseline justify-between gap-x-2 px-3 py-2 text-sm font-black ${
-                      item ? "bg-accent-50 text-accent-700" : "text-slate-500"
-                    }`}
-                  >
-                    <span className="shrink-0">{t.table(table)}</span>
-                    {item && (
-                      <span className="truncate text-xs font-bold">{eventName(item.event, lang)}</span>
-                    )}
-                  </div>
-                  {item ? (
-                    <MatchLine
-                      event={item.event}
-                      match={item.match}
-                      context={contextOf(item.event)}
-                      t={t}
-                      onOpen={onOpen}
-                      label={matchLabel(item.event, item.match, t)}
-                      chip={false}
-                      compact
-                    />
-                  ) : (
-                    <p className="px-3 py-6 text-center text-sm text-slate-400">{t.tableOpen}</p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : (
-        <p className="text-sm break-keep text-slate-500">{t.noTables}</p>
-      )}
-
-      {playingElsewhere.length > 0 && (
-        <ul className="card divide-y divide-slate-100 overflow-hidden">
-          {playingElsewhere.map(({ event, match }) => (
-            <li key={match.id}>
-              <MatchLine
-                event={event}
-                match={match}
-                context={contextOf(event)}
-                t={t}
-                onOpen={onOpen}
-                label={`${eventName(event, lang)} · ${matchLabel(event, match, t)}`}
-              />
-            </li>
+      <section aria-label={t.tablesTab}>
+        {hasGroups && <p className="mb-3 text-sm break-keep text-slate-500">{t.groupTableHint}</p>}
+        <ul className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {board.tables.map((slot) => (
+            <TableCard
+              key={slot.table}
+              lang={lang}
+              slot={slot}
+              queued={queued}
+              contextOf={contextOf}
+              canStart={canStart}
+              onOpen={onOpen}
+              onPick={onPick}
+            />
           ))}
         </ul>
-      )}
+      </section>
 
-      <section aria-labelledby="queue-heading">
-        <h2 id="queue-heading" className="text-xl font-black text-brand-950">{t.upNext}</h2>
-        {draw.tables > 0 && <p className="mt-1 text-sm break-keep text-slate-500">{t.upNextHint}</p>}
-        {queue.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">{t.upNextEmpty}</p>
-        ) : (
-          <ol className="card mt-4 divide-y divide-slate-100 overflow-hidden">
-            {queue.slice(0, 30).map(({ event, match, busy, absent }, index) => (
-              <li key={match.id} className="flex items-stretch">
-                <span className="flex w-10 shrink-0 items-center justify-center bg-brand-50/70 text-sm font-black text-brand-700 tabular-nums">
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <MatchLine
-                    event={event}
-                    match={match}
-                    context={contextOf(event)}
-                    t={t}
-                    onOpen={onOpen}
-                    label={`${eventName(event, lang)} · ${matchLabel(event, match, t)}${
-                      absent ? ` · ${t.notArrived}` : busy ? ` · ${t.playerBusy}` : ""
-                    }`}
-                    chip={false}
-                  />
-                </div>
+      {board.elsewhere.length > 0 && (
+        <section aria-labelledby="elsewhere-heading">
+          <h2 id="elsewhere-heading" className="text-base font-black text-brand-950">{t.elsewhere}</h2>
+          <ul className="card mt-3 divide-y divide-slate-100 overflow-hidden">
+            {board.elsewhere.map(({ event, match }) => (
+              <li key={`${event.id}:${match.id}`}>
+                <MatchLine
+                  event={event}
+                  match={match}
+                  context={contextOf(event)}
+                  t={t}
+                  onOpen={onOpen}
+                  label={`${eventName(event, lang)} · ${matchLabel(event, match, t)}`}
+                />
               </li>
             ))}
-          </ol>
-        )}
-      </section>
+          </ul>
+        </section>
+      )}
     </div>
+  );
+}
+
+/**
+ * 테이블 카드 하나. 경기 중인 경기와, 이 테이블을 쓰는 조의 남은 경기를 보여 줍니다.
+ * 맡은 조가 없고 경기도 없으면 한 줄짜리 빈 테이블 카드로, 칠 경기를 고르는 버튼을 둡니다.
+ */
+function TableCard({
+  lang,
+  slot,
+  queued,
+  contextOf,
+  canStart,
+  onOpen,
+  onPick,
+}: {
+  lang: Locale;
+  slot: TableSlot;
+  queued: Map<DrawMatch, QueueItem>;
+  contextOf: (event: DrawEvent) => EventContext;
+  canStart: (table: number) => boolean;
+  onOpen: (event: DrawEvent, match: DrawMatch) => void;
+  onPick: (table: number) => void;
+}) {
+  const t = getDictionary(lang).draw;
+  const { table, groups, playing } = slot;
+
+  if (groups.length === 0 && playing.length === 0) {
+    return (
+      <li className="card flex min-h-14 items-center justify-between gap-3 bg-slate-50/60 px-4 py-2.5">
+        <span className="text-sm font-black text-slate-500">
+          {t.table(table)}
+          <span className="ml-2 font-semibold text-slate-400">{t.tableOpen}</span>
+        </span>
+        {canStart(table) && (
+          <button type="button" onClick={() => onPick(table)} className="btn btn-ghost btn-sm shrink-0">
+            <PlusIcon className="size-4" />
+            {t.startMatch}
+          </button>
+        )}
+      </li>
+    );
+  }
+
+  // 두 조가 한 테이블을 나눠 쓰면 경기 이름에 조를 붙입니다.
+  const shared = groups.length > 1;
+  const remaining = groups.flatMap(({ event, group }) => {
+    const context = contextOf(event);
+    return context.groupMatches(group).flatMap((match, index) => {
+      const item = queued.get(match);
+      if (!item) return [];
+      const sides = (["a", "b"] as const).map((side) => {
+        const { name, entry } = sideName(match, side, context, t);
+        return { name, decided: Boolean(entry) };
+      }) as [MatchSide, MatchSide];
+      return [
+        {
+          event,
+          match,
+          sides,
+          label: shared ? matchLabel(event, match, t) : t.matchNo(index + 1),
+          note: item.absent ? t.notArrived : item.busy ? t.playerBusy : undefined,
+        },
+      ];
+    });
+  });
+  const title =
+    groups.length > 0
+      ? groups.map(({ event, group }) => `${eventName(event, lang)} ${t.group(groupLetter(group))}`).join(", ")
+      : eventName(playing[0].event, lang);
+
+  return (
+    <li className={`card overflow-hidden ${playing.length > 0 ? "border-accent-200" : ""}`}>
+      <div
+        className={`flex flex-wrap items-baseline justify-between gap-x-2 px-3.5 py-2 text-sm font-black ${
+          playing.length > 0 ? "bg-accent-50 text-accent-700" : "bg-brand-50 text-brand-900"
+        }`}
+      >
+        <span className="shrink-0">{t.table(table)}</span>
+        <span className="text-xs font-bold break-keep">{title}</span>
+      </div>
+
+      {playing.map(({ event, match }) => (
+        <div key={`${event.id}:${match.id}`} className="border-b border-slate-100 last:border-0">
+          <MatchLine
+            event={event}
+            match={match}
+            context={contextOf(event)}
+            t={t}
+            onOpen={onOpen}
+            label={`${t.state.playing} · ${matchLabel(event, match, t)}`}
+            chip={false}
+            compact
+          />
+        </div>
+      ))}
+
+      {remaining.length > 0 && (
+        <div className="bg-slate-50/40 pb-1.5">
+          <p className="px-3.5 pt-2.5 pb-1 text-xs font-bold text-slate-500">{t.remaining(remaining.length)}</p>
+          <ul>
+            {remaining.map(({ event, match, sides, label, note }) => (
+              <li key={`${event.id}:${match.id}`}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(event, match)}
+                  title={note}
+                  className="flex w-full items-center gap-2 px-3.5 py-1.5 text-left transition-colors hover:bg-brand-50/60"
+                >
+                  <span className={`shrink-0 text-xs font-bold break-keep text-slate-400 ${shared ? "w-16" : "w-12"}`}>
+                    {label}
+                  </span>
+                  <span className={`min-w-0 flex-1 ${note ? "opacity-45" : ""}`}>
+                    <MatchSides sides={sides} versus={t.versus} size="compact" row />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -500,11 +597,13 @@ function EventView({
   lang,
   event,
   context,
+  board,
   onOpen,
 }: {
   lang: Locale;
   event: DrawEvent;
   context: EventContext;
+  board: TableBoard;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
@@ -553,7 +652,15 @@ function EventView({
         </h2>
         <div className="mt-4 grid gap-5 lg:grid-cols-2">
           {event.groups.map((_, group) => (
-            <GroupCard key={group} lang={lang} event={event} group={group} context={context} onOpen={onOpen} />
+            <GroupCard
+              key={group}
+              lang={lang}
+              event={event}
+              group={group}
+              context={context}
+              board={board}
+              onOpen={onOpen}
+            />
           ))}
         </div>
       </section>
@@ -561,7 +668,7 @@ function EventView({
       {knockout.length > 0 && (
         <section aria-labelledby={`${event.id}-knockout`}>
           <h2 id={`${event.id}-knockout`} className="text-xl font-black text-brand-950">{t.knockout}</h2>
-          <Bracket lang={lang} event={event} context={context} onOpen={onOpen} />
+          <Bracket lang={lang} event={event} context={context} board={board} onOpen={onOpen} />
         </section>
       )}
     </div>
@@ -573,23 +680,29 @@ function GroupCard({
   event,
   group,
   context,
+  board,
   onOpen,
 }: {
   lang: Locale;
   event: DrawEvent;
   group: number;
   context: EventContext;
+  board: TableBoard;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
   const rows = context.standings(group);
+  const table = board.groupTable(event, group);
   const complete = context.groupComplete(group);
   const matches = context.groupMatches(group);
   const advancing = event.groups.length > 1;
 
   return (
     <article className="card overflow-hidden">
-      <h3 className="bg-brand-50 px-4 py-2.5 font-black text-brand-900">{t.group(groupLetter(group))}</h3>
+      <h3 className="flex flex-wrap items-baseline justify-between gap-x-2 bg-brand-50 px-4 py-2.5 font-black text-brand-900">
+        {t.group(groupLetter(group))}
+        {table && !complete && <span className="text-xs font-bold text-brand-700">{t.table(table)}</span>}
+      </h3>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-500">
@@ -644,6 +757,7 @@ function GroupCard({
               t={t}
               onOpen={onOpen}
               label={t.matchNo(index + 1)}
+              table={board.tableOf(match)}
             />
           </li>
         ))}
@@ -657,11 +771,13 @@ function Bracket({
   lang,
   event,
   context,
+  board,
   onOpen,
 }: {
   lang: Locale;
   event: DrawEvent;
   context: EventContext;
+  board: TableBoard;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
@@ -686,6 +802,7 @@ function Bracket({
                   const state = context.stateOf(match);
                   const winner = winnerOf(match, event.bestOf);
                   const clickable = !bye && state !== "pending";
+                  const table = state === "playing" ? board.tableOf(match) : undefined;
                   return (
                     <li key={match.id}>
                       <button
@@ -728,9 +845,9 @@ function Bracket({
                             </span>
                           );
                         })}
-                        {state === "playing" && match.table && (
+                        {table && (
                           <span className="block bg-accent-50 px-3 py-0.5 text-[11px] font-bold text-accent-700">
-                            {t.table(match.table)}
+                            {t.table(table)}
                           </span>
                         )}
                       </button>

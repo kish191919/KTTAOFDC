@@ -1,6 +1,6 @@
 import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { parseEntries, parsePeople } from "./entries";
-import { cloneDraw, eventContext, isStarted, settle, winnerOf } from "./play";
+import { cloneDraw, eventContext, fillGroupTables, isStarted, settle, winnerOf } from "./play";
 import {
   MAX_PLAYERS,
   personKey,
@@ -56,8 +56,8 @@ export type DrawOp =
   | { op: "reset"; event: string }
   /** 경기 중 불참 처리(value = true)와 취소 */
   | { op: "forfeit"; event: string; entry: string; value: boolean }
-  /** 숫자면 그 테이블로, "queue" 면 자동 배정 순서로, "hold" 면 자동 배정에서 뺍니다. */
-  | { op: "table"; event: string; match: string; table: number | "queue" | "hold" };
+  /** 경기 중인 종목에서 조 하나가 쓰는 테이블을 바꿉니다. (경기를 테이블에 올리는 것은 play.ts 의 applyTable) */
+  | { op: "groupTable"; event: string; group: number; table: number };
 
 export type OpResult = { draw: Draw } | { error: string };
 
@@ -408,6 +408,7 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       delete event.draft;
       delete event.startedAt;
       delete event.checkIn;
+      delete event.groupTables;
       for (const entry of event.entries) delete entry.absent;
       next.log = next.log.filter((item) => item.event !== event.id);
       settle(next, now);
@@ -452,35 +453,12 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       return { draw: next };
     }
 
-    case "table": {
+    case "groupTable": {
       if (!live) return { error: "경기를 시작한 종목이 아닙니다." };
-      const match = event.matches.find((m) => m.id === op.match);
-      if (!match) return { error: "경기를 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
-      const context = eventContext(event);
-      const state = context.stateOf(match);
-      const value = op.table;
-      if (value === "hold" || value === "queue") {
-        delete match.table;
-        delete match.calledFor;
-        delete match.calledAt;
-        if (value === "hold") match.hold = true;
-        else delete match.hold;
-      } else {
-        if (!isInt(value, 1, next.tables)) return { error: "테이블 번호가 올바르지 않습니다." };
-        if (state !== "ready" && state !== "playing") return { error: "두 참가자가 정해진 경기만 테이블에 배정할 수 있습니다." };
-        // 그 테이블에 있던 경기는 다시 차례를 기다립니다.
-        for (const other of next.events.flatMap((e) => (e.status === "live" ? e.matches : []))) {
-          if (other !== match && other.table === value && !other.finishedAt) {
-            delete other.table;
-            delete other.calledFor;
-            delete other.calledAt;
-          }
-        }
-        match.table = value;
-        match.calledFor = context.pairOf(match)!;
-        match.calledAt = now;
-        delete match.hold;
-      }
+      if (!isInt(op.group, 0, event.groups.length - 1)) return { error: "조를 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
+      if (!isInt(op.table, 1, next.tables)) return { error: "테이블 번호가 올바르지 않습니다." };
+      fillGroupTables(next);
+      event.groupTables![op.group] = op.table;
       settle(next, now);
       return { draw: next };
     }

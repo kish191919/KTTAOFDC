@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { drawAdminAction } from "@/lib/actions";
 import type { DrawOp, EventSettings } from "@/lib/draw/admin";
 import { entriesToText, entryName, parseEntries } from "@/lib/draw/entries";
-import { winnerOf } from "@/lib/draw/play";
+import { eventContext, winnerOf, withGroupTables } from "@/lib/draw/play";
 import {
   arrivedPlayers,
   personKey,
@@ -471,7 +471,8 @@ function VenuePanel({
             className="field max-w-32"
           />
           <p className="hint break-keep">
-            빈 테이블에 다음 경기를 저절로 배정합니다. 0으로 두면 자동 배정 없이 경기 순서만 보여 줍니다.
+            대진을 확정하면 조마다 테이블이 하나씩 정해지고, 조 안의 경기는 그 테이블에서 아무 순서로나 칩니다.
+            남는 테이블은 본선 경기와 다른 경기에 씁니다. 0으로 두면 테이블 없이 진행합니다.
           </p>
         </div>
         <ToggleRow
@@ -1168,6 +1169,12 @@ function EventPanel({
             </button>
           </section>
 
+          {draw.tables > 0 && (
+            <section className="card p-5 sm:p-6">
+              <GroupTablesEditor draw={draw} event={event} busy={busy} run={run} />
+            </section>
+          )}
+
           <section className="card p-5 sm:p-6">
             <LiveTeams draw={draw} event={event} busy={busy} run={run} />
           </section>
@@ -1622,7 +1629,7 @@ function ConfirmPanel({
         <>
           <p className="mt-1 text-sm break-keep text-slate-600">
             도착한 {event.doubles ? "팀(두 사람 모두 체크인)" : "선수"}만으로 대진을 확정합니다. 아직 오지 않은{" "}
-            {event.doubles ? "팀" : "선수"}은 빼거나, 조에 남겨 두고 기다릴 수 있습니다. 기다리는 {event.doubles ? "팀" : "선수"}의 경기는 도착할 때까지 테이블에 부르지 않습니다.
+            {event.doubles ? "팀" : "선수"}은 빼거나, 조에 남겨 두고 기다릴 수 있습니다. 기다리는 {event.doubles ? "팀" : "선수"}의 경기는 도착할 때까지 시작할 수 없습니다.
           </p>
           <p className="mt-3 text-sm font-bold text-slate-700">
             도착 {arrivedTeams}
@@ -1695,6 +1702,7 @@ function ConfirmPanel({
             {knockout
               ? `조별 리그가 끝나면 조 ${event.advance === 2 ? "1·2위" : "1위"}가 본선 토너먼트에 오릅니다.`
               : "조가 하나라서 리그 순위로 우승을 정합니다."}
+            {draw.tables > 0 && " 확정하면 조마다 테이블이 하나씩 정해지고, 종목 화면의 조별 테이블에서 바꿀 수 있습니다."}
           </p>
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {plan.groups.map((members, group) => (
@@ -1730,6 +1738,78 @@ function ConfirmPanel({
   );
 }
 
+// ───────────────────────── 조별 테이블 ─────────────────────────
+
+/** 조마다 경기하는 테이블. 대진을 확정할 때 저절로 정해지고, 여기서 바꿉니다. */
+function GroupTablesEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; busy: boolean; run: Run }) {
+  // 조 테이블을 아직 저장하지 않은 대진표도 화면과 같은 값을 보여 줍니다.
+  const shown = withGroupTables(draw);
+  const tables = shown.events.find((e) => e.id === event.id)?.groupTables ?? [];
+  const context = eventContext(event);
+  // 테이블마다 그 테이블을 쓰는, 경기가 남은 조 (다른 종목 포함)
+  const users = new Map<number, string[]>();
+  for (const other of shown.events) {
+    if (other.status !== "live") continue;
+    const c = eventContext(other);
+    (other.groupTables ?? []).forEach((table, group) => {
+      if (c.groupComplete(group)) return;
+      users.set(table, [...(users.get(table) ?? []), `${other.id}:${group}`]);
+    });
+  }
+  const groupName = (key: string) => {
+    const [id, group] = key.split(":");
+    const other = shown.events.find((e) => e.id === id);
+    return other ? `${other.id === event.id ? "" : `${other.name} `}${groupLetter(Number(group))}조` : "";
+  };
+
+  return (
+    <div>
+      <h3 className="font-black text-brand-950">조별 테이블</h3>
+      <p className="mt-1 text-sm break-keep text-slate-500">
+        조 안의 경기는 그 조의 테이블에서 아무 순서로나 칩니다. 조 경기가 끝난 테이블과 남는 테이블은 본선 경기와 다른 경기에 씁니다.
+      </p>
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {event.groups.map((_, group) => {
+          const table = tables[group];
+          const complete = context.groupComplete(group);
+          const sharing = (users.get(table) ?? []).filter((key) => key !== `${event.id}:${group}`);
+          return (
+            <li key={group} className="rounded-xl border border-slate-200 px-4 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-black text-brand-900">
+                  {groupLetter(group)}조
+                  {complete && <span className="ml-2 text-xs font-semibold text-slate-400">경기 끝</span>}
+                </span>
+                <select
+                  aria-label={`${groupLetter(group)}조 테이블`}
+                  value={table ?? ""}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void run(
+                      { op: "groupTable", event: event.id, group, table: Number(e.target.value) },
+                      `${groupLetter(group)}조를 ${e.target.value}번 테이블로 옮겼습니다.`,
+                    )
+                  }
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
+                >
+                  {Array.from({ length: draw.tables }, (_, i) => (
+                    <option key={i} value={i + 1}>
+                      {i + 1}번 테이블
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {!complete && sharing.length > 0 && (
+                <p className="mt-1 text-xs break-keep text-slate-500">{sharing.map(groupName).join(", ")}와 함께 씀</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // ───────────────────────── 경기 중 팀 상태 ─────────────────────────
 
 function LiveTeams({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; busy: boolean; run: Run }) {
@@ -1759,7 +1839,7 @@ function LiveTeams({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; b
         <div>
           <h4 className="text-sm font-bold text-slate-800">도착을 기다리는 {unit}</h4>
           <p className="mt-0.5 text-sm break-keep text-slate-500">
-            체크인하면 바로 경기 순서에 들어갑니다. 끝내 오지 않으면 불참 처리해 주세요.
+            체크인하면 바로 경기를 시작할 수 있습니다. 끝내 오지 않으면 불참 처리해 주세요.
           </p>
           <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
             {waiting.map((entry) => (

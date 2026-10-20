@@ -3,6 +3,7 @@ import type { Side } from "@/lib/draw/play";
 
 // 경기의 두 참가자. 팀마다 상자로 묶고 상자 사이에 "vs" 를 넣어 누가 누구와 붙는지 한눈에 보이게 합니다.
 // 경기 목록(DrawBoard)과 점수 입력 창(ScoreDialog)이 함께 씁니다.
+// row 면 두 상자를 한 줄에 나란히 놓습니다. (테이블 카드의 남은 경기처럼 여러 경기를 짧게 늘어놓을 때)
 
 export type MatchSide = {
   name: string;
@@ -25,27 +26,31 @@ export function MatchSides({
   winner,
   versus,
   size = "normal",
+  row = false,
 }: {
   sides: [MatchSide, MatchSide];
   winner?: Side;
   versus: string;
   size?: keyof typeof SIZES;
+  row?: boolean;
 }) {
   const style = SIZES[size];
   return (
-    <span className="block">
+    <span className={row ? "flex items-center gap-1.5" : "block"}>
       {sides.map((side, i) => {
         const key: Side = i === 0 ? "a" : "b";
         const won = winner === key;
         return (
           <Fragment key={key}>
             {i === 1 && (
-              <span className={`block py-0.5 text-[11px] leading-4 font-black text-slate-400 ${style.vs}`}>
+              <span
+                className={`text-[11px] leading-4 font-black text-slate-400 ${row ? "shrink-0" : `block py-0.5 ${style.vs}`}`}
+              >
                 {versus}
               </span>
             )}
             <span
-              className={`flex items-center gap-2 rounded-lg border ${style.box} ${
+              className={`flex items-center gap-2 rounded-lg border ${row ? "min-w-0 flex-1 self-stretch" : ""} ${style.box} ${
                 !side.decided
                   ? "border-dashed border-slate-200 bg-slate-50/60"
                   : won

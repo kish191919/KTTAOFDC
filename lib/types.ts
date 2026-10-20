@@ -188,13 +188,11 @@ export type DrawMatch = {
   walkover?: "a" | "b";
   /** 불참 처리로 저절로 적힌 기권승. 불참을 취소하면 함께 지웁니다. */
   forfeit?: boolean;
-  /** 경기하는 테이블 번호 (1부터) */
+  /** 누군가 이 테이블에서 시작한 경기의 테이블 번호 (1부터) */
   table?: number;
-  /** 테이블을 배정할 때의 두 참가자 id. 앞 결과가 고쳐져 참가자가 바뀌면 배정을 풉니다. */
+  /** 테이블에 올릴 때의 두 참가자 id. 앞 결과가 고쳐져 참가자가 바뀌면 테이블에서 내립니다. */
   calledFor?: [string, string];
-  /** 관리자가 테이블 자동 배정에서 잠시 뺀 경기 */
-  hold?: boolean;
-  /** 테이블에 배정한 때 */
+  /** 테이블에 올린 때 */
   calledAt?: string;
   finishedAt?: string;
 };
@@ -214,11 +212,16 @@ export type DrawEvent = {
   entries: DrawEntry[];
   /** 조 편성. 조마다 참가자 id 를 시드 순서대로 적습니다. */
   groups: string[][];
+  /**
+   * 조마다 경기하는 테이블 번호 (0번 칸이 A조). 조 안의 경기는 이 테이블에서 아무 순서로나 칩니다.
+   * 대진을 확정할 때 정하고, 비어 있으면 lib/draw/play.ts 의 fillGroupTables 가 채웁니다.
+   */
+  groupTables?: number[];
   /** setup: 참가자 등록·조 편성 중, live: 경기 진행 중 */
   status: "setup" | "live";
   matches: DrawMatch[];
   startedAt?: string;
-  /** 체크인을 거쳐 확정한 종목. 도착하지 않은 팀의 경기는 테이블에 부르지 않습니다. */
+  /** 체크인을 거쳐 확정한 종목. 도착하지 않은 팀의 경기는 테이블에서 시작하지 않습니다. */
   checkIn?: boolean;
   /** 확정하기 전의 조 편성. '조 편성으로 되돌리기'를 하면 이것으로 돌아갑니다. */
   draft?: string[][];
@@ -240,7 +243,7 @@ export type DrawLog = {
 export type Draw = {
   /** 대회 id 와 같습니다. */
   id: string;
-  /** 대회장에서 쓰는 테이블 수. 0 이면 테이블을 자동으로 배정하지 않습니다. */
+  /** 대회장에서 쓰는 테이블 수. 0 이면 테이블 없이 진행합니다. */
   tables: number;
   /** false 면 방문자는 점수를 입력할 수 없고 관리자만 입력합니다. */
   scoringOpen: boolean;
