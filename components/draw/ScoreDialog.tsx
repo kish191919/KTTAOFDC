@@ -18,6 +18,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
 import { CloseIcon } from "@/components/icons";
 import { eventName, matchLabel, pointsText, sideName } from "./labels";
+import { MatchSides, type MatchSide } from "./MatchSides";
 
 type Mode = "points" | "sets" | "walkover";
 
@@ -41,7 +42,7 @@ type Props = {
 
 const emptyRows = (count: number) => Array.from({ length: count }, () => ["", ""]);
 
-/** 경기 한 판의 점수 입력 창. 게임별 점수, 게임 수만, 기권 가운데 골라 적습니다. */
+/** 경기 한 판의 점수 입력 창. 게임별 점수, 게임 세트, 기권 가운데 골라 적습니다. */
 export function ScoreDialog({
   tournamentId,
   lang,
@@ -69,9 +70,16 @@ export function ScoreDialog({
     (match.points ?? []).forEach(([a, b], i) => (rows[i] = [String(a), String(b)]));
     return rows;
   });
-  const [sets, setSets] = useState<[number, number] | null>(
-    match.sets && !match.points && winnerOf(match, event.bestOf) ? match.sets : null,
+  // 게임 세트: 이긴 쪽을 먼저 고르고, 진 쪽이 딴 게임 수를 고릅니다. (3:0, 3:1, 3:2)
+  const savedSets = match.sets && !match.points && winnerOf(match, event.bestOf) ? match.sets : null;
+  const [winner, setWinner] = useState<Side | null>(
+    savedSets ? (savedSets[0] > savedSets[1] ? "a" : "b") : null,
   );
+  const [loserGames, setLoserGames] = useState<number | null>(
+    savedSets ? Math.min(...savedSets) : null,
+  );
+  const sets: [number, number] | null =
+    winner && loserGames !== null ? (winner === "a" ? [need, loserGames] : [loserGames, need]) : null;
   const [withdrawn, setWithdrawn] = useState<Side | null>(
     match.walkover ? (match.walkover === "a" ? "b" : "a") : null,
   );
@@ -122,6 +130,17 @@ export function ScoreDialog({
       : mode === "sets"
         ? (sets ?? match.sets ?? [0, 0])
         : null;
+  const shownWinner: Side | undefined = shown
+    ? shown[0] >= need
+      ? "a"
+      : shown[1] >= need
+        ? "b"
+        : undefined
+    : withdrawn
+      ? withdrawn === "a"
+        ? "b"
+        : "a"
+      : undefined;
 
   function submit(input: ScoreInput) {
     setError(null);
@@ -154,7 +173,7 @@ export function ScoreDialog({
       if (badRow >= 0 || games.length === 0) return setError(t.errors.points);
       submit({ kind: "points", points: games });
     } else if (mode === "sets") {
-      if (!sets) return setError(t.errors.sets);
+      if (!sets) return setError(t.score.setsMissing);
       submit({ kind: "sets", sets });
     } else {
       if (!withdrawn) return setError(t.errors.sets);
@@ -181,10 +200,6 @@ export function ScoreDialog({
       }
     });
   }
-
-  const finals: [number, number][] = [];
-  for (let lose = 0; lose < need; lose++) finals.push([need, lose]);
-  for (let lose = need - 1; lose >= 0; lose--) finals.push([lose, need]);
 
   const tab = (value: Mode, label: string) => (
     <button
@@ -238,19 +253,20 @@ export function ScoreDialog({
           </button>
         </div>
 
-        {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수 */}
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-          {[a, b].map((side, i) => (
-            <div
-              key={i}
-              className={`flex items-center gap-3 px-4 py-3 ${i === 1 ? "border-t border-slate-200" : ""}`}
-            >
-              <span className="min-w-0 flex-1 font-bold break-keep text-slate-800">{side.name}</span>
-              <span className="w-8 text-right text-2xl font-black text-brand-800 tabular-nums">
-                {shown ? shown[i] : withdrawn === (i === 0 ? "a" : "b") ? "–" : ""}
-              </span>
-            </div>
-          ))}
+        {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수. 이기는 쪽 상자가 바로 파랗게 바뀝니다. */}
+        <div className="mt-4">
+          <MatchSides
+            sides={
+              [a, b].map((side, i) => ({
+                name: side.name,
+                decided: Boolean(side.entry),
+                score: shown ? shown[i] : withdrawn === (i === 0 ? "a" : "b") ? "–" : "",
+              })) as [MatchSide, MatchSide]
+            }
+            winner={shownWinner}
+            versus={t.versus}
+            size="board"
+          />
         </div>
         {match.points && match.points.length > 0 && mode !== "points" && (
           <p className="mt-2 text-sm text-slate-500">{pointsText(match)}</p>
@@ -312,34 +328,47 @@ export function ScoreDialog({
 
             {mode === "sets" && (
               <div className="mt-4">
-                <div className="grid grid-cols-2 gap-2">
-                  {[0, 1].map((side) => (
-                    <div key={side} className="space-y-2">
-                      <p className="truncate text-center text-xs font-bold text-slate-500">
-                        {(side === 0 ? a : b).name}
-                      </p>
-                      {finals
-                        .filter(([x, y]) => (side === 0 ? x > y : y > x))
-                        .map(([x, y]) => {
-                          const active = sets?.[0] === x && sets?.[1] === y;
-                          return (
-                            <button
-                              key={`${x}-${y}`}
-                              type="button"
-                              onClick={() => setSets([x, y])}
-                              aria-pressed={active}
-                              className={`w-full rounded-xl border-2 py-2.5 text-lg font-black tabular-nums transition-colors ${
-                                active
-                                  ? "border-brand-700 bg-brand-700 text-white"
-                                  : "border-slate-200 text-slate-700 hover:border-brand-300"
-                              }`}
-                            >
-                              {x} : {y}
-                            </button>
-                          );
-                        })}
-                    </div>
-                  ))}
+                <p className="text-sm font-bold text-slate-600">{t.score.setsWinner}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["a", "b"] as const).map((side) => {
+                    const active = winner === side;
+                    return (
+                      <button
+                        key={side}
+                        type="button"
+                        onClick={() => setWinner(side)}
+                        aria-pressed={active}
+                        className={`rounded-xl border-2 px-3 py-3 font-bold break-keep transition-colors ${
+                          active
+                            ? "border-brand-700 bg-brand-700 text-white"
+                            : "border-slate-200 text-slate-700 hover:border-brand-300"
+                        }`}
+                      >
+                        {(side === "a" ? a : b).name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-4 text-sm font-bold text-slate-600">{t.score.setsScore}</p>
+                <div className="mt-2 flex gap-2">
+                  {Array.from({ length: need }, (_, lost) => {
+                    const active = loserGames === lost;
+                    return (
+                      <button
+                        key={lost}
+                        type="button"
+                        onClick={() => setLoserGames(lost)}
+                        aria-pressed={active}
+                        className={`flex-1 rounded-xl border-2 py-2.5 text-lg font-black tabular-nums transition-colors ${
+                          active
+                            ? "border-brand-700 bg-brand-700 text-white"
+                            : "border-slate-200 text-slate-700 hover:border-brand-300"
+                        }`}
+                      >
+                        {need} : {lost}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="hint break-keep">{t.score.setsHint}</p>
               </div>

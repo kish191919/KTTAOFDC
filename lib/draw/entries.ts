@@ -1,7 +1,7 @@
 import type { DrawEntry } from "@/lib/types";
 
 // 관리자가 엑셀·구글 시트에서 복사해 붙여 넣은 참가자 목록을 읽습니다.
-// 한 줄에 한 명(복식은 한 팀)이고, 칸은 탭·쉼표·빗금(/)으로 나눕니다.
+// 한 줄에 한 명(복식은 한 팀)이고, 칸은 탭·쉼표·빗금(/)·가운뎃점(·)으로 나눕니다.
 //   복식: "홍길동 / 김철수, 1200, KCPC"   (레이팅을 두 개 적으면 더합니다)
 //   단식: "홍길동, 1500, KCPC"
 // 숫자는 레이팅, 나머지는 앞에서부터 선수 이름이고 그다음 칸이 소속입니다.
@@ -17,8 +17,11 @@ export type ParsedEntries = {
   errors: string[];
 };
 
-/** 참가자 이름. 복식은 "홍길동 / 김철수" */
-export const entryName = (entry: Pick<DrawEntry, "players">) => entry.players.join(" / ");
+/**
+ * 화면에 보여 주는 참가자 이름. 복식은 "홍길동 · 김철수"
+ * (점 앞은 줄바꿈 없는 칸이라 줄이 바뀌어도 점으로 시작하는 줄이 생기지 않습니다)
+ */
+export const entryName = (entry: Pick<DrawEntry, "players">) => entry.players.join("\u00a0· ");
 
 const normalize = (name: string) => name.replace(/\s+/g, "").toLowerCase();
 
@@ -37,7 +40,8 @@ export function parseEntries(text: string, doubles: boolean): ParsedEntries {
 
     const names: string[] = [];
     const numbers: number[] = [];
-    for (const cell of line.split(/[\t,/]/)) {
+    // 화면의 팀 이름("홍길동 · 김철수")을 그대로 복사해 넣어도 읽히게 가운뎃점(·, ㆍ)도 나눕니다.
+    for (const cell of line.split(/[\t,/·ㆍ]/)) {
       const words = cell.trim().split(/\s+/).filter(Boolean);
       const nameWords: string[] = [];
       for (const word of words) {
@@ -133,7 +137,7 @@ export function parsePeople(text: string): { people: ParsedPerson[]; errors: str
 export function entriesToText(entries: DrawEntry[]): string {
   return entries
     .map((entry) => {
-      const cells = [entryName(entry), entry.rating ?? "", entry.club ?? ""];
+      const cells = [entry.players.join(" / "), entry.rating ?? "", entry.club ?? ""];
       while (cells.length > 1 && cells[cells.length - 1] === "") cells.pop();
       return cells.join(", ");
     })

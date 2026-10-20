@@ -23,6 +23,7 @@ import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
 import { SearchIcon } from "@/components/icons";
 import { clockTime, eventName, matchLabel, pointsText, sideName, slotLabel } from "./labels";
+import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
 
 type T = Dictionary["draw"];
@@ -172,10 +173,14 @@ function MatchLine({
 }) {
   const state = context.stateOf(match);
   const winner = winnerOf(match, event.bestOf);
-  const sides = (["a", "b"] as const).map((side) => ({
-    side,
-    ...sideName(match, side, context, t),
-  }));
+  const sides = (["a", "b"] as const).map((side, i) => {
+    const { name, entry } = sideName(match, side, context, t);
+    return {
+      name,
+      decided: Boolean(entry),
+      score: match.walkover ? (match.walkover === side ? "W" : "–") : (match.sets?.[i] ?? ""),
+    };
+  }) as [MatchSide, MatchSide];
   const clickable = state !== "pending" && state !== "bye";
   return (
     <button
@@ -187,37 +192,8 @@ function MatchLine({
       }`}
     >
       <span className="min-w-0 flex-1">
-        {label && <span className="mb-1 block text-xs font-bold text-slate-400">{label}</span>}
-        {sides.map(({ side, name, entry }, i) => (
-          <span key={side} className="flex items-baseline gap-2">
-            <span
-              className={`min-w-0 flex-1 break-keep ${compact ? "text-sm" : "text-[15px]"} ${
-                !entry
-                  ? "text-slate-400 italic"
-                  : winner === side
-                    ? "font-black text-brand-950"
-                    : winner
-                      ? "text-slate-500"
-                      : "font-semibold text-slate-800"
-              }`}
-            >
-              {name}
-            </span>
-            <span
-              className={`w-6 text-right font-black tabular-nums ${
-                winner === side ? "text-brand-800" : "text-slate-400"
-              }`}
-            >
-              {match.walkover
-                ? match.walkover === side
-                  ? "W"
-                  : "–"
-                : match.sets
-                  ? match.sets[i]
-                  : ""}
-            </span>
-          </span>
-        ))}
+        {label && <span className="mb-1.5 block text-xs font-bold text-slate-400">{label}</span>}
+        <MatchSides sides={sides} winner={winner} versus={t.versus} size={compact ? "compact" : "normal"} />
         {match.points && match.points.length > 0 && (
           <span className="mt-1 block text-xs text-slate-400 tabular-nums">{pointsText(match)}</span>
         )}
