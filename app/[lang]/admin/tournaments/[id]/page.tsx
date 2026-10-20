@@ -23,7 +23,12 @@ export default async function EditTournamentPage({ params }: Props) {
         <ArrowLeftIcon className="size-4" />
         대회 정보 목록
       </Link>
-      <h1 className="mt-4 mb-8 text-3xl font-black text-brand-950">대회 정보 수정</h1>
+      <div className="mt-4 mb-8 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-black text-brand-950">대회 정보 수정</h1>
+        <Link href={`/admin/tournaments/${tournament.id}/draw`} className="btn btn-outline btn-sm">
+          대진표 관리
+        </Link>
+      </div>
       <TournamentForm
         tournament={tournament}
         action={saveTournamentAction.bind(null, tournament.id)}

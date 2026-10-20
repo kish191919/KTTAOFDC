@@ -127,3 +127,105 @@ export type Album = {
   createdAt: string;
   updatedAt: string;
 };
+
+// ───────────────────────── 대진표 ─────────────────────────
+// 대회 하나에 Draw 하나가 있고, 그 안에 종목(DrawEvent)이 여럿 들어갑니다.
+// 종목은 예선 조별 리그 → 본선 토너먼트로 진행합니다. 계산은 lib/draw/ 에서 합니다.
+
+/** 대진표에 오른 선수 한 명 또는 복식 한 팀 */
+export type DrawEntry = {
+  id: string;
+  /** 선수 이름. 복식은 두 사람 */
+  players: string[];
+  /** 레이팅. 복식은 두 사람의 합입니다. 모르면 비워 둡니다. */
+  rating?: number;
+  /** 소속(클럽·지역). 같은 소속은 되도록 다른 조로 나눕니다. */
+  club?: string;
+};
+
+/**
+ * 경기의 한쪽 자리. 예선은 참가자가 정해져 있고, 본선은 앞선 결과로 채워집니다.
+ * group 은 0 이 A조, rank 는 1 이 1위입니다.
+ */
+export type DrawSlot =
+  | { entry: string }
+  | { group: number; rank: number }
+  | { winnerOf: string }
+  | { bye: true };
+
+export type DrawMatch = {
+  id: string;
+  stage: "group" | "knockout";
+  /** 예선 조 (0 = A조) */
+  group?: number;
+  /** 예선은 조 안의 경기 차례, 본선은 라운드 (0 = 첫 라운드) */
+  round: number;
+  /** 본선 라운드 안에서 위에서부터의 자리 */
+  position?: number;
+  a: DrawSlot;
+  b: DrawSlot;
+  /** 이긴 게임 수 [a, b]. 경기 중이면 지금까지의 수입니다. */
+  sets?: [number, number];
+  /** 게임별 점수 [a, b]. 점수를 적었을 때만 있습니다. */
+  points?: [number, number][];
+  /** 한쪽이 기권해 경기 없이 이긴 쪽 */
+  walkover?: "a" | "b";
+  /** 경기하는 테이블 번호 (1부터) */
+  table?: number;
+  /** 테이블을 배정할 때의 두 참가자 id. 앞 결과가 고쳐져 참가자가 바뀌면 배정을 풉니다. */
+  calledFor?: [string, string];
+  /** 관리자가 테이블 자동 배정에서 잠시 뺀 경기 */
+  hold?: boolean;
+  /** 테이블에 배정한 때 */
+  calledAt?: string;
+  finishedAt?: string;
+};
+
+export type DrawEvent = {
+  id: string;
+  /** 종목 이름 (예: "복식 U1000") */
+  name: string;
+  nameEn?: string;
+  doubles: boolean;
+  /** 몇 게임 경기인지 (3 · 5 · 7). 과반을 먼저 이기면 이깁니다. */
+  bestOf: number;
+  /** 예선 한 조의 인원. 나누어떨어지지 않으면 한 명 적은 조가 생깁니다. */
+  groupSize: number;
+  /** 조마다 본선에 오르는 인원 */
+  advance: number;
+  entries: DrawEntry[];
+  /** 조 편성. 조마다 참가자 id 를 시드 순서대로 적습니다. */
+  groups: string[][];
+  /** setup: 참가자 등록·조 편성 중, live: 경기 진행 중 */
+  status: "setup" | "live";
+  matches: DrawMatch[];
+  startedAt?: string;
+};
+
+/** 점수 입력 기록 한 줄 */
+export type DrawLog = {
+  at: string;
+  event: string;
+  match: string;
+  sets?: [number, number];
+  walkover?: "a" | "b";
+  /** 결과를 지운 경우 */
+  cleared?: boolean;
+  /** 관리자 화면에서 입력한 경우 */
+  admin?: boolean;
+};
+
+export type Draw = {
+  /** 대회 id 와 같습니다. */
+  id: string;
+  /** 대회장에서 쓰는 테이블 수. 0 이면 테이블을 자동으로 배정하지 않습니다. */
+  tables: number;
+  /** false 면 방문자는 점수를 입력할 수 없고 관리자만 입력합니다. */
+  scoringOpen: boolean;
+  events: DrawEvent[];
+  /** 최근 점수 입력 기록 (새 것이 앞) */
+  log: DrawLog[];
+  /** 저장할 때마다 1씩 늘어납니다. 동시에 고친 내용이 서로 덮어쓰지 않게 확인합니다. */
+  version: number;
+  updatedAt: string;
+};

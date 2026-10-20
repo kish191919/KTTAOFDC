@@ -25,6 +25,13 @@ grant select, insert, update, delete
   on table public.tournaments, public.albums, public.news_posts, public.hero_media
   to service_role;
 
+-- 대회 대진표. 대회 하나가 한 줄이고 id 는 그 대회의 id 입니다. (lib/types.ts 의 Draw)
+-- 여러 사람이 동시에 점수를 넣어도 덮어쓰지 않도록 data 안의 version 을 확인하며 바꿉니다. (lib/store/draws.ts)
+create table if not exists public.draws (id text primary key, data jsonb not null);
+alter table public.draws enable row level security;
+revoke all on table public.draws from anon, authenticated;
+grant select, insert, update, delete on table public.draws to service_role;
+
 -- 사진·동영상·첨부 파일. 주소를 아는 사람은 누구나 볼 수 있는 공개 버킷이고,
 -- 올리기·지우기는 홈페이지 서버만 할 수 있습니다. 파일 하나는 50MB 까지 받습니다.
 insert into storage.buckets (id, name, public, file_size_limit)

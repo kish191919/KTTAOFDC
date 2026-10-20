@@ -15,6 +15,8 @@
   - Supabase 는 서버에서만 secret key 로 접근합니다 (`lib/store/supabase.ts`). 키를 브라우저로 내보내지 않습니다.
   - 테이블은 항목 하나가 한 줄이고 `data` 칸에 `lib/types.ts` 모양 그대로 넣습니다. 입력 칸을 더할 때 테이블은 고치지 않습니다.
 - 저장·삭제는 `lib/actions.ts` 의 서버 액션이 하고, 파일은 `app/api/admin/upload` 가 내준 일회용 주소로 브라우저가 Supabase 에 바로 올립니다 (Vercel 은 4.5MB 가 넘는 요청을 받지 못합니다). 둘 다 관리자 로그인(`lib/auth.ts`)을 확인합니다.
+  - 예외: 실시간 대진표의 점수 입력(`submitDrawScoreAction`)은 누구나 씁니다. 대신 입력값 검사·동시 입력 확인·잠금은 `lib/draw/play.ts` 의 `applyScore` 가 맡습니다.
+- 대진표 계산(조 편성, 순위, 본선 진출, 테이블 배정)은 `lib/draw/` 의 순수 함수로 서버와 브라우저가 함께 씁니다. 저장은 `lib/store/draws.ts` 의 `changeDraw` 로만 합니다.
 - 색상은 `app/globals.css` 의 `brand`(로고 파랑) · `accent`(로고 빨강) · `navy` 토큰만 사용합니다.
 - 수정 후 확인: `npx tsc --noEmit && npx eslint . && npm run build`
   (빌드가 Supabase 를 읽으므로 `.env.local` 에 `SUPABASE_URL`·`SUPABASE_SECRET_KEY` 가 있어야 합니다.

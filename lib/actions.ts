@@ -9,7 +9,16 @@ import {
   isAdminConfigured,
   verifyPassword,
 } from "@/lib/auth";
-import { isValidDate, TIME_RE } from "@/lib/dates";
+import { isValidDate, TIME_RE, today } from "@/lib/dates";
+import { applyAdminOp, type DrawOp } from "@/lib/draw/admin";
+import {
+  applyScore,
+  canVisitorsScore,
+  type ScoreError,
+  type ScoreInput,
+  type ScoreRequest,
+} from "@/lib/draw/play";
+import { changeDraw, createDraw } from "@/lib/store/draws";
 import { isUploadUrl, mediaTypeOf, removeUploads } from "@/lib/store/files";
 import {
   addHeroMedia,
@@ -35,11 +44,12 @@ import {
 import {
   createTournament,
   deleteTournament,
+  getTournament,
   setTournamentHidden,
   updateTournament,
   type TournamentInput,
 } from "@/lib/store/tournaments";
-import type { Attachment, ImageRef, VideoRef } from "@/lib/types";
+import type { Attachment, Draw, ImageRef, VideoRef } from "@/lib/types";
 
 export type FormState = {
   error?: string;
@@ -330,6 +340,81 @@ export async function setTournamentHiddenAction(id: string, hidden: boolean): Pr
   if (typeof id !== "string" || typeof hidden !== "boolean") return;
   await setTournamentHidden(id, hidden);
   revalidateSite();
+}
+
+// ───────────────────────── 대진표 ─────────────────────────
+
+const DRAW_NOT_FOUND = "대진표를 찾을 수 없습니다. 화면을 새로 고쳐 주세요.";
+
+/** 대회의 대진표를 처음 만들고 대진표 관리 화면을 다시 엽니다. */
+export async function createDrawAction(tournamentId: string): Promise<void> {
+  if (await writeBlocker()) redirect("/admin");
+  if (
+    typeof tournamentId !== "string" ||
+    !(await getTournament(tournamentId, { includeHidden: true }))
+  ) {
+    redirect("/admin/tournaments");
+  }
+  await createDraw(tournamentId);
+  redirect(`/admin/tournaments/${encodeURIComponent(tournamentId)}/draw`);
+}
+
+export type DrawActionResult = { draw: Draw } | { error: string };
+
+/** 관리자 화면의 대진표 조작. 바뀐 대진표를 돌려주므로 화면이 기다리지 않고 따라옵니다. */
+export async function drawAdminAction(tournamentId: string, op: DrawOp): Promise<DrawActionResult> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+  if (typeof tournamentId !== "string") return { error: DRAW_NOT_FOUND };
+
+  const result = await changeDraw(tournamentId, (draw) =>
+    applyAdminOp(draw, op, new Date().toISOString()),
+  );
+  if (!result) return { error: DRAW_NOT_FOUND };
+  if ("busy" in result) return { error: "다른 곳에서 동시에 저장하고 있습니다. 한 번 더 눌러 주세요." };
+  // 경기를 시작하거나 되돌리면 대회 상세 페이지의 '실시간 대진표' 안내가 바뀝니다.
+  if ("draw" in result && ["start", "reset", "removeEvent"].includes(op?.op)) revalidateSite();
+  return result;
+}
+
+export type ScoreActionResult = { draw: Draw } | { error: ScoreError; blockedBy?: string };
+
+/**
+ * 실시간 대진표의 점수 입력. 관리자 로그인 없이 누구나 씁니다.
+ * 관리자로 로그인한 상태면 방문자 입력을 막아 둔 때에도 입력하고, 결과를 지울 수 있습니다.
+ */
+export async function submitDrawScoreAction(
+  tournamentId: string,
+  request: ScoreRequest,
+): Promise<ScoreActionResult> {
+  const { event, match, previous, input } = (request ?? {}) as Record<string, unknown>;
+  if (
+    typeof tournamentId !== "string" ||
+    typeof event !== "string" ||
+    typeof match !== "string" ||
+    typeof previous !== "string"
+  ) {
+    return { error: "notFound" };
+  }
+
+  const admin = await isAdmin();
+  const tournament = await getTournament(tournamentId, { includeHidden: admin });
+  if (!tournament) return { error: "notFound" };
+
+  const now = new Date().toISOString();
+  const result = await changeDraw(tournamentId, (draw) => {
+    if (!admin && !canVisitorsScore(draw, tournament, today())) {
+      return { error: "closed" as const };
+    }
+    return applyScore(
+      draw,
+      { event, match, previous, input: input as ScoreInput },
+      { admin, now },
+    );
+  });
+  if (!result) return { error: "notFound" };
+  if ("busy" in result) return { error: "busy" };
+  return result;
 }
 
 // ───────────────────────── 갤러리 ─────────────────────────

@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import type { Tournament } from "@/lib/types";
 import { insertItem, readAll, readOne, removeItem, replaceItem } from "./db";
+import { deleteDraw } from "./draws";
 import { removeUploads } from "./files";
 
 // 대회 정보 저장소. Supabase 의 tournaments 테이블을 씁니다.
@@ -86,5 +87,7 @@ export async function deleteTournament(id: string): Promise<boolean> {
   const removed = await removeItem<Tournament>(TABLE, id);
   if (!removed) return false;
   await removeUploads(uploadsOf(removed));
+  // 그 대회의 대진표도 함께 지웁니다.
+  await deleteDraw(id);
   return true;
 }

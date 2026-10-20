@@ -4,7 +4,7 @@ import { database } from "./supabase";
 // 글 내용을 담는 Supabase 테이블을 읽고 쓰는 공통 함수입니다.
 // 항목 하나가 한 줄이고, data 칸에 lib/types.ts 의 모양 그대로 들어갑니다. (supabase/schema.sql)
 
-export type Table = "tournaments" | "albums" | "news_posts" | "hero_media";
+export type Table = "tournaments" | "albums" | "news_posts" | "hero_media" | "draws";
 
 type Item = { id: string };
 
@@ -52,6 +52,26 @@ export async function replaceItem<T extends Item>(table: Table, item: T): Promis
     .from(table)
     .update({ data: item })
     .eq("id", item.id)
+    .select("id");
+  if (error) fail(table, error);
+  return data.length > 0;
+}
+
+/**
+ * data 칸의 field 값이 expected 일 때만 내용을 바꿉니다.
+ * 읽은 뒤 다른 곳에서 먼저 바꿨다면 아무것도 하지 않고 false 를 돌려줍니다.
+ */
+export async function replaceItemIf<T extends Item>(
+  table: Table,
+  item: T,
+  field: string,
+  expected: string,
+): Promise<boolean> {
+  const { data, error } = await database()
+    .from(table)
+    .update({ data: item })
+    .eq("id", item.id)
+    .eq(`data->>${field}`, expected)
     .select("id");
   if (error) fail(table, error);
   return data.length > 0;

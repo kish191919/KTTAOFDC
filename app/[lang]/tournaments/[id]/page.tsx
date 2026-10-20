@@ -17,6 +17,7 @@ import { localizeTournament } from "@/lib/i18n/localize";
 import { readLang } from "@/lib/i18n/params";
 import { pageMetadata } from "@/lib/metadata";
 import { tournamentJsonLd } from "@/lib/structured-data";
+import { getDraw } from "@/lib/store/draws";
 import { getTournament, listTournaments } from "@/lib/store/tournaments";
 import { AttachmentList } from "@/components/AttachmentList";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -25,6 +26,7 @@ import { LinkedText } from "@/components/LinkedText";
 import { StatusBadge } from "@/components/TournamentCard";
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   CalendarIcon,
   ChevronDownIcon,
   ClockIcon,
@@ -93,10 +95,13 @@ function InfoRow({
 export default async function TournamentPage({ params }: Props) {
   const lang = await readLang(params);
   const { id } = await params;
-  const stored = await getTournament(id);
+  const [stored, draw] = await Promise.all([getTournament(id), getDraw(id)]);
   if (!stored) notFound();
 
   const t = getDictionary(lang).tournaments;
+  const d = getDictionary(lang).draw;
+  // 경기를 시작한 종목이 있으면 실시간 대진표로 가는 안내를 맨 앞에 놓습니다.
+  const hasLiveDraw = Boolean(draw?.events.some((event) => event.status === "live"));
   const tournament = localizeTournament(stored, lang);
   const now = today();
   const registration = registrationLabel(tournament, now, lang);
@@ -149,7 +154,26 @@ export default async function TournamentPage({ params }: Props) {
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         {/* 요약 정보 — 모바일에서는 본문보다 먼저 보입니다 */}
-        <aside className="order-first lg:sticky lg:top-24 lg:order-last">
+        <aside className="order-first space-y-5 lg:sticky lg:top-24 lg:order-last">
+          {hasLiveDraw && (
+            <Link
+              href={localePath(lang, `/tournaments/${tournament.id}/bracket`)}
+              className="group block rounded-2xl bg-navy-900 p-6 text-white shadow-sm transition-shadow hover:shadow-md"
+            >
+              <span className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-accent-300 uppercase">
+                <span className="size-2 animate-pulse rounded-full bg-accent-400" />
+                {d.eyebrow}
+              </span>
+              <span className="mt-2 block text-xl font-black">{d.openTitle}</span>
+              <span className="mt-1 block text-sm leading-relaxed break-keep text-brand-100">
+                {d.openDescription}
+              </span>
+              <span className="btn btn-accent btn-sm mt-4">
+                {d.openLink}
+                <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </Link>
+          )}
           <div className="card p-6">
             <h2 className="text-base font-black text-brand-950">{t.infoTitle}</h2>
             <dl className="mt-5 space-y-4">
