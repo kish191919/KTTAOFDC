@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { drawAdminAction } from "@/lib/actions";
 import type { DrawOp, EventSettings } from "@/lib/draw/admin";
 import { entriesToText, entryName, parseEntries } from "@/lib/draw/entries";
@@ -19,7 +20,16 @@ import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { DrawBoard } from "@/components/draw/DrawBoard";
 import { clockTime } from "@/components/draw/labels";
 import { useLiveDraw } from "@/components/draw/useLiveDraw";
-import { CheckIcon, ExternalLinkIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  CloseIcon,
+  ExternalLinkIcon,
+  PencilIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+} from "@/components/icons";
 
 type Props = {
   tournamentId: string;
@@ -31,14 +41,68 @@ type Props = {
   checkInHref: string;
 };
 
-type Run = (op: DrawOp, notice?: string) => Promise<boolean>;
+/** 대진표를 바꾸고, 잘 되면 바뀐 대진표를 돌려줍니다. */
+type Run = (op: DrawOp, notice?: string) => Promise<Draw | null>;
+/** 다른 화면으로 갑니다. */
+type Go = (view: string) => void;
 
-/** 관리자 화면의 대진표 관리: 대회장 설정, 선수 명단, 종목별 팀·조 편성·대진 확정, 경기 진행 */
+// ───────────────────────── 화면 고르기 ─────────────────────────
+
+/** 늘 있는 화면. 종목 화면은 종목 id 로 고릅니다. */
+const VIEWS = ["play", "roster", "venue", "new"];
+
+/** 주소에 고른 화면이 없으면 지금 할 일에 맞는 화면을 엽니다: 경기 중이면 경기 진행, 아니면 준비할 곳 */
+function defaultView(draw: Draw): string {
+  if (draw.events.some((event) => event.status === "live")) return "play";
+  if (draw.events.length > 0) return draw.events[0].id;
+  return rosterOf(draw).length === 0 ? "roster" : "new";
+}
+
+/** 주소의 ?tab= 을 화면으로 바꿉니다. 지운 종목처럼 없는 화면을 가리키면 기본 화면을 엽니다. */
+function viewOf(draw: Draw, tab: string | null): string {
+  if (tab && (VIEWS.includes(tab) || draw.events.some((event) => event.id === tab))) return tab;
+  return defaultView(draw);
+}
+
+/** 윗부분이 머리글·메뉴 밑에 가려졌으면 보이도록 올립니다. (긴 명단을 내려 본 뒤 화면을 바꿀 때) */
+function reveal(element: HTMLElement | null) {
+  if (element && element.getBoundingClientRect().top < 140) element.scrollIntoView({ block: "start" });
+}
+
+/** 종목의 끝난 경기 수와 전체 경기 수 (부전승은 빼고 셉니다) */
+function progressOf(event: DrawEvent) {
+  const real = event.matches.filter((m) => !isByeMatch(m));
+  return { done: real.filter((m) => winnerOf(m, event.bestOf)).length, total: real.length };
+}
+
+/**
+ * 관리자 화면의 대진표 관리. 왼쪽 메뉴(휴대폰은 위쪽 탭)에서 경기 진행, 종목, 선수 명단, 대회장 설정 가운데
+ * 한 화면을 골라 봅니다. 종목 화면은 참가 팀 → 조 편성 → 대진 확정 단계로 나뉩니다.
+ */
 export function DrawManager({ tournamentId, initial, renderedAt, publicHref, checkInHref }: Props) {
   const { payload, online, checkedAt, refresh, setDraw } = useLiveDraw(tournamentId, initial);
   const draw = payload.draw;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
+  const searchParams = useSearchParams();
+  const view = viewOf(draw, searchParams.get("tab"));
+  const panels = useRef<HTMLDivElement>(null);
+  const menu = useRef<HTMLUListElement>(null);
+
+  // 잘 됐다는 안내는 잠시 뒤 저절로 닫고, 잘못됐다는 안내는 닫을 때까지 둡니다.
+  useEffect(() => {
+    if (!message || message.error) return;
+    const timer = window.setTimeout(() => setMessage(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  // 휴대폰에서 옆으로 넘기는 메뉴는 고른 칸이 가운데 오도록 옮깁니다.
+  useEffect(() => {
+    const list = menu.current;
+    const item = list?.querySelector<HTMLElement>("[aria-current='page']");
+    if (!list || !item || list.scrollWidth <= list.clientWidth) return;
+    list.scrollTo({ left: item.offsetLeft - (list.clientWidth - item.offsetWidth) / 2, behavior: "smooth" });
+  }, [view]);
 
   const run: Run = async (op, notice) => {
     setBusy(true);
@@ -47,23 +111,38 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
       const result = await drawAdminAction(tournamentId, op);
       if ("error" in result) {
         setMessage({ error: true, text: result.error });
-        return false;
+        return null;
       }
       setDraw(result.draw);
       if (notice) setMessage({ error: false, text: notice });
-      return true;
+      return result.draw;
     } catch {
       setMessage({ error: true, text: "저장하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요." });
-      return false;
+      return null;
     } finally {
       setBusy(false);
     }
   };
 
-  const live = draw.events.some((event) => event.status === "live");
+  // 새로 고쳐도 같은 화면이 열리도록 주소의 ?tab= 에 적어 둡니다. (서버에 다시 묻지 않고 주소만 바꿉니다)
+  const go: Go = (next) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", next);
+    window.history.replaceState(null, "", `?${params.toString()}`);
+    reveal(panels.current);
+  };
+
+  const live = draw.events.filter((event) => event.status === "live");
+  const played = live.map(progressOf).reduce(
+    (sum, p) => ({ done: sum.done + p.done, total: sum.total + p.total }),
+    { done: 0, total: 0 },
+  );
+  const roster = rosterOf(draw);
+  const checkIn = usesCheckIn(draw);
+  const arrived = roster.filter((p) => p.checkedInAt).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className={`text-sm ${online ? "text-slate-500" : "font-bold text-accent-600"}`}>
           <span suppressHydrationWarning>
@@ -73,7 +152,7 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
           </span>
         </p>
         <div className="flex flex-wrap gap-2">
-          {usesCheckIn(draw) && (
+          {checkIn && (
             <a href={checkInHref} className="btn btn-brand btn-sm">
               <CheckIcon className="size-4" />
               체크인 화면
@@ -86,54 +165,270 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
         </div>
       </div>
 
+      <div className="lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+        {/* 휴대폰: 머리글 밑에 붙는 가로 탭 / 넓은 화면: 왼쪽에 붙는 메뉴 */}
+        <nav
+          aria-label="대진표 관리 메뉴"
+          className="sticky top-[72px] z-20 -mx-4 mb-5 border-b border-brand-100 bg-brand-50/95 px-4 py-2.5 backdrop-blur lg:top-24 lg:mx-0 lg:mb-0 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+        >
+          <ul
+            ref={menu}
+            className="relative flex gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-0.5 lg:overflow-visible"
+          >
+            <MenuItem
+              active={view === "play"}
+              onClick={() => go("play")}
+              label="경기 진행"
+              live={live.length > 0}
+              count={live.length > 0 ? `${played.done}/${played.total}` : undefined}
+              meta={live.length > 0 ? `${live.length}개 종목 경기 중` : "대진을 확정하면 열립니다"}
+            />
+
+            <MenuHeading>종목</MenuHeading>
+            {draw.events.map((event) => {
+              const unit = event.doubles ? "팀" : "명";
+              const { done, total } = progressOf(event);
+              const playing = event.entries.filter((e) => e.absent !== "excluded").length;
+              return (
+                <MenuItem
+                  key={event.id}
+                  active={view === event.id}
+                  onClick={() => go(event.id)}
+                  label={event.name}
+                  live={event.status === "live"}
+                  meta={
+                    event.status === "live"
+                      ? `경기 중 · ${done}/${total} 끝남`
+                      : `준비 중 · ${playing}${unit}${event.groups.length > 0 ? ` · ${event.groups.length}개 조` : ""}`
+                  }
+                />
+              );
+            })}
+            <MenuItem
+              active={view === "new"}
+              onClick={() => go("new")}
+              label="종목 추가"
+              icon={<PlusIcon className="size-4 shrink-0" />}
+            />
+
+            <MenuHeading>대회 준비</MenuHeading>
+            <MenuItem
+              active={view === "roster"}
+              onClick={() => go("roster")}
+              label="선수 명단"
+              count={roster.length}
+              meta={checkIn ? `도착 ${arrived}명 · 아직 ${roster.length - arrived}명` : "체크인 안 씀"}
+            />
+            <MenuItem
+              active={view === "venue"}
+              onClick={() => go("venue")}
+              label="대회장 설정"
+              meta={`테이블 ${draw.tables}개 · 점수 입력 ${payload.scoring ? "열림" : "닫힘"}`}
+            />
+          </ul>
+        </nav>
+
+        {/* 고르지 않은 화면도 숨겨 둘 뿐 지우지 않아서, 적던 글이나 고른 값이 화면을 오가도 남습니다. */}
+        <div ref={panels} className="min-w-0 scroll-mt-36 lg:scroll-mt-24">
+          <div hidden={view !== "play"}>
+            <PlayPanel
+              tournamentId={tournamentId}
+              draw={draw}
+              scoring={payload.scoring}
+              onDraw={setDraw}
+              onRefresh={refresh}
+              go={go}
+            />
+          </div>
+          {draw.events.map((event) => (
+            <div key={event.id} hidden={view !== event.id}>
+              <EventPanel draw={draw} event={event} busy={busy} run={run} go={go} checkInHref={checkInHref} />
+            </div>
+          ))}
+          <div hidden={view !== "new"}>
+            <NewEventPanel draw={draw} busy={busy} run={run} go={go} />
+          </div>
+          <div hidden={view !== "roster"}>
+            <RosterPanel draw={draw} busy={busy} run={run} />
+          </div>
+          <div hidden={view !== "venue"}>
+            <VenuePanel draw={draw} scoring={payload.scoring} busy={busy} run={run} />
+          </div>
+        </div>
+      </div>
+
       {message && (
-        <p
+        <div
           role={message.error ? "alert" : "status"}
-          className={`sticky top-20 z-10 rounded-xl px-4 py-3 text-sm font-semibold whitespace-pre-line shadow-sm ${
-            message.error
-              ? "bg-accent-50 text-accent-700 ring-1 ring-accent-200"
-              : "bg-brand-50 text-brand-800 ring-1 ring-brand-200"
+          className={`fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-lg items-start gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ring-1 ${
+            message.error ? "bg-accent-50 text-accent-700 ring-accent-200" : "bg-brand-800 text-white ring-brand-900"
           }`}
         >
-          {message.text}
+          {!message.error && <CheckIcon className="mt-0.5 size-4 shrink-0" />}
+          <p className="min-w-0 flex-1 break-keep whitespace-pre-line">{message.text}</p>
+          <button
+            type="button"
+            onClick={() => setMessage(null)}
+            aria-label="안내 닫기"
+            className="-m-1 rounded-lg p-1 opacity-70 hover:opacity-100"
+          >
+            <CloseIcon className="size-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────── 메뉴 ─────────────────────────
+
+function MenuHeading({ children }: { children: ReactNode }) {
+  return (
+    <li aria-hidden className="hidden px-3 pt-5 pb-1 text-xs font-bold tracking-wide text-slate-400 lg:block">
+      {children}
+    </li>
+  );
+}
+
+function MenuItem({
+  active,
+  onClick,
+  label,
+  meta,
+  count,
+  live = false,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  /** 넓은 화면에서 이름 아래 작게 보여 주는 현황 */
+  meta?: string;
+  count?: number | string;
+  /** 경기 중이면 빨간 점을 붙입니다. */
+  live?: boolean;
+  icon?: ReactNode;
+}) {
+  return (
+    <li className="shrink-0">
+      <button
+        type="button"
+        aria-current={active ? "page" : undefined}
+        onClick={onClick}
+        className={`flex w-full items-center gap-2 rounded-full px-4 py-2 text-left text-sm font-semibold whitespace-nowrap transition-colors lg:rounded-xl lg:px-3 lg:py-2.5 lg:whitespace-normal ${
+          active
+            ? "bg-brand-700 text-white shadow-sm"
+            : "border border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 lg:border-transparent lg:bg-transparent lg:hover:border-slate-200 lg:hover:bg-white"
+        }`}
+      >
+        {icon}
+        {live && (
+          <span aria-hidden className={`size-2 shrink-0 rounded-full ${active ? "bg-white" : "bg-accent-500"}`} />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block break-keep">
+            {label}
+            {live && <span className="sr-only"> (경기 중)</span>}
+          </span>
+          {meta && (
+            <span className={`hidden text-xs font-medium lg:block ${active ? "text-brand-100" : "text-slate-500"}`}>
+              {meta}
+            </span>
+          )}
+        </span>
+        {count !== undefined && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
+              active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {count}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
+
+/** 화면마다 맨 위에 두는 제목과 설명, 오른쪽 버튼 */
+function PanelHeader({
+  title,
+  description,
+  children,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-black break-keep text-brand-950">{title}</h2>
+        {description && <p className="mt-1 text-sm break-keep text-slate-500">{description}</p>}
+      </div>
+      {children && <div className="flex flex-wrap gap-2">{children}</div>}
+    </div>
+  );
+}
+
+// ───────────────────────── 경기 진행 ─────────────────────────
+
+function PlayPanel({
+  tournamentId,
+  draw,
+  scoring,
+  onDraw,
+  onRefresh,
+  go,
+}: {
+  tournamentId: string;
+  draw: Draw;
+  scoring: boolean;
+  onDraw: (draw: Draw) => void;
+  onRefresh: () => void;
+  go: Go;
+}) {
+  if (!draw.events.some((event) => event.status === "live")) {
+    const first = draw.events[0];
+    return (
+      <section className="rounded-2xl border border-dashed border-brand-200 bg-white px-6 py-12 text-center">
+        <h2 className="text-lg font-black text-brand-950">아직 경기를 시작한 종목이 없습니다</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm break-keep text-slate-500">
+          종목에서 참가 팀과 조를 정하고 대진을 확정하면, 여기서 테이블 현황을 보고 점수를 고칠 수 있습니다.
         </p>
-      )}
-
-      <VenueSettings draw={draw} scoring={payload.scoring} busy={busy} run={run} />
-      <RosterSection draw={draw} busy={busy} run={run} />
-
-      {draw.events.map((event) => (
-        <EventCard key={event.id} draw={draw} event={event} busy={busy} run={run} checkInHref={checkInHref} />
-      ))}
-
-      <AddEvent busy={busy} run={run} count={draw.events.length} />
-
-      {live && (
-        <section className="space-y-4 border-t border-brand-100 pt-8">
-          <div>
-            <h2 className="text-2xl font-black text-brand-950">경기 진행</h2>
-            <p className="mt-1 text-sm break-keep text-slate-500">
-              방문자 화면과 같습니다. 경기를 누르면 점수를 고치거나, 테이블을 옮기거나, 결과를 지울 수 있습니다.
-            </p>
-          </div>
-          <DrawBoard
-            tournamentId={tournamentId}
-            lang="ko"
-            draw={draw}
-            scoring={payload.scoring}
-            admin
-            onDraw={setDraw}
-            onRefresh={refresh}
-          />
-        </section>
-      )}
+        <button
+          type="button"
+          onClick={() => go(first ? first.id : "new")}
+          className="btn btn-ghost btn-sm mt-5"
+        >
+          {first ? "종목 준비하러 가기" : "종목 만들러 가기"}
+          <ArrowRightIcon className="size-4" />
+        </button>
+      </section>
+    );
+  }
+  return (
+    <div className="space-y-5">
+      <PanelHeader
+        title="경기 진행"
+        description="방문자 화면과 같습니다. 경기를 누르면 점수를 고치거나, 테이블을 옮기거나, 결과를 지울 수 있습니다."
+      />
+      <DrawBoard
+        tournamentId={tournamentId}
+        lang="ko"
+        draw={draw}
+        scoring={scoring}
+        admin
+        onDraw={onDraw}
+        onRefresh={onRefresh}
+      />
     </div>
   );
 }
 
 // ───────────────────────── 대회장 설정 ─────────────────────────
 
-function VenueSettings({
+function VenuePanel({
   draw,
   scoring,
   busy,
@@ -147,11 +442,13 @@ function VenueSettings({
   const [tables, setTables] = useState(String(draw.tables));
   const [open, setOpen] = useState(draw.scoringOpen);
   const [checkIn, setCheckIn] = useState(usesCheckIn(draw));
+  const changed = Number(tables) !== draw.tables || open !== draw.scoringOpen || checkIn !== usesCheckIn(draw);
+
   return (
-    <section className="card p-6">
-      <h2 className="text-lg font-black text-brand-950">대회장 설정</h2>
+    <div className="space-y-5">
+      <PanelHeader title="대회장 설정" description="대회장의 테이블 수와 대회 날 운영 방식을 정합니다." />
       <form
-        className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-[8rem_1fr_1fr_auto] md:items-start"
+        className="card divide-y divide-slate-100"
         onSubmit={(e) => {
           e.preventDefault();
           void run(
@@ -160,54 +457,84 @@ function VenueSettings({
           );
         }}
       >
-        <label className="block">
-          <span className="label">테이블 수</span>
+        <div className="p-5 sm:p-6">
+          <label htmlFor="venue-tables" className="label">
+            테이블 수
+          </label>
           <input
+            id="venue-tables"
             type="number"
             min={0}
             max={40}
             value={tables}
             onChange={(e) => setTables(e.target.value)}
-            className="field"
+            className="field max-w-32"
           />
-        </label>
-        <label className="flex cursor-pointer items-start gap-3 md:pt-7">
-          <input
-            type="checkbox"
-            checked={checkIn}
-            onChange={(e) => setCheckIn(e.target.checked)}
-            className="mt-1 size-4 shrink-0 accent-brand-700"
-          />
-          <span>
-            <span className="block font-semibold text-slate-800">체크인 사용</span>
-            <span className="hint block break-keep">
-              대회 날 접수 데스크에서 선수 도착을 확인하고, 도착한 팀만으로 대진을 확정합니다.
+          <p className="hint break-keep">
+            빈 테이블에 다음 경기를 저절로 배정합니다. 0으로 두면 자동 배정 없이 경기 순서만 보여 줍니다.
+          </p>
+        </div>
+        <ToggleRow
+          checked={checkIn}
+          onChange={setCheckIn}
+          title="체크인 사용"
+          hint="대회 날 접수 데스크에서 선수 도착을 확인하고, 도착한 팀만으로 대진을 확정합니다."
+        />
+        <ToggleRow
+          checked={open}
+          onChange={setOpen}
+          title="누구나 점수 입력"
+          hint="체크를 풀면 관리자만 입력할 수 있습니다. 체크해 두어도 대회 다음 날이 지나면 저절로 막힙니다."
+          status={
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                scoring ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200" : "bg-accent-50 text-accent-700 ring-1 ring-accent-200"
+              }`}
+            >
+              지금 {scoring ? "열림" : "닫힘"}
             </span>
-          </span>
-        </label>
-        <label className="flex cursor-pointer items-start gap-3 md:pt-7">
-          <input
-            type="checkbox"
-            checked={open}
-            onChange={(e) => setOpen(e.target.checked)}
-            className="mt-1 size-4 shrink-0 accent-brand-700"
-          />
-          <span>
-            <span className="block font-semibold text-slate-800">누구나 점수 입력</span>
-            <span className="hint block break-keep">
-              체크를 풀면 관리자만 입력할 수 있습니다. 체크해 두어도 대회 다음 날이 지나면 저절로 막힙니다.
-            </span>
-          </span>
-        </label>
-        <button type="submit" disabled={busy} className="btn btn-brand btn-sm md:mt-7">
-          저장
-        </button>
+          }
+        />
+        <div className="flex flex-wrap items-center gap-3 p-5 sm:p-6">
+          <button type="submit" disabled={busy || !changed} className="btn btn-brand btn-sm">
+            저장
+          </button>
+          {changed && <span className="text-sm text-slate-500">저장하지 않은 변경이 있습니다</span>}
+        </div>
       </form>
-      <p className="mt-3 text-sm text-slate-500">
-        테이블을 0으로 두면 자동 배정 없이 경기 순서만 보여 줍니다. 지금 방문자 점수 입력:{" "}
-        <strong className={scoring ? "text-brand-700" : "text-accent-700"}>{scoring ? "열림" : "닫힘"}</strong>
-      </p>
-    </section>
+    </div>
+  );
+}
+
+function ToggleRow({
+  checked,
+  onChange,
+  title,
+  hint,
+  status,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  title: string;
+  hint: string;
+  status?: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 p-5 hover:bg-brand-50/40 sm:p-6">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 size-4 shrink-0 accent-brand-700"
+      />
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2 font-semibold text-slate-800">
+          {title}
+          {status}
+        </span>
+        <span className="hint block break-keep">{hint}</span>
+      </span>
+    </label>
   );
 }
 
@@ -242,171 +569,240 @@ function PlayerName({ name, arrived, checkIn }: { name: string; arrived: boolean
   );
 }
 
-function RosterSection({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run }) {
+type RosterFilter = "all" | "waiting" | "arrived" | "noTeam";
+
+function RosterPanel({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run }) {
   const roster = rosterOf(draw);
   const checkIn = usesCheckIn(draw);
-  const arrived = roster.filter((p) => p.checkedInAt).length;
+  const [adding, setAdding] = useState(roster.length === 0);
   const [text, setText] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState<RosterFilter>("all");
+
+  const rows = roster.map((player) => ({ player, teams: entriesOf(draw, player) }));
+  const filters: { id: RosterFilter; label: string; count: number }[] = [
+    { id: "all", label: "전체", count: rows.length },
+    ...(checkIn
+      ? [
+          { id: "waiting" as const, label: "도착 전", count: rows.filter((r) => !r.player.checkedInAt).length },
+          { id: "arrived" as const, label: "도착", count: rows.filter((r) => r.player.checkedInAt).length },
+        ]
+      : []),
+    ...(draw.events.length > 0
+      ? [{ id: "noTeam" as const, label: "종목 없음", count: rows.filter((r) => r.teams.length === 0).length }]
+      : []),
+  ];
+  // 체크인을 끄는 등으로 고른 칸이 사라지면 전체를 보여 줍니다.
+  const filter = filters.some((f) => f.id === picked) ? picked : "all";
   const key = personKey(query);
-  const shown = key ? roster.filter((p) => personKey(p.name).includes(key)) : roster;
-  const doublesEvents = draw.events.filter((e) => e.doubles && e.status === "setup");
+  const shown = rows.filter(({ player, teams }) => {
+    if (key && !personKey(player.name).includes(key)) return false;
+    if (filter === "waiting") return !player.checkedInAt;
+    if (filter === "arrived") return Boolean(player.checkedInAt);
+    if (filter === "noTeam") return teams.length === 0;
+    return true;
+  });
 
   return (
-    <section className="card p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-black text-brand-950">선수 명단</h2>
-        <p className="text-sm text-slate-500">
-          {roster.length}명{checkIn && ` · 도착 ${arrived}명`}
-        </p>
-      </div>
-      <p className="mt-1 text-sm break-keep text-slate-500">
-        대회에 신청한 선수를 한 명씩 올립니다. 종목의 팀은 이 명단에서 골라 짓고, 대회 날에는 이 명단으로 도착을 확인합니다.
-      </p>
+    <div className="space-y-5">
+      <PanelHeader
+        title="선수 명단"
+        description="대회에 신청한 선수를 한 명씩 올립니다. 종목의 팀은 이 명단에서 골라 짓고, 대회 날에는 이 명단으로 도착을 확인합니다."
+      >
+        {!adding && (
+          <button type="button" onClick={() => setAdding(true)} className="btn btn-brand btn-sm">
+            <PlusIcon className="size-4" />
+            선수 올리기
+          </button>
+        )}
+      </PanelHeader>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={Math.min(8, Math.max(2, text.split("\n").length))}
-          className="field font-mono text-sm"
-          placeholder={"한 줄에 한 명: 이름, 레이팅, 소속 (레이팅·소속은 빼도 됩니다)\n예) 홍길동, 650, KCPC"}
-          spellCheck={false}
-        />
-        <button
-          type="button"
-          disabled={busy || !text.trim()}
-          onClick={async () => {
-            const count = text.split("\n").filter((line) => line.trim()).length;
-            if (await run({ op: "addPlayers", text }, `명단에 ${count}명을 올렸습니다. (이미 있던 이름은 레이팅·소속만 고쳤습니다)`)) {
-              setText("");
-            }
-          }}
-          className="btn btn-brand btn-sm"
-        >
-          <PlusIcon className="size-4" />
-          명단에 올리기
-        </button>
-      </div>
+      {adding && (
+        <section className="card p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="font-black text-brand-950">선수 올리기</h3>
+            {roster.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAdding(false)}
+                aria-label="선수 올리기 닫기"
+                className="-m-1 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <CloseIcon className="size-5" />
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-sm break-keep text-slate-500">
+            한 줄에 한 명씩 이름, 레이팅, 소속을 쉼표로 나눠 적습니다. 레이팅·소속은 빼도 되고, 이미 있는 이름은 레이팅·소속만 고칩니다.
+          </p>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={Math.min(10, Math.max(3, text.split("\n").length))}
+            className="field mt-3 font-mono text-sm"
+            placeholder={"홍길동, 650, KCPC\n김철수, 820\n이영희"}
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            disabled={busy || !text.trim()}
+            onClick={async () => {
+              const count = text.split("\n").filter((line) => line.trim()).length;
+              if (await run({ op: "addPlayers", text }, `명단에 ${count}명을 올렸습니다. (이미 있던 이름은 레이팅·소속만 고쳤습니다)`)) {
+                setText("");
+              }
+            }}
+            className="btn btn-brand btn-sm mt-3"
+          >
+            <PlusIcon className="size-4" />
+            명단에 올리기
+          </button>
+        </section>
+      )}
 
       {roster.length > 0 && (
-        <>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="이름으로 찾기"
-            aria-label="선수 이름으로 찾기"
-            className="field mt-5 max-w-xs py-2"
-          />
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                  <th scope="col" className="py-2 pr-3 font-bold">이름</th>
-                  <th scope="col" className="w-20 py-2 pr-3 font-bold">레이팅</th>
-                  <th scope="col" className="w-28 py-2 pr-3 font-bold">소속</th>
-                  <th scope="col" className="py-2 pr-3 font-bold">종목 · 짝</th>
-                  {checkIn && <th scope="col" className="w-24 py-2 pr-3 font-bold">도착</th>}
-                  <th scope="col" className="w-20 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((player) =>
-                  editing === player.id ? (
-                    <PlayerEditRow
-                      key={player.id}
-                      player={player}
-                      checkIn={checkIn}
-                      busy={busy}
-                      onCancel={() => setEditing(null)}
-                      onSave={async (name, rating, club) => {
-                        const ok = await run(
-                          { op: "updatePlayer", player: player.id, name, rating, club },
-                          `${name} 님의 정보를 고쳤습니다.`,
-                        );
-                        if (ok) setEditing(null);
-                      }}
-                    />
-                  ) : (
-                    <tr key={player.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-2 pr-3 font-semibold text-slate-800">{player.name}</td>
-                      <td className="py-2 pr-3 text-slate-600 tabular-nums">{player.rating ?? "–"}</td>
-                      <td className="py-2 pr-3 text-slate-600">{player.club ?? ""}</td>
-                      <td className="py-2 pr-3 text-slate-600">
-                        {entriesOf(draw, player).map(({ event, partners }) => (
-                          <span key={event.id} className="block break-keep">
+        <section className="card p-5 sm:p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:max-w-xs">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="이름으로 찾기"
+                aria-label="선수 이름으로 찾기"
+                className="field py-2 pl-10"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {filters.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  aria-pressed={filter === f.id}
+                  onClick={() => setPicked(f.id)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                    filter === f.id
+                      ? "bg-brand-700 text-white"
+                      : "border border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-700"
+                  }`}
+                >
+                  {f.label} <span className="tabular-nums opacity-75">{f.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <ul className="mt-4 divide-y divide-slate-100">
+            {shown.map(({ player, teams }) =>
+              editing === player.id ? (
+                <PlayerEditRow
+                  key={player.id}
+                  player={player}
+                  busy={busy}
+                  onCancel={() => setEditing(null)}
+                  onSave={async (name, rating, club) => {
+                    const ok = await run(
+                      { op: "updatePlayer", player: player.id, name, rating, club },
+                      `${name} 님의 정보를 고쳤습니다.`,
+                    );
+                    if (ok) setEditing(null);
+                  }}
+                />
+              ) : (
+                <li key={player.id} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-keep">
+                      <span className="font-semibold text-slate-800">{player.name}</span>
+                      {(player.rating !== undefined || player.club) && (
+                        <span className="ml-2 text-sm text-slate-400 tabular-nums">
+                          {[player.rating, player.club].filter((v) => v !== undefined && v !== "").join(" · ")}
+                        </span>
+                      )}
+                    </p>
+                    {teams.length > 0 ? (
+                      <p className="mt-1 flex flex-wrap gap-1.5">
+                        {teams.map(({ event, partners }) => (
+                          <span
+                            key={event.id}
+                            className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium break-keep text-slate-600"
+                          >
                             {event.name}
-                            {partners.length > 0 && ` · ${partners.join(", ")}`}
+                            {partners.length > 0 && <span className="text-slate-400"> · {partners.join(", ")}</span>}
                           </span>
                         ))}
-                        {doublesEvents.length > 0 && entriesOf(draw, player).length === 0 && (
-                          <span className="font-semibold text-accent-700">팀 없음</span>
+                      </p>
+                    ) : (
+                      draw.events.length > 0 && (
+                        <p className="mt-1 text-xs font-semibold text-accent-700">들어 있는 종목 없음</p>
+                      )
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    {checkIn && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void run({ op: "checkIn", player: player.id, value: !player.checkedInAt })}
+                        className={`mr-1 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap transition-colors ${
+                          player.checkedInAt
+                            ? "bg-brand-700 text-white"
+                            : "border border-slate-300 text-slate-500 hover:border-brand-300 hover:text-brand-700"
+                        }`}
+                      >
+                        {player.checkedInAt && <CheckIcon className="size-3.5" />}
+                        {/* 휴대폰에서는 이름 칸이 좁아지지 않도록 '도착' 글자를 빼고 시각만 보여 줍니다. */}
+                        {player.checkedInAt ? (
+                          <>
+                            <span className="sr-only sm:not-sr-only">도착 </span>
+                            {clockTime(player.checkedInAt, "ko")}
+                          </>
+                        ) : (
+                          "도착 전"
                         )}
-                      </td>
-                      {checkIn && (
-                        <td className="py-2 pr-3">
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() =>
-                              void run({ op: "checkIn", player: player.id, value: !player.checkedInAt })
-                            }
-                            className={`rounded-full px-2.5 py-1 text-xs font-bold transition-colors ${
-                              player.checkedInAt
-                                ? "bg-brand-700 text-white"
-                                : "border border-slate-300 text-slate-500 hover:border-brand-300 hover:text-brand-700"
-                            }`}
-                          >
-                            {player.checkedInAt ? `도착 ${clockTime(player.checkedInAt, "ko")}` : "도착 전"}
-                          </button>
-                        </td>
-                      )}
-                      <td className="py-2 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setEditing(player.id)}
-                          aria-label={`${player.name} 고치기`}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-brand-50 hover:text-brand-700"
-                        >
-                          <PencilIcon className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => {
-                            if (window.confirm(`${player.name} 님을 명단에서 지울까요?`)) {
-                              void run({ op: "removePlayer", player: player.id }, `${player.name} 님을 명단에서 지웠습니다.`);
-                            }
-                          }}
-                          aria-label={`${player.name} 지우기`}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-accent-50 hover:text-accent-700"
-                        >
-                          <TrashIcon className="size-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditing(player.id)}
+                      aria-label={`${player.name} 고치기`}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-brand-50 hover:text-brand-700"
+                    >
+                      <PencilIcon className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (window.confirm(`${player.name} 님을 명단에서 지울까요?`)) {
+                          void run({ op: "removePlayer", player: player.id }, `${player.name} 님을 명단에서 지웠습니다.`);
+                        }
+                      }}
+                      aria-label={`${player.name} 지우기`}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-accent-50 hover:text-accent-700"
+                    >
+                      <TrashIcon className="size-4" />
+                    </button>
+                  </div>
+                </li>
+              ),
+            )}
+          </ul>
+          {shown.length === 0 && <p className="py-8 text-center text-sm text-slate-500">찾는 선수가 없습니다.</p>}
+        </section>
       )}
-    </section>
+    </div>
   );
 }
 
 function PlayerEditRow({
   player,
-  checkIn,
   busy,
   onSave,
   onCancel,
 }: {
   player: DrawPlayer;
-  checkIn: boolean;
   busy: boolean;
   onSave: (name: string, rating: number | null, club: string) => Promise<void>;
   onCancel: () => void;
@@ -415,39 +811,46 @@ function PlayerEditRow({
   const [rating, setRating] = useState(player.rating === undefined ? "" : String(player.rating));
   const [club, setClub] = useState(player.club ?? "");
   return (
-    <tr className="border-b border-slate-100 bg-brand-50/40">
-      <td className="py-2 pr-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} aria-label="이름" className="field py-1.5 text-sm" />
-      </td>
-      <td className="py-2 pr-3">
+    <li className="-mx-3 rounded-xl bg-brand-50/60 px-3 py-3">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_6rem_minmax(0,1fr)]">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          aria-label="이름"
+          placeholder="이름"
+          className="field py-1.5 text-sm"
+        />
         <input
           value={rating}
           inputMode="numeric"
           onChange={(e) => setRating(e.target.value.replace(/\D/g, "").slice(0, 4))}
           aria-label="레이팅"
+          placeholder="레이팅"
           className="field py-1.5 text-sm"
         />
-      </td>
-      <td className="py-2 pr-3">
-        <input value={club} onChange={(e) => setClub(e.target.value)} aria-label="소속" className="field py-1.5 text-sm" />
-      </td>
-      <td className="py-2 pr-3 text-xs text-slate-500" colSpan={checkIn ? 2 : 1}>
-        이름을 바꾸면 그 선수가 든 팀의 이름도 함께 바뀝니다.
-      </td>
-      <td className="py-2 text-right whitespace-nowrap">
+        <input
+          value={club}
+          onChange={(e) => setClub(e.target.value)}
+          aria-label="소속"
+          placeholder="소속"
+          className="field py-1.5 text-sm"
+        />
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="button"
           disabled={busy}
           onClick={() => void onSave(name, rating === "" ? null : Number(rating), club)}
-          className="btn btn-brand btn-sm px-3"
+          className="btn btn-brand btn-sm px-4 py-1.5"
         >
           저장
         </button>
-        <button type="button" onClick={onCancel} className="ml-1 text-xs font-semibold text-slate-500">
+        <button type="button" onClick={onCancel} className="text-sm font-semibold text-slate-500 hover:text-slate-700">
           취소
         </button>
-      </td>
-    </tr>
+        <span className="text-xs break-keep text-slate-500">이름을 바꾸면 그 선수가 든 팀의 이름도 함께 바뀝니다.</span>
+      </div>
+    </li>
   );
 }
 
@@ -473,7 +876,7 @@ function SettingsForm({
   busy: boolean;
   /** 경기를 시작한 종목은 이름만 고칩니다. */
   locked?: boolean;
-  onSubmit: (settings: EventSettings) => Promise<boolean>;
+  onSubmit: (settings: EventSettings) => Promise<unknown>;
 }) {
   const [value, setValue] = useState(initial);
   const set = <K extends keyof EventSettings>(key: K, v: EventSettings[K]) =>
@@ -568,59 +971,64 @@ function SettingsForm({
   );
 }
 
-function AddEvent({ busy, run, count }: { busy: boolean; run: Run; count: number }) {
-  const [open, setOpen] = useState(count === 0);
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="btn btn-outline">
-        <PlusIcon className="size-5" />
-        종목 추가
-      </button>
-    );
-  }
+function NewEventPanel({ draw, busy, run, go }: { draw: Draw; busy: boolean; run: Run; go: Go }) {
   return (
-    <section className="card p-6">
-      <h2 className="text-lg font-black text-brand-950">새 종목</h2>
-      <p className="mt-1 text-sm break-keep text-slate-500">
-        종목마다 참가 팀을 받아 예선 조별 리그를 치르고, 조가 둘 이상이면 본선 토너먼트로 이어집니다.
-      </p>
-      <div className="mt-5">
+    <div className="space-y-5">
+      <PanelHeader
+        title="종목 추가"
+        description="종목마다 참가 팀을 받아 예선 조별 리그를 치르고, 조가 둘 이상이면 본선 토너먼트로 이어집니다."
+      />
+      <section className="card p-5 sm:p-6">
         <SettingsForm
-          key={count}
+          key={draw.events.length}
           initial={DEFAULT_SETTINGS}
           submitLabel="종목 만들기"
           busy={busy}
           onSubmit={async (settings) => {
-            const ok = await run({ op: "addEvent", ...settings }, `'${settings.name}' 종목을 만들었습니다.`);
-            if (ok) setOpen(false);
-            return ok;
+            const next = await run(
+              { op: "addEvent", ...settings },
+              `'${settings.name}' 종목을 만들었습니다. 참가 팀을 넣어 주세요.`,
+            );
+            // 새 종목은 맨 뒤에 붙으므로, 만든 뒤 바로 그 종목 화면으로 갑니다.
+            if (next && next.events.length > 0) go(next.events[next.events.length - 1].id);
           }}
         />
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
-// ───────────────────────── 종목 카드 ─────────────────────────
+// ───────────────────────── 종목 화면 ─────────────────────────
 
-function EventCard({
+type Step = "teams" | "groups" | "start";
+
+function EventPanel({
   draw,
   event,
   busy,
   run,
+  go,
   checkInHref,
 }: {
   draw: Draw;
   event: DrawEvent;
   busy: boolean;
   run: Run;
+  go: Go;
   checkInHref: string;
 }) {
   const live = event.status === "live";
   const unit = event.doubles ? "팀" : "명";
-  const real = event.matches.filter((m) => !isByeMatch(m));
-  const done = real.filter((m) => winnerOf(m, event.bestOf)).length;
+  const checkIn = usesCheckIn(draw);
+  // 처음 열 때는 아직 끝나지 않은 첫 단계를 보여 줍니다.
+  const [step, setStep] = useState<Step>(
+    event.entries.length < 2 ? "teams" : event.groups.length === 0 ? "groups" : "start",
+  );
+  const [editing, setEditing] = useState(false);
+  const stepper = useRef<HTMLOListElement>(null);
+  const { done, total } = progressOf(event);
   const playing = event.entries.filter((e) => e.absent !== "excluded").length;
+  const arrivedTeams = event.entries.filter(presence(draw)).length;
   const settings: EventSettings = {
     name: event.name,
     ...(event.nameEn ? { nameEn: event.nameEn } : {}),
@@ -630,47 +1038,105 @@ function EventCard({
     advance: event.advance,
   };
 
-  return (
-    <section className="card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50/60 px-6 py-4">
-        <div>
-          <h2 className="text-xl font-black text-brand-950">{event.name}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            {event.doubles ? "복식" : "단식"} · {event.bestOf}게임 {Math.floor(event.bestOf / 2) + 1}선승 · 참가{" "}
-            {playing}
-            {unit}
-            {event.groups.length > 0 && ` · ${event.groups.length}개 조`}
-            {live && ` · 경기 ${done}/${real.length} 끝남`}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            live ? "bg-accent-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"
-          }`}
-        >
-          {live ? "경기 중" : "준비 중"}
-        </span>
-      </div>
+  const steps: { id: Step; label: string; meta: string; done: boolean }[] = [
+    {
+      id: "teams",
+      label: event.doubles ? "참가 팀" : "참가 선수",
+      meta: `${event.entries.length}${unit}`,
+      done: event.entries.length >= 2,
+    },
+    {
+      id: "groups",
+      label: "조 편성",
+      meta: event.groups.length > 0 ? `${event.groups.length}개 조` : "아직 없음",
+      done: event.groups.length > 0,
+    },
+    {
+      id: "start",
+      label: checkIn ? "대진 확정" : "경기 시작",
+      meta: checkIn ? `도착 ${arrivedTeams}/${event.entries.length}${unit}` : "확인하고 시작",
+      done: false,
+    },
+  ];
+  const open = (next: Step) => {
+    setStep(next);
+    reveal(stepper.current);
+  };
 
-      <div className="space-y-8 p-6">
-        <details className="group">
-          <summary className="cursor-pointer text-sm font-bold text-brand-700">종목 설정 바꾸기</summary>
-          <div className="mt-4 space-y-4">
+  return (
+    <div className="space-y-5">
+      <PanelHeader
+        title={
+          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+            {event.name}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                live ? "bg-accent-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"
+              }`}
+            >
+              {live ? "경기 중" : "준비 중"}
+            </span>
+          </span>
+        }
+        description={`${event.doubles ? "복식" : "단식"} · ${event.bestOf}게임 ${Math.floor(event.bestOf / 2) + 1}선승 · 참가 ${playing}${unit}${
+          event.groups.length > 0 ? ` · ${event.groups.length}개 조` : ""
+        }${event.nameEn ? ` · 영어 이름 ${event.nameEn}` : ""}`}
+      >
+        <button
+          type="button"
+          aria-expanded={editing}
+          onClick={() => setEditing((v) => !v)}
+          className="btn btn-ghost btn-sm"
+        >
+          <PencilIcon className="size-4" />
+          종목 설정
+        </button>
+      </PanelHeader>
+
+      {editing && (
+        <section className="card p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-black text-brand-950">종목 설정</h3>
+              {live && <p className="mt-1 text-sm text-slate-500">경기를 시작한 종목은 이름만 바꿀 수 있습니다.</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              aria-label="종목 설정 닫기"
+              className="-m-1 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <CloseIcon className="size-5" />
+            </button>
+          </div>
+          <div className="mt-4">
             <SettingsForm
               key={JSON.stringify(settings)}
               initial={settings}
               submitLabel="설정 저장"
               busy={busy}
               locked={live}
-              onSubmit={(next) => run({ op: "updateEvent", event: event.id, ...next }, "종목 설정을 저장했습니다.")}
+              onSubmit={async (next) => {
+                if (await run({ op: "updateEvent", event: event.id, ...next }, "종목 설정을 저장했습니다.")) {
+                  setEditing(false);
+                }
+              }}
             />
+          </div>
+          <div className="mt-6 border-t border-slate-100 pt-4">
             <button
               type="button"
               disabled={busy}
-              onClick={() => {
-                if (window.confirm(`'${event.name}' 종목을 지울까요? 참가 팀과 경기 결과가 모두 지워집니다. (선수 명단은 남습니다)`)) {
-                  void run({ op: "removeEvent", event: event.id }, "종목을 지웠습니다.");
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    `'${event.name}' 종목을 지울까요? 참가 팀과 경기 결과가 모두 지워집니다. (선수 명단은 남습니다)`,
+                  )
+                ) {
+                  return;
                 }
+                const next = await run({ op: "removeEvent", event: event.id }, "종목을 지웠습니다.");
+                if (next) go(defaultView(next));
               }}
               className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent-700 hover:underline"
             >
@@ -678,42 +1144,120 @@ function EventCard({
               종목 지우기
             </button>
           </div>
-        </details>
+        </section>
+      )}
 
-        {live ? (
-          <>
-            <LiveTeams draw={draw} event={event} busy={busy} run={run} />
-            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
-              <p className="min-w-0 flex-1 text-sm break-keep text-slate-600">
-                경기가 진행 중입니다. 팀이나 조 편성을 바꾸려면 조 편성 단계로 되돌려야 하고, 그러면 입력한 점수가 모두 지워집니다.
-              </p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `'${event.name}' 의 경기 결과 ${done}개를 모두 지우고 확정 전의 조 편성으로 되돌릴까요? 되돌린 뒤에는 결과를 되살릴 수 없습니다.`,
-                    )
-                  ) {
-                    void run({ op: "reset", event: event.id }, "조 편성 단계로 되돌렸습니다.");
-                  }
-                }}
-                className="btn btn-ghost btn-sm text-accent-700"
-              >
-                조 편성으로 되돌리기
-              </button>
+      {live ? (
+        <>
+          <section className="card p-5 sm:p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+              <span className="font-bold text-slate-700">경기 진행</span>
+              <span className="text-slate-500 tabular-nums">
+                {done}/{total} 끝남
+              </span>
             </div>
-          </>
-        ) : (
-          <>
-            <TeamsEditor draw={draw} event={event} busy={busy} run={run} />
-            <GroupsEditor draw={draw} event={event} busy={busy} run={run} />
-            <ConfirmPanel draw={draw} event={event} busy={busy} run={run} checkInHref={checkInHref} />
-          </>
-        )}
-      </div>
-    </section>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-brand-600 transition-[width]"
+                style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
+              />
+            </div>
+            <button type="button" onClick={() => go("play")} className="btn btn-brand btn-sm mt-4">
+              경기 진행 화면에서 점수 보기
+              <ArrowRightIcon className="size-4" />
+            </button>
+          </section>
+
+          <section className="card p-5 sm:p-6">
+            <LiveTeams draw={draw} event={event} busy={busy} run={run} />
+          </section>
+
+          <section className="rounded-2xl border border-accent-200 bg-white p-5 sm:p-6">
+            <h3 className="font-black text-accent-700">조 편성으로 되돌리기</h3>
+            <p className="mt-1 text-sm break-keep text-slate-600">
+              팀이나 조 편성을 바꾸려면 조 편성 단계로 되돌려야 하고, 그러면 입력한 점수가 모두 지워집니다.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `'${event.name}' 의 경기 결과 ${done}개를 모두 지우고 확정 전의 조 편성으로 되돌릴까요? 되돌린 뒤에는 결과를 되살릴 수 없습니다.`,
+                  )
+                ) {
+                  void run({ op: "reset", event: event.id }, "조 편성 단계로 되돌렸습니다.");
+                }
+              }}
+              className="btn btn-ghost btn-sm mt-4 text-accent-700"
+            >
+              조 편성으로 되돌리기
+            </button>
+          </section>
+        </>
+      ) : (
+        <>
+          <ol ref={stepper} aria-label="종목 준비 단계" className="grid scroll-mt-36 grid-cols-3 gap-2 lg:scroll-mt-24">
+            {steps.map((item, index) => {
+              const active = step === item.id;
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    aria-current={active ? "step" : undefined}
+                    onClick={() => open(item.id)}
+                    className={`flex h-full w-full flex-col items-start gap-1.5 rounded-xl border bg-white px-3 py-2.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-3 ${
+                      active
+                        ? "border-brand-700 shadow-sm ring-1 ring-brand-700"
+                        : "border-slate-200 hover:border-brand-300"
+                    }`}
+                  >
+                    <span
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-black ${
+                        item.done
+                          ? "bg-brand-700 text-white"
+                          : active
+                            ? "bg-brand-100 text-brand-800"
+                            : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {item.done ? <CheckIcon className="size-4" /> : index + 1}
+                    </span>
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-bold break-keep ${active ? "text-brand-900" : "text-slate-700"}`}>
+                        {item.label}
+                      </span>
+                      <span className="block text-xs break-keep text-slate-500">{item.meta}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+
+          <section className="card p-5 sm:p-6">
+            {step === "teams" && <TeamsEditor draw={draw} event={event} busy={busy} run={run} go={go} />}
+            {step === "groups" && <GroupsEditor draw={draw} event={event} busy={busy} run={run} />}
+            {step === "start" && (
+              <ConfirmPanel draw={draw} event={event} busy={busy} run={run} checkInHref={checkInHref} />
+            )}
+
+            {step !== "start" && (
+              <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => open(step === "teams" ? "groups" : "start")}
+                  className="btn btn-ghost btn-sm"
+                >
+                  다음: {step === "teams" ? steps[1].label : steps[2].label}
+                  <ArrowRightIcon className="size-4" />
+                </button>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -781,7 +1325,19 @@ function ReplaceSelect({
   );
 }
 
-function TeamsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; busy: boolean; run: Run }) {
+function TeamsEditor({
+  draw,
+  event,
+  busy,
+  run,
+  go,
+}: {
+  draw: Draw;
+  event: DrawEvent;
+  busy: boolean;
+  run: Run;
+  go: Go;
+}) {
   const need = event.doubles ? 2 : 1;
   const free = rosterOf(draw).filter((p) => !teamOf(event, p.name));
   const [picks, setPicks] = useState<string[]>(Array.from({ length: need }, () => ""));
@@ -789,41 +1345,16 @@ function TeamsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent;
 
   return (
     <div>
-      <h3 className="font-black text-brand-950">1. 참가 {unit}</h3>
+      <h3 className="font-black text-brand-950">{event.doubles ? "참가 팀" : "참가 선수"}</h3>
       <p className="mt-1 text-sm break-keep text-slate-500">
-        선수 명단에서 골라 {event.doubles ? "두 사람을 한 팀으로" : "참가자로"} 넣습니다. 명단에 없는 사람은 위의 선수 명단에 먼저 올려 주세요.
+        선수 명단에서 골라 {event.doubles ? "두 사람을 한 팀으로" : "참가자로"} 넣습니다. 명단에 없는 사람은{" "}
+        <button type="button" onClick={() => go("roster")} className="font-semibold text-brand-700 underline">
+          선수 명단
+        </button>
+        에 먼저 올려 주세요.
       </p>
 
-      {event.entries.length > 0 && (
-        <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {event.entries.map((entry, index) => (
-            <li key={entry.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
-              <span className="w-6 text-sm font-bold text-slate-400 tabular-nums">{index + 1}</span>
-              <span className="min-w-0 flex-1">
-                <TeamName draw={draw} entry={entry} />
-                <span className="block text-xs text-slate-400">
-                  {[entry.rating ?? "레이팅 없음", entry.club].filter(Boolean).join(" · ")}
-                </span>
-              </span>
-              <ReplaceSelect draw={draw} event={event} entry={entry} busy={busy} run={run} />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  if (window.confirm(`${entryName(entry)} ${unit}을 이 종목에서 뺄까요? (선수 명단에는 남습니다)`)) {
-                    void run({ op: "removeTeam", event: event.id, entry: entry.id }, `${entryName(entry)} ${unit}을 뺐습니다.`);
-                  }
-                }}
-                className="text-xs font-semibold text-accent-700 hover:underline"
-              >
-                빼기
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3">
         {picks.map((value, i) => (
           <select
             key={i}
@@ -850,13 +1381,42 @@ function TeamsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent;
             const ok = await run({ op: "addTeam", event: event.id, players: picks }, `${unit}을 넣었습니다.`);
             if (ok) setPicks(Array.from({ length: need }, () => ""));
           }}
-          className="btn btn-ghost btn-sm"
+          className="btn btn-brand btn-sm"
         >
           <PlusIcon className="size-4" />
           {unit} 넣기
         </button>
         {free.length === 0 && <span className="text-xs text-slate-400">명단의 모든 선수가 이 종목에 들어 있습니다.</span>}
       </div>
+
+      {event.entries.length > 0 && (
+        <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {event.entries.map((entry, index) => (
+            <li key={entry.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+              <span className="w-6 text-sm font-bold text-slate-400 tabular-nums">{index + 1}</span>
+              <span className="min-w-0 flex-1">
+                <TeamName draw={draw} entry={entry} />
+                <span className="block text-xs text-slate-400">
+                  {[entry.rating ?? "레이팅 없음", entry.club].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+              <ReplaceSelect draw={draw} event={event} entry={entry} busy={busy} run={run} />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm(`${entryName(entry)} ${unit}을 이 종목에서 뺄까요? (선수 명단에는 남습니다)`)) {
+                    void run({ op: "removeTeam", event: event.id, entry: entry.id }, `${entryName(entry)} ${unit}을 뺐습니다.`);
+                  }
+                }}
+                className="text-xs font-semibold text-accent-700 hover:underline"
+              >
+                빼기
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <details className="mt-4">
         <summary className="cursor-pointer text-sm font-semibold text-slate-500">
@@ -932,26 +1492,36 @@ function GroupsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent
 
   return (
     <div>
-      <h3 className="font-black text-brand-950">2. 조 편성 (미리 편성)</h3>
-      <p className="mt-1 text-sm break-keep text-slate-500">
-        레이팅이 높은 순서로 A조부터 지그재그로 나누고, 같은 소속은 되도록 다른 조에 넣습니다. 레이팅이 없으면 목록 순서를 따릅니다.
-        대회 전에 미리 만들어 두면, 대진을 확정할 때 도착하지 않은 팀만 빠집니다.
-      </p>
-      <button
-        type="button"
-        disabled={busy || event.entries.length < 2}
-        onClick={() => {
-          if (!hasGroups || window.confirm("지금 조 편성을 지우고 다시 만들까요?")) {
-            void run({ op: "autoGroups", event: event.id }, "조 편성을 만들었습니다.");
-          }
-        }}
-        className="btn btn-ghost btn-sm mt-3"
-      >
-        {hasGroups ? "조 편성 다시 만들기" : "조 편성 만들기"}
-      </button>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-72">
+          <h3 className="font-black text-brand-950">조 편성</h3>
+          <p className="mt-1 text-sm break-keep text-slate-500">
+            레이팅이 높은 순서로 A조부터 지그재그로 나누고, 같은 소속은 되도록 다른 조에 넣습니다. 레이팅이 없으면 목록 순서를 따릅니다.
+            대회 전에 미리 만들어 두면, 대진을 확정할 때 도착하지 않은 팀만 빠집니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={busy || event.entries.length < 2}
+          onClick={() => {
+            if (!hasGroups || window.confirm("지금 조 편성을 지우고 다시 만들까요?")) {
+              void run({ op: "autoGroups", event: event.id }, "조 편성을 만들었습니다.");
+            }
+          }}
+          className={`btn btn-sm ${hasGroups ? "btn-ghost" : "btn-brand"}`}
+        >
+          {hasGroups ? "조 편성 다시 만들기" : "조 편성 만들기"}
+        </button>
+      </div>
+
+      {!hasGroups && event.entries.length < 2 && (
+        <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          참가 {event.doubles ? "팀" : "선수"}이 둘 이상 있어야 조를 나눌 수 있습니다.
+        </p>
+      )}
 
       {hasGroups && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {event.groups.map((members, group) => (
             <div key={group} className="rounded-xl border border-slate-200">
               <p className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-brand-900">
@@ -1036,11 +1606,17 @@ function ConfirmPanel({
   const partial = notHere.filter((e) => arrivedPlayers(draw, e).length > 0).length;
   const knockout = "groups" in plan && plan.groups.length > 1;
 
-  if (event.entries.length === 0) return null;
+  if (event.entries.length === 0) {
+    return (
+      <p className="text-sm break-keep text-slate-500">
+        참가 {event.doubles ? "팀" : "선수"}을 먼저 넣어 주세요.
+      </p>
+    );
+  }
 
   return (
-    <div className="rounded-xl bg-brand-50/60 px-4 py-4 sm:px-5">
-      <h3 className="font-black text-brand-950">{checkIn ? "3. 체크인 확인과 대진 확정" : "3. 경기 시작"}</h3>
+    <div>
+      <h3 className="font-black text-brand-950">{checkIn ? "체크인 확인과 대진 확정" : "경기 시작"}</h3>
 
       {checkIn && (
         <>
@@ -1059,7 +1635,7 @@ function ConfirmPanel({
           </p>
 
           {notHere.length > 0 && (
-            <ul className="mt-3 divide-y divide-brand-100 rounded-xl border border-brand-100 bg-white">
+            <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
               {notHere.map((entry) => {
                 const wait = waitingSet.has(entry.id);
                 return (
@@ -1097,7 +1673,7 @@ function ConfirmPanel({
       {"error" in plan ? (
         <p className="mt-3 text-sm font-semibold break-keep text-accent-700">{plan.error}</p>
       ) : (
-        <div className="mt-4 space-y-2 text-sm break-keep text-slate-700">
+        <div className="mt-4 space-y-2 rounded-xl bg-brand-50/60 p-4 text-sm break-keep text-slate-700">
           {plan.excluded.length > 0 && (
             <p>
               <strong className="text-accent-700">빠지는 {event.doubles ? "팀" : "선수"}:</strong>{" "}
@@ -1120,7 +1696,7 @@ function ConfirmPanel({
               ? `조별 리그가 끝나면 조 ${event.advance === 2 ? "1·2위" : "1위"}가 본선 토너먼트에 오릅니다.`
               : "조가 하나라서 리그 순위로 우승을 정합니다."}
           </p>
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {plan.groups.map((members, group) => (
               <li key={group} className="rounded-lg bg-white px-3 py-2 ring-1 ring-brand-100">
                 <span className="font-black text-brand-900">{groupLetter(group)}조</span>{" "}
@@ -1146,7 +1722,7 @@ function ConfirmPanel({
             void run({ op: "start", event: event.id, waiting }, `'${event.name}' 경기를 시작했습니다.`);
           }
         }}
-        className="btn btn-accent btn-sm mt-4"
+        className="btn btn-accent btn-sm mt-5"
       >
         {checkIn ? "대진 확정하고 경기 시작" : "경기 시작"}
       </button>
@@ -1171,11 +1747,18 @@ function LiveTeams({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; b
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <div>
+        <h3 className="font-black text-brand-950">참가 {unit} 관리</h3>
+        <p className="mt-1 text-sm break-keep text-slate-500">
+          경기 중에 오지 않거나 빠지는 {unit}은 불참 처리합니다. 불참 처리한 {unit}의 남은 경기는 모두 기권패로 적힙니다.
+        </p>
+      </div>
+
       {waiting.length > 0 && (
         <div>
-          <h3 className="font-black text-brand-950">도착을 기다리는 {unit}</h3>
-          <p className="mt-1 text-sm break-keep text-slate-500">
+          <h4 className="text-sm font-bold text-slate-800">도착을 기다리는 {unit}</h4>
+          <p className="mt-0.5 text-sm break-keep text-slate-500">
             체크인하면 바로 경기 순서에 들어갑니다. 끝내 오지 않으면 불참 처리해 주세요.
           </p>
           <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
@@ -1196,7 +1779,7 @@ function LiveTeams({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; b
 
       {forfeits.length > 0 && (
         <div>
-          <h3 className="font-black text-brand-950">불참 처리한 {unit}</h3>
+          <h4 className="text-sm font-bold text-slate-800">불참 처리한 {unit}</h4>
           <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
             {forfeits.map((entry) => (
               <li key={entry.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
