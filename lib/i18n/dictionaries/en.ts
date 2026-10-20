@@ -144,6 +144,7 @@ export const en: Dictionary = {
     upNextEmpty: "No matches waiting.",
     noTables: "Tables are not assigned for this event, so only the match order is shown.",
     playerBusy: "Player still on court",
+    notArrived: "Not checked in",
     groupStage: "Group Stage",
     knockout: "Knockout Stage",
     group: (letter) => `Group ${letter}`,
@@ -160,6 +161,7 @@ export const en: Dictionary = {
     winLoss: (wins, losses) => `${wins}–${losses}`,
     provisional: "Standings are final once all group matches are played.",
     advances: "Advances",
+    withdrawn: "Withdrawn",
     bestOf: (n) => `Best of ${n}`,
     state: {
       done: "Final",
@@ -223,6 +225,9 @@ export const en: Dictionary = {
       champion: "Congratulations, champion!",
       finished: "All matches finished.",
       notStarted: "This event has not started yet.",
+      checkInFirst: "Not checked in yet, so this match won't be called. Please check in at the desk.",
+      excluded: "Not in the draw: did not check in before the draw was confirmed.",
+      forfeit: "Withdrawn. Remaining matches are recorded as forfeits.",
     },
   },
 

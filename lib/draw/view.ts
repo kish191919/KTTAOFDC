@@ -67,7 +67,17 @@ export function podium(context: EventContext): Podium | null {
 
 export type EntryStatus =
   | { kind: "playing"; match: DrawMatch; opponent: string }
-  | { kind: "queued"; match: DrawMatch; opponent: string; position: number; busy: boolean }
+  | {
+      kind: "queued";
+      match: DrawMatch;
+      opponent: string;
+      position: number;
+      busy: boolean;
+      /** 도착 확인 전이라 테이블에 부르지 않는 중 */
+      absent: boolean;
+    }
+  | { kind: "excluded" }
+  | { kind: "forfeit" }
   | { kind: "waitingOpponent"; match: DrawMatch }
   | { kind: "waitingGroup" }
   | { kind: "outGroup"; group: number; rank: number }
@@ -84,6 +94,9 @@ export function entryStatus(
 ): EntryStatus {
   const { event } = context;
   if (event.status !== "live") return { kind: "notStarted" };
+  const absent = context.entryById.get(entryId)?.absent;
+  if (absent === "excluded") return { kind: "excluded" };
+  if (absent === "forfeit") return { kind: "forfeit" };
 
   const sideOf = (match: DrawMatch) => {
     const [a, b] = context.participants(match);
@@ -106,8 +119,8 @@ export function entryStatus(
 
   const index = queue.findIndex((item) => item.event.id === event.id && sideOf(item.match));
   if (index >= 0) {
-    const { match, busy } = queue[index];
-    return { kind: "queued", match, opponent: opponentOf(match), position: index + 1, busy };
+    const { match, busy, absent } = queue[index];
+    return { kind: "queued", match, opponent: opponentOf(match), position: index + 1, busy, absent };
   }
 
   const waiting = event.matches.find((m) => sideOf(m) && context.stateOf(m) === "pending");

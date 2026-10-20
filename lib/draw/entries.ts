@@ -10,7 +10,12 @@ export const MAX_ENTRIES = 128;
 const MAX_NAME = 40;
 const MAX_RATING = 9999;
 
-export type ParsedEntries = { entries: DrawEntry[]; errors: string[] };
+export type ParsedEntries = {
+  entries: DrawEntry[];
+  /** 팀원마다 레이팅을 따로 적은 경우 그 값 (entries 와 같은 순서). 명단에 개인 레이팅으로 넣습니다. */
+  ratings: (number[] | undefined)[];
+  errors: string[];
+};
 
 /** 참가자 이름. 복식은 "홍길동 / 김철수" */
 export const entryName = (entry: Pick<DrawEntry, "players">) => entry.players.join(" / ");
@@ -19,6 +24,7 @@ const normalize = (name: string) => name.replace(/\s+/g, "").toLowerCase();
 
 export function parseEntries(text: string, doubles: boolean): ParsedEntries {
   const entries: DrawEntry[] = [];
+  const ratings: (number[] | undefined)[] = [];
   const errors: string[] = [];
   const seen = new Map<string, number>();
   const need = doubles ? 2 : 1;
@@ -69,6 +75,7 @@ export function parseEntries(text: string, doubles: boolean): ParsedEntries {
     players.forEach((name) => seen.set(normalize(name), lineNo));
 
     const club = names[need];
+    ratings.push(numbers.length === need ? numbers : undefined);
     entries.push({
       id: `e${entries.length + 1}`,
       players,
@@ -80,7 +87,46 @@ export function parseEntries(text: string, doubles: boolean): ParsedEntries {
   if (entries.length > MAX_ENTRIES) {
     errors.push(`한 종목에는 ${MAX_ENTRIES}${doubles ? "팀" : "명"}까지 넣을 수 있습니다.`);
   }
-  return { entries, errors };
+  return { entries, ratings, errors };
+}
+
+export type ParsedPerson = { name: string; rating?: number; club?: string };
+
+/**
+ * 선수 명단에 붙여 넣은 글. 한 줄에 한 명이고 "이름, 레이팅, 소속" 순서입니다.
+ * 레이팅과 소속은 빼도 됩니다.
+ */
+export function parsePeople(text: string): { people: ParsedPerson[]; errors: string[] } {
+  const people: ParsedPerson[] = [];
+  const errors: string[] = [];
+  const seen = new Set<string>();
+  text.split(/\r?\n/).forEach((raw, index) => {
+    const line = raw.replace(/^\s*\d+\s*[.)]\s+/, "").trim();
+    if (!line) return;
+    const names: string[] = [];
+    const numbers: number[] = [];
+    for (const cell of line.split(/[\t,]/)) {
+      const words = cell.trim().split(/\s+/).filter(Boolean);
+      const nameWords = words.filter((w) => !/^\d+$/.test(w));
+      words.filter((w) => /^\d+$/.test(w)).forEach((w) => numbers.push(Number(w)));
+      if (nameWords.length > 0) names.push(nameWords.join(" "));
+    }
+    const lineNo = index + 1;
+    if (names.length === 0) return errors.push(`${lineNo}번째 줄: 이름이 없습니다. (${line})`);
+    if (names.length > 2 || numbers.length > 1 || numbers.some((n) => n > MAX_RATING)) {
+      return errors.push(`${lineNo}번째 줄: 한 줄에 한 사람만 "이름, 레이팅, 소속" 순서로 적어 주세요. (${line})`);
+    }
+    if (names[0].length > MAX_NAME) return errors.push(`${lineNo}번째 줄: 이름이 너무 깁니다.`);
+    const key = normalize(names[0]);
+    if (seen.has(key)) return errors.push(`${lineNo}번째 줄: ${names[0]} 님이 두 번 적혀 있습니다.`);
+    seen.add(key);
+    people.push({
+      name: names[0],
+      ...(numbers.length > 0 ? { rating: numbers[0] } : {}),
+      ...(names[1] ? { club: names[1].slice(0, MAX_NAME) } : {}),
+    });
+  });
+  return { people, errors };
 }
 
 /** 저장된 참가자를 다시 고칠 수 있게 붙여 넣는 글 모양으로 돌려놓습니다. */

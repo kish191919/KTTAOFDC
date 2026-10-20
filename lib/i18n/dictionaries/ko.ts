@@ -157,6 +157,7 @@ export const ko = {
     upNextEmpty: "기다리는 경기가 없습니다.",
     noTables: "테이블을 정하지 않은 대회라 경기 순서만 보여 드립니다.",
     playerBusy: "선수가 다른 경기 중",
+    notArrived: "도착 확인 전",
     groupStage: "예선 조별 리그",
     knockout: "본선 토너먼트",
     group: (letter: string) => `${letter}조`,
@@ -173,6 +174,7 @@ export const ko = {
     winLoss: (wins: number, losses: number) => `${wins}승 ${losses}패`,
     provisional: "조 경기가 끝나면 순위가 확정됩니다.",
     advances: "본선",
+    withdrawn: "불참",
     bestOf: (n: number) => `${n}게임 ${Math.floor(n / 2) + 1}선승`,
     state: {
       done: "종료",
@@ -237,6 +239,9 @@ export const ko = {
       champion: "우승을 축하합니다!",
       finished: "경기를 모두 마쳤습니다.",
       notStarted: "아직 시작하지 않은 종목입니다.",
+      checkInFirst: "도착 확인 전이라 테이블에 부르지 않습니다. 접수 데스크에 도착을 알려 주세요.",
+      excluded: "대진을 확정할 때 도착하지 않아 대진에서 빠졌습니다.",
+      forfeit: "불참으로 처리되어 남은 경기는 기권패로 적혔습니다.",
     },
   },
 

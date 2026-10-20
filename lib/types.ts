@@ -132,6 +132,17 @@ export type Album = {
 // 대회 하나에 Draw 하나가 있고, 그 안에 종목(DrawEvent)이 여럿 들어갑니다.
 // 종목은 예선 조별 리그 → 본선 토너먼트로 진행합니다. 계산은 lib/draw/ 에서 합니다.
 
+/** 대회에 신청한 선수 한 명. 대회 날 접수 데스크에서 도착을 확인합니다. */
+export type DrawPlayer = {
+  id: string;
+  /** 대회 안에서 겹치지 않는 이름. 종목의 팀(DrawEntry.players)은 이 이름으로 선수를 가리킵니다. */
+  name: string;
+  rating?: number;
+  club?: string;
+  /** 대회 날 도착을 확인한 때 */
+  checkedInAt?: string;
+};
+
 /** 대진표에 오른 선수 한 명 또는 복식 한 팀 */
 export type DrawEntry = {
   id: string;
@@ -141,6 +152,11 @@ export type DrawEntry = {
   rating?: number;
   /** 소속(클럽·지역). 같은 소속은 되도록 다른 조로 나눕니다. */
   club?: string;
+  /**
+   * 오지 않은 팀. excluded 는 대진을 확정할 때 빠진 팀(조에 없음),
+   * forfeit 는 경기 중에 불참 처리한 팀(남은 경기를 기권패로 적습니다)입니다.
+   */
+  absent?: "excluded" | "forfeit";
 };
 
 /**
@@ -170,6 +186,8 @@ export type DrawMatch = {
   points?: [number, number][];
   /** 한쪽이 기권해 경기 없이 이긴 쪽 */
   walkover?: "a" | "b";
+  /** 불참 처리로 저절로 적힌 기권승. 불참을 취소하면 함께 지웁니다. */
+  forfeit?: boolean;
   /** 경기하는 테이블 번호 (1부터) */
   table?: number;
   /** 테이블을 배정할 때의 두 참가자 id. 앞 결과가 고쳐져 참가자가 바뀌면 배정을 풉니다. */
@@ -200,6 +218,10 @@ export type DrawEvent = {
   status: "setup" | "live";
   matches: DrawMatch[];
   startedAt?: string;
+  /** 체크인을 거쳐 확정한 종목. 도착하지 않은 팀의 경기는 테이블에 부르지 않습니다. */
+  checkIn?: boolean;
+  /** 확정하기 전의 조 편성. '조 편성으로 되돌리기'를 하면 이것으로 돌아갑니다. */
+  draft?: string[][];
 };
 
 /** 점수 입력 기록 한 줄 */
@@ -222,6 +244,10 @@ export type Draw = {
   tables: number;
   /** false 면 방문자는 점수를 입력할 수 없고 관리자만 입력합니다. */
   scoringOpen: boolean;
+  /** false 면 체크인 없이 등록한 팀으로 바로 대진을 확정합니다. 비어 있으면 체크인을 씁니다. */
+  checkIn?: boolean;
+  /** 선수 명단. 비어 있으면 종목의 팀 이름들로 만듭니다. (lib/draw/roster.ts) */
+  players?: DrawPlayer[];
   events: DrawEvent[];
   /** 최근 점수 입력 기록 (새 것이 앞) */
   log: DrawLog[];

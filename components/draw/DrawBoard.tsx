@@ -339,10 +339,15 @@ function StatusLine({
             }`}
           >
             {headline}
-            {status.kind === "queued" && status.busy && (
-              <span className="ml-2 font-semibold text-slate-500">({t.playerBusy})</span>
+            {status.kind === "queued" && (status.absent || status.busy) && (
+              <span className="ml-2 font-semibold text-slate-500">
+                ({status.absent ? t.notArrived : t.playerBusy})
+              </span>
             )}
           </p>
+          {status.kind === "queued" && status.absent && (
+            <p className="px-4 pt-1 text-xs break-keep text-accent-700">{t.status.checkInFirst}</p>
+          )}
           <div className="mt-1 border-t border-brand-100">
             <MatchLine
               event={event}
@@ -371,6 +376,10 @@ function StatusLine({
       return text(t.status.outGroup(t.group(groupLetter(status.group)), status.rank));
     case "outRound":
       return text(t.status.outRound(t.round(roundSize(event, status.round))));
+    case "excluded":
+      return text(t.status.excluded);
+    case "forfeit":
+      return text(t.status.forfeit);
     case "champion":
       return text(t.status.champion, "accent");
     case "finished":
@@ -482,7 +491,7 @@ function TablesView({
           <p className="mt-4 text-sm text-slate-500">{t.upNextEmpty}</p>
         ) : (
           <ol className="card mt-4 divide-y divide-slate-100 overflow-hidden">
-            {queue.slice(0, 30).map(({ event, match, busy }, index) => (
+            {queue.slice(0, 30).map(({ event, match, busy, absent }, index) => (
               <li key={match.id} className="flex items-stretch">
                 <span className="flex w-10 shrink-0 items-center justify-center bg-brand-50/70 text-sm font-black text-brand-700 tabular-nums">
                   {index + 1}
@@ -494,7 +503,9 @@ function TablesView({
                     context={contextOf(event)}
                     t={t}
                     onOpen={onOpen}
-                    label={`${eventName(event, lang)} · ${matchLabel(event, match, t)}${busy ? ` · ${t.playerBusy}` : ""}`}
+                    label={`${eventName(event, lang)} · ${matchLabel(event, match, t)}${
+                      absent ? ` · ${t.notArrived}` : busy ? ` · ${t.playerBusy}` : ""
+                    }`}
                     chip={false}
                   />
                 </div>
@@ -626,6 +637,11 @@ function GroupCard({
                   {through && (
                     <span className="ml-1.5 rounded bg-accent-50 px-1.5 py-0.5 text-[11px] font-bold text-accent-700">
                       {t.advances}
+                    </span>
+                  )}
+                  {entry?.absent === "forfeit" && (
+                    <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-500">
+                      {t.withdrawn}
                     </span>
                   )}
                   {entry?.club && <span className="block text-xs text-slate-400">{entry.club}</span>}

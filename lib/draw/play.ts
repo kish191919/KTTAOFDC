@@ -1,5 +1,6 @@
 import { addDays } from "@/lib/dates";
 import type { Draw, DrawEntry, DrawEvent, DrawMatch, DrawSlot, Tournament } from "@/lib/types";
+import { personKey, presence } from "./roster";
 
 // 경기 결과로 조 순위·본선 진출자·테이블 배정을 계산합니다.
 // 서버(저장할 때)와 브라우저(화면을 그릴 때)가 같은 함수를 씁니다.
@@ -229,9 +230,7 @@ export function eventContext(event: DrawEvent) {
 
 export type EventContext = ReturnType<typeof eventContext>;
 
-/** 같은 사람이 두 종목에 나가도 알아볼 수 있게 이름을 비교용으로 바꿉니다. */
-const personKey = (name: string) => name.replace(/\s+/g, "").toLowerCase();
-
+/** 팀원의 이름(비교용). 같은 사람이 두 종목에 나가도 알아볼 수 있습니다. */
 const peopleOf = (entries: (DrawEntry | undefined)[]) =>
   entries.flatMap((entry) => entry?.players.map(personKey) ?? []);
 
@@ -243,6 +242,8 @@ export type QueueItem = {
   since: string;
   /** 두 참가자 중 누군가 다른 테이블에서 경기 중이면 true */
   busy: boolean;
+  /** 체크인을 거쳐 확정한 종목에서 아직 도착하지 않은 팀이 있으면 true. 도착할 때까지 테이블에 부르지 않습니다. */
+  absent: boolean;
 };
 
 /**
@@ -250,6 +251,7 @@ export type QueueItem = {
  * 두 참가자가 마지막 경기를 마친 때가 이른 경기부터, 같으면 예선 → 본선, 차례 → 종목 → 조 순서입니다.
  */
 export function waitingQueue(draw: Draw, contexts = draw.events.map(eventContext)): QueueItem[] {
+  const isPresent = presence(draw);
   const busyPeople = new Set<string>();
   const lastDone = new Map<string, string>();
   const ready: { context: EventContext; match: DrawMatch; order: number[] }[] = [];
@@ -292,9 +294,18 @@ export function waitingQueue(draw: Draw, contexts = draw.events.map(eventContext
         context.event.startedAt ?? "",
         ...pair.map((id) => lastDone.get(`${context.event.id}:${id}`) ?? ""),
       ].sort()[2];
-      const people = peopleOf(pair.map((id) => context.entryById.get(id)));
+      const entries = pair.map((id) => context.entryById.get(id));
+      const people = peopleOf(entries);
+      const absent =
+        Boolean(context.event.checkIn) && entries.some((entry) => !entry || !isPresent(entry));
       return {
-        item: { event: context.event, match, since, busy: people.some((p) => busyPeople.has(p)) },
+        item: {
+          event: context.event,
+          match,
+          since,
+          busy: people.some((p) => busyPeople.has(p)),
+          absent,
+        },
         order,
       };
     })
@@ -317,6 +328,7 @@ export const cloneDraw = (draw: Draw): Draw => structuredClone(draw);
  * - 빈 테이블에는 기다리는 경기를 차례대로 부릅니다. 다른 테이블에서 경기 중인 선수가 있는 경기는 건너뜁니다.
  */
 export function settle(draw: Draw, now: string): void {
+  applyForfeits(draw, now);
   let contexts = draw.events.map(eventContext);
   const occupied = new Set<number>();
 
@@ -359,7 +371,8 @@ export function settle(draw: Draw, now: string): void {
 
   for (let table = 1; table <= draw.tables; table++) {
     if (occupied.has(table)) continue;
-    const index = queue.findIndex(({ event, match }) => {
+    const index = queue.findIndex(({ event, match, absent }) => {
+      if (absent) return false;
       const context = contexts[draw.events.indexOf(event)];
       const people = peopleOf(context.pairOf(match)!.map((id) => context.entryById.get(id)));
       return !people.some((p) => busyPeople.has(p));
@@ -373,6 +386,35 @@ export function settle(draw: Draw, now: string): void {
     match.calledAt = now;
     occupied.add(table);
     peopleOf(pair.map((id) => context.entryById.get(id))).forEach((p) => busyPeople.add(p));
+  }
+}
+
+/**
+ * 불참 처리한 팀(absent: "forfeit")의 남은 경기를 상대의 기권승으로 적습니다.
+ * 본선에서는 기권승으로 다음 경기가 정해지므로, 더 바뀌지 않을 때까지 되풀이합니다.
+ */
+function applyForfeits(draw: Draw, now: string): void {
+  for (const event of draw.events) {
+    if (event.status !== "live") continue;
+    if (!event.entries.some((entry) => entry.absent === "forfeit")) continue;
+    for (let pass = 0; pass < 12; pass++) {
+      const context = eventContext(event);
+      let changed = false;
+      for (const match of event.matches) {
+        if (context.stateOf(match) === "done") continue;
+        const pair = context.pairOf(match);
+        if (!pair) continue;
+        const [a, b] = pair.map((id) => context.entryById.get(id)?.absent === "forfeit");
+        if (!a && !b) continue;
+        match.walkover = a ? "b" : "a";
+        match.forfeit = true;
+        match.finishedAt = now;
+        delete match.sets;
+        delete match.points;
+        changed = true;
+      }
+      if (!changed) break;
+    }
   }
 }
 

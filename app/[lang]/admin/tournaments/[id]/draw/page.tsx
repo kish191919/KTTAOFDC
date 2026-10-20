@@ -41,6 +41,7 @@ export default async function DrawAdminPage({ params }: Props) {
           initial={{ draw, scoring: canVisitorsScore(draw, tournament, today()) }}
           renderedAt={new Date().toISOString()}
           publicHref={`/tournaments/${id}/bracket`}
+          checkInHref={`/admin/tournaments/${id}/checkin`}
         />
       ) : (
         <form action={createDrawAction.bind(null, id)} className="card max-w-2xl p-6">
