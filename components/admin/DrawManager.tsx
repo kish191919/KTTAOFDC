@@ -16,9 +16,10 @@ import {
   usesCheckIn,
 } from "@/lib/draw/roster";
 import { groupLetter, isByeMatch, type DrawPayload } from "@/lib/draw/view";
+import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { DrawBoard } from "@/components/draw/DrawBoard";
-import { clockTime } from "@/components/draw/labels";
+import { clockTime, formatLabel } from "@/components/draw/labels";
 import { useLiveDraw } from "@/components/draw/useLiveDraw";
 import {
   ArrowRightIcon,
@@ -72,7 +73,7 @@ function reveal(element: HTMLElement | null) {
 /** 종목의 끝난 경기 수와 전체 경기 수 (부전승은 빼고 셉니다) */
 function progressOf(event: DrawEvent) {
   const real = event.matches.filter((m) => !isByeMatch(m));
-  return { done: real.filter((m) => winnerOf(m, event.bestOf)).length, total: real.length };
+  return { done: real.filter((m) => winnerOf(m, event)).length, total: real.length };
 }
 
 /**
@@ -859,6 +860,10 @@ function PlayerEditRow({
 
 // ───────────────────────── 종목 설정 ─────────────────────────
 
+/** 대진표 화면과 같은 경기 방식 이름 ("5세트 3선승") */
+const drawText = getDictionary("ko").draw;
+const BEST_OF = [3, 5, 7];
+
 const DEFAULT_SETTINGS: EventSettings = {
   name: "",
   doubles: true,
@@ -877,13 +882,15 @@ function SettingsForm({
   initial: EventSettings;
   submitLabel: string;
   busy: boolean;
-  /** 경기를 시작한 종목은 이름만 고칩니다. */
+  /** 경기를 시작한 종목은 이름과 경기 방식만 고칩니다. */
   locked?: boolean;
   onSubmit: (settings: EventSettings) => Promise<unknown>;
 }) {
   const [value, setValue] = useState(initial);
   const set = <K extends keyof EventSettings>(key: K, v: EventSettings[K]) =>
     setValue((current) => ({ ...current, [key]: v }));
+  // 본선 방식이 예선과 같으면 따로 정하지 않은 것으로 봅니다. (서버도 같은 값은 지웁니다)
+  const split = Boolean(value.knockoutBestOf) && value.knockoutBestOf !== value.bestOf;
 
   return (
     <form
@@ -926,19 +933,6 @@ function SettingsForm({
         </select>
       </label>
       <label className="block">
-        <span className="label">경기 방식</span>
-        <select
-          className="field"
-          disabled={locked}
-          value={value.bestOf}
-          onChange={(e) => set("bestOf", Number(e.target.value))}
-        >
-          <option value={3}>3세트 2선승</option>
-          <option value={5}>5세트 3선승</option>
-          <option value={7}>7세트 4선승</option>
-        </select>
-      </label>
-      <label className="block">
         <span className="label">예선 한 조 인원</span>
         <select
           className="field"
@@ -965,6 +959,57 @@ function SettingsForm({
           <option value={1}>1위만</option>
         </select>
       </label>
+      {/* 경기 방식은 경기 중인 종목에서도 바꿀 수 있습니다. (바뀌는 경기에 점수가 있으면 서버가 거절합니다) */}
+      <div className="rounded-xl bg-slate-50 p-4 sm:col-span-2">
+        <p className="text-sm font-bold text-slate-700">경기 방식</p>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <label className="block">
+            <span className="label">예선</span>
+            <select className="field" value={value.bestOf} onChange={(e) => set("bestOf", Number(e.target.value))}>
+              {BEST_OF.map((n) => (
+                <option key={n} value={n}>
+                  {drawText.bestOf(n)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">본선</span>
+            <select
+              className="field"
+              value={value.knockoutBestOf ?? 0}
+              onChange={(e) => set("knockoutBestOf", Number(e.target.value) || undefined)}
+            >
+              <option value={0}>예선과 같게</option>
+              {BEST_OF.map((n) => (
+                <option key={n} value={n}>
+                  {drawText.bestOf(n)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">언제부터</span>
+            <select
+              className="field"
+              disabled={!split}
+              value={split ? (value.knockoutFrom ?? 0) : 0}
+              onChange={(e) => set("knockoutFrom", Number(e.target.value) || undefined)}
+            >
+              <option value={0}>본선 처음부터</option>
+              <option value={16}>16강부터</option>
+              <option value={8}>8강부터</option>
+              <option value={4}>준결승부터</option>
+              <option value={2}>결승만</option>
+            </select>
+          </label>
+        </div>
+        <p className="mt-3 text-sm break-keep text-slate-500">
+          {split
+            ? `${formatLabel({ ...value, matches: [], status: "setup" }, drawText)}으로 칩니다.`
+            : "본선이나 결승만 길게 치려면 본선 경기 방식을 골라 주세요. (예: 예선 3세트 2선승, 8강부터 5세트 3선승)"}
+        </p>
+      </div>
       <div className="sm:col-span-2">
         <button type="submit" disabled={busy} className="btn btn-brand btn-sm">
           {submitLabel}
@@ -1037,6 +1082,8 @@ function EventPanel({
     ...(event.nameEn ? { nameEn: event.nameEn } : {}),
     doubles: event.doubles,
     bestOf: event.bestOf,
+    ...(event.knockoutBestOf ? { knockoutBestOf: event.knockoutBestOf } : {}),
+    ...(event.knockoutFrom ? { knockoutFrom: event.knockoutFrom } : {}),
     groupSize: event.groupSize,
     advance: event.advance,
   };
@@ -1081,7 +1128,7 @@ function EventPanel({
             </span>
           </span>
         }
-        description={`${event.doubles ? "복식" : "단식"} · ${event.bestOf}세트 ${Math.floor(event.bestOf / 2) + 1}선승 · 참가 ${playing}${unit}${
+        description={`${event.doubles ? "복식" : "단식"} · ${formatLabel(event, drawText)} · 참가 ${playing}${unit}${
           event.groups.length > 0 ? ` · ${event.groups.length}개 조` : ""
         }${event.nameEn ? ` · 영어 이름 ${event.nameEn}` : ""}`}
       >
@@ -1101,7 +1148,11 @@ function EventPanel({
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="font-black text-brand-950">종목 설정</h3>
-              {live && <p className="mt-1 text-sm text-slate-500">경기를 시작한 종목은 이름만 바꿀 수 있습니다.</p>}
+              {live && (
+                <p className="mt-1 text-sm break-keep text-slate-500">
+                  경기를 시작한 종목은 이름과 경기 방식만 바꿀 수 있습니다. 경기 방식은 바뀌는 라운드에 아직 점수가 없을 때만 바뀝니다.
+                </p>
+              )}
             </div>
             <button
               type="button"

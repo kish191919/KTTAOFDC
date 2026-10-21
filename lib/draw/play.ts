@@ -10,11 +10,27 @@ export type Side = "a" | "b";
 /** 이기려면 몇 게임이 필요한지 (5게임 경기 → 3) */
 export const gamesToWin = (bestOf: number) => Math.floor(bestOf / 2) + 1;
 
+/** 경기 방식을 정하는 종목 정보 */
+export type EventFormat = Pick<DrawEvent, "bestOf" | "knockoutBestOf" | "knockoutFrom" | "matches">;
+
+/** 본선 라운드에 오른 인원. 결승이 2 입니다. */
+export function roundSize(event: Pick<DrawEvent, "matches">, round: number): number {
+  const first = event.matches.filter((m) => m.stage === "knockout" && m.round === 0).length * 2;
+  return first / 2 ** round;
+}
+
+/** 이 경기가 몇 게임 경기인지. 본선은 종목에서 정한 라운드부터 knockoutBestOf 로 칩니다. */
+export function matchBestOf(event: EventFormat, match: DrawMatch): number {
+  if (match.stage !== "knockout" || !event.knockoutBestOf) return event.bestOf;
+  if (!event.knockoutFrom || roundSize(event, match.round) <= event.knockoutFrom) return event.knockoutBestOf;
+  return event.bestOf;
+}
+
 /** 경기를 이긴 쪽. 아직 끝나지 않았으면 undefined */
-export function winnerOf(match: DrawMatch, bestOf: number): Side | undefined {
+export function winnerOf(match: DrawMatch, event: EventFormat): Side | undefined {
   if (match.walkover) return match.walkover;
   const [a, b] = match.sets ?? [0, 0];
-  const need = gamesToWin(bestOf);
+  const need = gamesToWin(matchBestOf(event, match));
   if (a >= need) return "a";
   if (b >= need) return "b";
   return undefined;
@@ -64,14 +80,14 @@ export function eventContext(event: DrawEvent) {
     event.matches.filter((m) => m.stage === "group" && m.group === group);
 
   const groupComplete = (group: number) =>
-    groupMatches(group).every((m) => winnerOf(m, event.bestOf));
+    groupMatches(group).every((m) => winnerOf(m, event));
 
   function standings(group: number): Standing[] {
     const cached = standingCache.get(group);
     if (cached) return cached;
 
     const members = event.groups[group] ?? [];
-    const done = groupMatches(group).filter((m) => winnerOf(m, event.bestOf));
+    const done = groupMatches(group).filter((m) => winnerOf(m, event));
     const blank = (entry: string): Standing => ({
       entry,
       rank: 0,
@@ -93,11 +109,11 @@ export function eventContext(event: DrawEvent) {
         const ra = rows.get(a);
         const rb = rows.get(b);
         if (!ra || !rb) continue;
-        const winner = winnerOf(m, event.bestOf);
+        const winner = winnerOf(m, event);
         const [sa, sb] = m.walkover
           ? m.walkover === "a"
-            ? [gamesToWin(event.bestOf), 0]
-            : [0, gamesToWin(event.bestOf)]
+            ? [gamesToWin(matchBestOf(event, m)), 0]
+            : [0, gamesToWin(matchBestOf(event, m))]
           : (m.sets ?? [0, 0]);
         ra.played += 1;
         rb.played += 1;
@@ -141,7 +157,7 @@ export function eventContext(event: DrawEvent) {
             [m.a.entry, m.b.entry].includes(y),
         );
         if (between) {
-          const winner = winnerOf(between, event.bestOf);
+          const winner = winnerOf(between, event);
           const first = winner === "a" ? (between.a as { entry: string }).entry : (between.b as { entry: string }).entry;
           return first === x ? [x, y] : [y, x];
         }
@@ -198,7 +214,7 @@ export function eventContext(event: DrawEvent) {
     // 부전승 경기는 상대가 정해지는 대로 그 참가자가 올라갑니다.
     if ("bye" in a) return b;
     if ("bye" in b) return a;
-    const winner = winnerOf(previous, event.bestOf);
+    const winner = winnerOf(previous, event);
     if (!winner) return { pending: true };
     return winner === "a" ? a : b;
   }
@@ -214,7 +230,7 @@ export function eventContext(event: DrawEvent) {
   function stateOf(match: DrawMatch): MatchState {
     const [a, b] = participants(match);
     if ("bye" in a || "bye" in b) return "bye";
-    if (winnerOf(match, event.bestOf)) return "done";
+    if (winnerOf(match, event)) return "done";
     if ("entry" in a && "entry" in b) return match.table || isStarted(match) ? "playing" : "ready";
     return "pending";
   }
@@ -800,7 +816,7 @@ export function applyScore(
   if (state === "pending" || state === "bye") return { error: "notReady" };
   if (request.input?.kind === "clear" && !admin) return { error: "sets" };
 
-  const read = readScore(request.input, event.bestOf);
+  const read = readScore(request.input, matchBestOf(event, match));
   if ("error" in read) return read;
   if (resultKey(match) !== request.previous) {
     // 다른 사람이 먼저 같은 결과를 적었으면 그대로 둡니다.
@@ -811,16 +827,16 @@ export function applyScore(
   // 이미 시작한 다른 경기의 참가자가 바뀌는지 미리 확인합니다.
   const startedPairs = new Map(
     event.matches
-      .filter((m) => m.id !== match.id && (isStarted(m) || winnerOf(m, event.bestOf)))
+      .filter((m) => m.id !== match.id && (isStarted(m) || winnerOf(m, event)))
       .map((m) => [m.id, JSON.stringify(before.pairOf(m))]),
   );
 
-  const wasDone = Boolean(winnerOf(match, event.bestOf));
+  const wasDone = Boolean(winnerOf(match, event));
   delete match.sets;
   delete match.points;
   delete match.walkover;
   Object.assign(match, read.ok);
-  const isDone = Boolean(winnerOf(match, event.bestOf));
+  const isDone = Boolean(winnerOf(match, event));
   if (isDone && !wasDone) match.finishedAt = now;
   if (!isDone) delete match.finishedAt;
 

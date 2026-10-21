@@ -13,6 +13,21 @@ type T = Dictionary["draw"];
 export const eventName = (event: DrawEvent, lang: Locale) =>
   (lang === "en" && event.nameEn) || event.name;
 
+/**
+ * 종목의 경기 방식 "5세트 3선승" · "3세트 2선승 · 8강부터 5세트 3선승".
+ * 본선 방식을 따로 정했어도 본선 없이 리그로 끝나는 종목이면 한 가지만 씁니다.
+ */
+export function formatLabel(
+  event: Pick<DrawEvent, "bestOf" | "knockoutBestOf" | "knockoutFrom" | "matches" | "status">,
+  t: T,
+): string {
+  const knockout = event.matches.some((m) => m.stage === "knockout");
+  if (!event.knockoutBestOf || (event.status === "live" && !knockout)) return t.bestOf(event.bestOf);
+  // 본선 첫 라운드부터 바뀌면 본선 전체로 적습니다. (8강부터로 정했는데 본선이 준결승부터인 경우)
+  const from = knockout && roundSize(event, 0) <= (event.knockoutFrom ?? 0) ? undefined : event.knockoutFrom;
+  return t.splitFormat(event.bestOf, event.knockoutBestOf, from);
+}
+
 /** "A조" · "8강 1경기" · "결승". 예선 경기는 순서가 자유라 번호를 붙이지 않습니다. */
 export function matchLabel(event: DrawEvent, match: DrawMatch, t: T): string {
   if (match.stage === "group") return t.group(groupLetter(match.group ?? 0));

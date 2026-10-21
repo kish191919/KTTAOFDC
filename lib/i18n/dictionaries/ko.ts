@@ -151,8 +151,8 @@ export const ko = {
     findHint: "이름을 적으면 내 경기와 경기할 테이블이 나옵니다.",
     /** 경기를 눌러 점수를 입력할 수 있다는 안내 (점수 입력을 할 수 있을 때만) */
     tapToScore: "경기가 끝나면 그 경기를 눌러 점수를 입력해 주세요.",
-    /** 조별 예선의 같은 안내. 조 경기는 조 카드 아래 테이블을 눌러야 펼쳐집니다. */
-    tapTableToScore: "경기가 끝나면 조 아래의 테이블을 눌러 그 경기를 찾아 점수를 입력해 주세요.",
+    /** 조별 예선의 같은 안내. 순위표에서 팀을 누르면 그 팀의 경기만 펼쳐집니다. */
+    tapTeamToScore: "경기가 끝나면 순위표에서 우리 팀을 눌러 그 경기의 점수를 입력해 주세요.",
     viewsLabel: "대진표 보기 선택",
     tablesTab: "테이블 현황",
     table: (n: number) => `${n}번 테이블`,
@@ -203,6 +203,13 @@ export const ko = {
     advances: "본선 진출",
     withdrawn: "불참",
     bestOf: (n: number) => `${n}세트 ${Math.floor(n / 2) + 1}선승`,
+    /** 본선을 다른 방식으로 치는 종목의 경기 방식. from 은 바뀌는 라운드에 오른 인원이고, 비어 있으면 본선 전체입니다. */
+    splitFormat: (group: number, knockout: number, from?: number) => {
+      const format = (n: number) => `${n}세트 ${Math.floor(n / 2) + 1}선승`;
+      if (!from) return `예선 ${format(group)} · 본선 ${format(knockout)}`;
+      const round = from <= 2 ? "결승" : from === 4 ? "준결승부터" : `${from}강부터`;
+      return `${format(group)} · ${round} ${format(knockout)}`;
+    },
     state: {
       done: "종료",
       playing: "경기 중",

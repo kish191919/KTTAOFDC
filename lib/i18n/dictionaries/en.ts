@@ -137,7 +137,7 @@ export const en: Dictionary = {
     findClear: "Clear",
     findHint: "Type your name to see your matches and table.",
     tapToScore: "When a match ends, tap it to enter the score.",
-    tapTableToScore: "When a match ends, tap your table under the group, find the match, and enter the score.",
+    tapTeamToScore: "When a match ends, tap your team in the standings and enter the score.",
     viewsLabel: "Choose a view",
     tablesTab: "Tables",
     table: (n) => `Table ${n}`,
@@ -181,6 +181,18 @@ export const en: Dictionary = {
     advances: "Advances",
     withdrawn: "Withdrawn",
     bestOf: (n) => `Best of ${n}`,
+    splitFormat: (group, knockout, from) => {
+      if (!from) return `Best of ${group} in the group stage · Best of ${knockout} in the knockout stage`;
+      const round =
+        from <= 2
+          ? "in the final"
+          : from === 4
+            ? "from the semifinals"
+            : from === 8
+              ? "from the quarterfinals"
+              : `from the round of ${from}`;
+      return `Best of ${group} · Best of ${knockout} ${round}`;
+    },
     state: {
       done: "Final",
       playing: "In play",

@@ -1,6 +1,7 @@
 import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { parseEntries, parsePeople } from "./entries";
-import { cloneDraw, eventContext, fillGroupTables, isStarted, settle, winnerOf } from "./play";
+import { ko } from "@/lib/i18n/dictionaries/ko";
+import { cloneDraw, eventContext, fillGroupTables, isStarted, matchBestOf, roundSize, settle, winnerOf } from "./play";
 import {
   MAX_PLAYERS,
   personKey,
@@ -28,9 +29,17 @@ export type EventSettings = {
   nameEn?: string;
   doubles: boolean;
   bestOf: number;
+  /** 본선을 다른 방식으로 칠 때 그 방식. 비어 있으면 본선도 bestOf 입니다. */
+  knockoutBestOf?: number;
+  /** knockoutBestOf 로 치기 시작하는 라운드에 오른 인원 (2 = 결승만, 8 = 8강부터). 비어 있으면 본선 전체입니다. */
+  knockoutFrom?: number;
   groupSize: number;
   advance: number;
 };
+
+const BEST_OF = [3, 5, 7];
+/** 본선 방식을 쓰기 시작할 수 있는 라운드 (그 라운드에 오른 인원) */
+const KNOCKOUT_FROM = [16, 8, 4, 2];
 
 export type DrawOp =
   | { op: "settings"; tables: number; scoringOpen: boolean; checkIn?: boolean }
@@ -86,14 +95,26 @@ function readSettings(op: Record<string, unknown>): EventSettings | string {
   if (!name) return "종목 이름을 입력해 주세요.";
   const nameEn = typeof op.nameEn === "string" ? op.nameEn.trim().slice(0, MAX_EVENT_NAME) : "";
   if (typeof op.doubles !== "boolean") return "단식·복식을 골라 주세요.";
-  if (op.bestOf !== 3 && op.bestOf !== 5 && op.bestOf !== 7) return "경기 방식을 골라 주세요.";
+  if (typeof op.bestOf !== "number" || !BEST_OF.includes(op.bestOf)) return "경기 방식을 골라 주세요.";
+  const knockoutBestOf = op.knockoutBestOf ?? 0;
+  const knockoutFrom = op.knockoutFrom ?? 0;
+  if (typeof knockoutBestOf !== "number" || (knockoutBestOf !== 0 && !BEST_OF.includes(knockoutBestOf))) {
+    return "본선 경기 방식을 골라 주세요.";
+  }
+  if (typeof knockoutFrom !== "number" || (knockoutFrom !== 0 && !KNOCKOUT_FROM.includes(knockoutFrom))) {
+    return "본선 방식을 쓸 라운드를 골라 주세요.";
+  }
   if (!isInt(op.groupSize, 3, 6)) return "조 인원은 3~6 사이로 골라 주세요.";
   if (!isInt(op.advance, 1, 2)) return "본선 진출 인원은 1명 또는 2명입니다.";
+  // 본선 방식이 예선과 같으면 따로 적지 않습니다.
+  const split = knockoutBestOf !== 0 && knockoutBestOf !== op.bestOf;
   return {
     name,
     ...(nameEn ? { nameEn } : {}),
     doubles: op.doubles,
     bestOf: op.bestOf,
+    ...(split ? { knockoutBestOf } : {}),
+    ...(split && knockoutFrom ? { knockoutFrom } : {}),
     groupSize: op.groupSize,
     advance: op.advance,
   };
@@ -252,20 +273,35 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       if (typeof settings === "string") return { error: settings };
       const structural =
         settings.doubles !== event.doubles ||
-        settings.bestOf !== event.bestOf ||
         settings.groupSize !== event.groupSize ||
         settings.advance !== event.advance;
       if (live && structural) return { error: LIVE_LOCKED };
       if (settings.doubles !== event.doubles && event.entries.length > 0) {
         return { error: "단식·복식을 바꾸려면 참가 팀을 먼저 비워 주세요." };
       }
+      // 경기 중인 종목도 경기 방식은 바꿀 수 있습니다. 다만 방식이 바뀌는 경기에 이미 점수가 있으면 거절합니다.
+      const format = {
+        bestOf: settings.bestOf,
+        knockoutBestOf: settings.knockoutBestOf,
+        knockoutFrom: settings.knockoutFrom,
+        matches: event.matches,
+      };
+      const changed = event.matches.find((m) => isStarted(m) && matchBestOf(event, m) !== matchBestOf(format, m));
+      if (changed) {
+        const stage = changed.stage === "group" ? "예선" : ko.draw.round(roundSize(event, changed.round));
+        return { error: `${stage} 경기를 이미 시작해 ${stage} 경기 방식은 바꿀 수 없습니다.` };
+      }
       if (settings.groupSize !== event.groupSize) event.groups = [];
       event.name = settings.name;
       if (settings.nameEn) event.nameEn = settings.nameEn;
       else delete event.nameEn;
+      delete event.knockoutBestOf;
+      delete event.knockoutFrom;
       Object.assign(event, {
         doubles: settings.doubles,
         bestOf: settings.bestOf,
+        ...(settings.knockoutBestOf ? { knockoutBestOf: settings.knockoutBestOf } : {}),
+        ...(settings.knockoutFrom ? { knockoutFrom: settings.knockoutFrom } : {}),
         groupSize: settings.groupSize,
         advance: settings.advance,
       });
@@ -432,7 +468,7 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
         );
         const started = new Map(
           event.matches
-            .filter((m) => !touched.has(m.id) && (isStarted(m) || winnerOf(m, event.bestOf)))
+            .filter((m) => !touched.has(m.id) && (isStarted(m) || winnerOf(m, event)))
             .map((m) => [m.id, JSON.stringify(before.pairOf(m))]),
         );
         delete entry.absent;

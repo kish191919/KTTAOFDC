@@ -1,5 +1,7 @@
-import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
+import type { Draw, DrawMatch } from "@/lib/types";
 import { winnerOf, type EventContext, type TableBoard } from "./play";
+
+export { roundSize } from "./play";
 
 // 화면에 보여 줄 때 필요한 계산 (최종 순위, 참가자별 지금 상태).
 
@@ -11,12 +13,6 @@ export type DrawPayload = {
 };
 
 export const groupLetter = (group: number) => String.fromCharCode(65 + group);
-
-/** 본선 라운드에 오른 인원. 결승이 2 입니다. */
-export function roundSize(event: DrawEvent, round: number): number {
-  const first = event.matches.filter((m) => m.stage === "knockout" && m.round === 0).length * 2;
-  return first / 2 ** round;
-}
 
 /** 본선 첫 라운드에서 한쪽이 부전승인 경기 */
 export const isByeMatch = (match: DrawMatch) => "bye" in match.a || "bye" in match.b;
@@ -47,7 +43,7 @@ export function podium(context: EventContext): Podium | null {
   const last = Math.max(...knockout.map((m) => m.round));
   const result: Podium = { thirds: [], league: false };
   const loserOf = (match: DrawMatch) => {
-    const winner = winnerOf(match, event.bestOf);
+    const winner = winnerOf(match, event);
     const pair = context.pairOf(match);
     if (!winner || !pair) return null;
     return { won: pair[winner === "a" ? 0 : 1], lost: pair[winner === "a" ? 1 : 0] };
@@ -137,7 +133,7 @@ export function entryStatus(
   const lost = event.matches.find((m) => {
     if (m.stage !== "knockout" || isByeMatch(m)) return false;
     const pair = context.pairOf(m);
-    const winner = winnerOf(m, event.bestOf);
+    const winner = winnerOf(m, event);
     return pair && winner && pair[winner === "a" ? 1 : 0] === entryId;
   });
   if (lost) return { kind: "outRound", round: lost.round };

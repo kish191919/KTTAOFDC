@@ -203,8 +203,12 @@ export type DrawEvent = {
   name: string;
   nameEn?: string;
   doubles: boolean;
-  /** 몇 게임 경기인지 (3 · 5 · 7). 과반을 먼저 이기면 이깁니다. */
+  /** 몇 게임 경기인지 (3 · 5 · 7). 과반을 먼저 이기면 이깁니다. 본선 방식을 따로 정하지 않으면 모든 경기가 이 방식입니다. */
   bestOf: number;
+  /** 본선을 다른 방식으로 칠 때 그 방식 (3 · 5 · 7). 비어 있으면 본선도 bestOf 입니다. (lib/draw/play.ts 의 matchBestOf) */
+  knockoutBestOf?: number;
+  /** knockoutBestOf 로 치기 시작하는 라운드에 오른 인원 (2 = 결승만, 4 = 준결승부터, 8 = 8강부터). 비어 있으면 본선 전체입니다. */
+  knockoutFrom?: number;
   /** 예선 한 조의 인원. 나누어떨어지지 않으면 한 명 적은 조가 생깁니다. */
   groupSize: number;
   /** 조마다 본선에 오르는 인원 */

@@ -6,6 +6,7 @@ import { setDrawTableAction, submitDrawScoreAction } from "@/lib/actions";
 import {
   gamesToWin,
   isValidGame,
+  matchBestOf,
   occupantKey,
   resultKey,
   setsFromPoints,
@@ -70,7 +71,9 @@ export function ScoreDialog({
   onClose,
 }: Props) {
   const t = getDictionary(lang).draw;
-  const need = gamesToWin(event.bestOf);
+  // 본선 방식을 따로 정한 종목은 경기마다 방식이 다릅니다.
+  const bestOf = matchBestOf(event, match);
+  const need = gamesToWin(bestOf);
   const state = context.stateOf(match);
   const canEdit = (scoring || admin) && state !== "pending" && state !== "bye";
 
@@ -78,7 +81,7 @@ export function ScoreDialog({
     match.walkover ? "walkover" : match.sets && !match.points ? "sets" : "points",
   );
   const [rows, setRows] = useState<string[][]>(() => {
-    const rows = emptyRows(event.bestOf);
+    const rows = emptyRows(bestOf);
     (match.points ?? []).forEach(([a, b], i) => (rows[i] = [String(a), String(b)]));
     return rows;
   });
@@ -114,7 +117,7 @@ export function ScoreDialog({
     }
     games.push(game);
   }
-  const pointSets = setsFromPoints(games, event.bestOf) ?? [0, 0];
+  const pointSets = setsFromPoints(games, bestOf) ?? [0, 0];
   const decided = pointSets[0] >= need || pointSets[1] >= need;
 
   const shown =
@@ -264,7 +267,7 @@ export function ScoreDialog({
 
   return (
     <Dialog
-      eyebrow={`${eventName(event, lang)} · ${t.bestOf(event.bestOf)}`}
+      eyebrow={`${eventName(event, lang)} · ${t.bestOf(bestOf)}`}
       title={
         <>
           {matchLabel(event, match, t)}
