@@ -557,8 +557,8 @@ function StatusLine({
           ? status.table
             ? t.status.playingAt(t.table(status.table))
             : t.status.playing
-          : status.table
-            ? t.status.nextAt(t.table(status.table))
+          : status.tables
+            ? t.status.nextAt(t.tables(status.tables))
             : t.status.nextFree;
       return (
         <div className="px-4 pt-1.5 pb-3">
@@ -628,13 +628,20 @@ function TablesView({
   const t = getDictionary(lang).draw;
   const queued = new Set(board.queue.map((item) => item.match));
   const hasGroups = board.tables.some((slot) => slot.groups.length > 0);
+  // 테이블을 둘 이상 쓰는 조 (4팀 조)
+  const shared = board.tables.some((slot) =>
+    slot.groups.some(({ event, group }) => board.groupTables(event, group).length > 1),
+  );
 
   return (
     <div className="space-y-8">
       <section aria-label={t.tablesTab}>
         {hasGroups && (
           <div className="mb-3">
-            <Guide t={t}>{t.groupTableHint}</Guide>
+            <Guide t={t}>
+              {t.groupTableHint}
+              {shared && ` ${t.sharedTableHint}`}
+            </Guide>
           </div>
         )}
         <ul className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -928,7 +935,7 @@ function GroupCard({
 }) {
   const t = getDictionary(lang).draw;
   const rows = context.standings(group);
-  const table = board.groupTable(event, group);
+  const tables = board.groupTables(event, group);
   const complete = context.groupComplete(group);
   const advancing = event.groups.length > 1;
   /** 순위표에서 눌러 경기를 펼친 팀 */
@@ -947,21 +954,24 @@ function GroupCard({
       })
       .sort((x, y) => seat(x.other) - seat(y.other));
   // 조 테이블에서 경기 중인지. 다른 테이블로 옮겨 치는 경기는 그 줄에 테이블 번호로 따로 적습니다.
-  const playing = matches.some((match) => context.stateOf(match) === "playing" && board.tableOf(match) === table);
+  const playing = matches.some((match) => {
+    const at = board.tableOf(match);
+    return context.stateOf(match) === "playing" && at !== undefined && tables.includes(at);
+  });
 
   return (
     <article className="card overflow-hidden">
       {/* 조 이름과 이 조가 쓰는 테이블. 그 테이블에서 경기 중이면 빨간 점이 깜박입니다. */}
       <div className="flex items-center justify-between gap-3 bg-brand-50 px-4 py-2.5">
         <h3 className="font-black text-brand-900">{t.group(groupLetter(group))}</h3>
-        {table && (
+        {tables.length > 0 && (
           <span
             className={`inline-flex items-center gap-1.5 text-xs font-bold ${
               playing ? "text-accent-700" : "text-brand-700"
             }`}
           >
             {playing && <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />}
-            {t.table(table)}
+            {t.tables(tables)}
           </span>
         )}
       </div>
@@ -1046,8 +1056,9 @@ function GroupCard({
                                 t={t}
                                 onOpen={onOpen}
                                 team={row.entry}
-                                // 조 테이블은 제목 줄에 있으니, 다른 테이블로 옮겨 칠 때만 적습니다.
-                                table={at !== table ? at : undefined}
+                                // 조 테이블이 하나면 제목 줄에 있으니, 다른 테이블로 옮겨 칠 때만 적습니다.
+                                // 테이블을 둘 쓰는 조는 어느 테이블인지 늘 적습니다.
+                                table={tables.length === 1 && at === tables[0] ? undefined : at}
                                 scorable={canScore}
                               />
                             </li>

@@ -163,10 +163,13 @@ export const ko = {
     viewsLabel: "대진표 보기 선택",
     tablesTab: "테이블 현황",
     table: (n: number) => `${n}번 테이블`,
+    /** 한 조가 쓰는 테이블들 (4팀 조는 둘) */
+    tables: (ns: number[]) => `${ns.join("·")}번 테이블`,
     tableOpen: "비어 있음",
     /** 조 테이블 카드: 그 조의 아직 치지 않은 경기 */
     remaining: (n: number) => `남은 경기 ${n}`,
     groupTableHint: "조 경기는 순서가 자유입니다. 테이블의 ‘경기 시작’을 눌러 칠 경기를 고르면 모두에게 보입니다.",
+    sharedTableHint: "4팀 조는 겹치지 않는 두 경기를 테이블 두 곳에서 함께 칩니다.",
     /** 경기가 없는 테이블 카드의 버튼과 고르기 창 */
     startMatch: "경기 시작",
     pickTitle: (table: string) => `${table}에서 칠 경기`,

@@ -35,7 +35,7 @@ type Props = {
   context: EventContext;
   /** 방문자가 점수를 입력할 수 있는 때인지 */
   scoring: boolean;
-  /** 관리자 화면에서 열었으면 결과 지우기를 보여 주고, 테이블은 제한 없이 고릅니다. */
+  /** 관리자 화면에서 열었으면 결과 지우기와 테이블 칸을 보여 주고, 테이블은 제한 없이 고릅니다. */
   admin: boolean;
   /** 화면이 그리는 대진표와 테이블 현황 (테이블 칸에서 고를 수 있는 테이블을 계산합니다) */
   draw: Draw;
@@ -219,7 +219,9 @@ export function ScoreDialog({
 
   // 경기 중인 테이블 (시작을 누르지 않고 점수만 넣은 예선 경기는 그 조의 테이블)
   const shownTable = state === "playing" ? board.tableOf(match) : undefined;
-  const showTables = canEdit && state !== "done" && draw.tables > 0;
+  // 테이블에 올리기는 대회 운영 일이라 관리자 화면에만 둡니다. 선수는 창을 열면 바로 점수를 적고,
+  // 테이블은 테이블 현황의 '경기 시작'으로 올립니다. 경기 중인 경기를 옮기는 제목의 테이블 표시는 누구나 씁니다.
+  const showTables = canEdit && state !== "done" && draw.tables > 0 && (admin || Boolean(shownTable));
   const choices = showTables ? tableChoices(draw, board, event, match, admin, contexts) : null;
   // 경기 중인 경기는 제목의 테이블 표시를 눌러 다른 빈 테이블로 옮깁니다. (조 테이블로 돌아가기 포함)
   const moveChoices =
@@ -417,7 +419,7 @@ export function ScoreDialog({
         <p className="mt-2 text-sm text-slate-500">{pointsText(match, flip)}</p>
       )}
 
-      {/* 테이블: 아직 테이블에 없는 경기를 어느 테이블에서 칠지. 시작을 누르면 모두의 화면에 경기 중으로 보입니다.
+      {/* 테이블 (관리자 화면만): 아직 테이블에 없는 경기를 어느 테이블에서 칠지. 시작을 누르면 모두의 화면에 경기 중으로 보입니다.
           테이블에 있는 경기는 제목의 테이블 표시로 옮깁니다. */}
       {choices && !shownTable && (
         <section aria-label={t.start.title} className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">

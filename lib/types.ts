@@ -221,6 +221,11 @@ export type DrawEvent = {
    * 대진을 확정할 때 정하고, 비어 있으면 lib/draw/play.ts 의 fillGroupTables 가 채웁니다.
    */
   groupTables?: number[];
+  /**
+   * 조마다 조 테이블 말고 함께 쓰는 테이블 (0번 칸이 A조). 4팀 조는 두 경기를 동시에 칠 수 있어 남는 테이블을 하나 더 씁니다.
+   * 비어 있으면(이 칸이 생기기 전의 대진표 포함) fillGroupTables 가 남는 테이블로 채웁니다. 빈 배열은 더 쓰지 않는 조입니다.
+   */
+  extraTables?: number[][];
   /** setup: 참가자 등록·조 편성 중, live: 경기 진행 중 */
   status: "setup" | "live";
   matches: DrawMatch[];

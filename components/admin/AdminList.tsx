@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { HiddenToggle } from "@/components/admin/HiddenControls";
-import { PencilIcon, SearchIcon } from "@/components/icons";
+import { PencilIcon, SearchIcon, TrophyIcon } from "@/components/icons";
 
 /** 관리자 목록의 한 줄 (대회·앨범·소식이 같은 모양을 씁니다) */
 export type AdminListItem = {
@@ -25,6 +25,8 @@ export type AdminListItem = {
   viewHref: string;
   /** 수정 화면 주소 */
   editHref: string;
+  /** 대진표 관리 주소 (대회만). stage 는 대진표가 있을 때 보여 줄 진행 상태입니다. */
+  draw?: { href: string; stage?: string };
   /** 삭제 전에 한 번 더 물어볼 문구 */
   deleteMessage: string;
 };
@@ -44,6 +46,10 @@ const ALL = "all";
 
 const editLinkClass =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700";
+
+// 대회 날 바로 찾을 수 있도록 대진표 버튼은 색을 넣어 다른 버튼과 구별합니다.
+const drawLinkClass =
+  "inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-100";
 
 /** 띄어쓰기나 대소문자가 달라도 찾아지도록 검색어와 글을 같은 모양으로 맞춥니다. */
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, "");
@@ -167,6 +173,11 @@ export function AdminList({
                             숨김
                           </span>
                         )}
+                        {item.draw?.stage && (
+                          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700 ring-1 ring-brand-200">
+                            대진표 {item.draw.stage}
+                          </span>
+                        )}
                         {item.meta}
                       </p>
                       {/* 숨긴 글은 방문자용 페이지가 없으므로 수정 화면으로 보냅니다. */}
@@ -177,7 +188,14 @@ export function AdminList({
                         {item.title}
                       </Link>
                     </div>
-                    <div className="flex shrink-0 flex-wrap gap-2">
+                    {/* 휴대폰에서는 버튼이 넘치지 않게 줄을 바꾸고, 넓은 화면에서는 한 줄로 둡니다. */}
+                    <div className="flex flex-wrap gap-2 sm:shrink-0">
+                      {item.draw && (
+                        <Link href={item.draw.href} className={drawLinkClass}>
+                          <TrophyIcon className="size-4" />
+                          대진표
+                        </Link>
+                      )}
                       <Link href={item.editHref} className={editLinkClass}>
                         <PencilIcon className="size-4" />
                         수정

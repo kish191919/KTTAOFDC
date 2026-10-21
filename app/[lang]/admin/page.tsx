@@ -2,20 +2,27 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth";
 import { statusLabel, statusOf, today } from "@/lib/dates";
+import { usesCheckIn } from "@/lib/draw/roster";
+import { drawStage, drawStageLabel } from "@/lib/draw/summary";
 import { listAlbums } from "@/lib/store/albums";
+import { listDraws } from "@/lib/store/draws";
 import { listHeroMedia } from "@/lib/store/hero";
 import { listNewsPosts } from "@/lib/store/news";
 import { listTournaments } from "@/lib/store/tournaments";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   CalendarIcon,
+  CheckIcon,
   FilmIcon,
   ImageIcon,
   NewspaperIcon,
   PlusIcon,
+  TrophyIcon,
 } from "@/components/icons";
 
 type CardProps = {
+  /** true 면 넓은 화면에서도 한 줄을 다 씁니다. */
+  wide?: boolean;
   icon: ReactNode;
   title: string;
   count: number;
@@ -28,10 +35,10 @@ type CardProps = {
 };
 
 /** 관리 홈에서 구역 하나를 요약해 보여 주는 카드 */
-function SectionCard({ icon, title, count, summary, detail, children }: CardProps) {
+function SectionCard({ wide, icon, title, count, summary, detail, children }: CardProps) {
   return (
     // min-w-0 이 없으면 한 줄로 자르는 글(truncate) 때문에 좁은 화면에서 카드가 화면 밖으로 넘칩니다.
-    <section className="card flex min-w-0 flex-col p-6">
+    <section className={`card flex min-w-0 flex-col p-6 ${wide ? "sm:col-span-2" : ""}`}>
       <div className="flex items-center gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
           {icon}
@@ -54,11 +61,12 @@ function withHidden(summary: string, hidden: number, unit: string): string {
 
 export default async function AdminPage() {
   await requireAdmin();
-  const [tournaments, albums, news, heroMedia] = await Promise.all([
+  const [tournaments, albums, news, heroMedia, draws] = await Promise.all([
     listTournaments({ includeHidden: true }),
     listAlbums({ includeHidden: true }),
     listNewsPosts({ includeHidden: true }),
     listHeroMedia(),
+    listDraws(),
   ]);
   const now = today();
   const heroShown = heroMedia.filter((item) => item.active).length;
@@ -66,6 +74,7 @@ export default async function AdminPage() {
   const upcoming = tournaments.filter((tournament) => statusOf(tournament, now) !== "past");
   // 목록이 최신순이므로 예정된 대회 가운데 맨 뒤가 가장 가까운 대회입니다.
   const next = upcoming.at(-1);
+  const nextDraw = next && draws.find((draw) => draw.id === next.id);
   const hiddenCount = (items: { hidden?: boolean }[]) => items.filter((item) => item.hidden).length;
   const hiddenAlbums = hiddenCount(albums);
   const hiddenNews = hiddenCount(news);
@@ -75,6 +84,42 @@ export default async function AdminPage() {
       <AdminHeader current="/admin" />
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        {/* 대회 날 운영자가 가장 먼저 찾는 곳이라 맨 위에 넓게 둡니다. */}
+        <SectionCard
+          wide
+          icon={<TrophyIcon className="size-5" />}
+          title="대진표"
+          count={draws.length}
+          summary={
+            next
+              ? `다음 대회 (${statusLabel(next, now)}): ${next.title}`
+              : "예정된 대회가 없습니다."
+          }
+          detail={
+            !next
+              ? "대회를 등록하면 그 대회의 대진표를 만들 수 있습니다."
+              : nextDraw
+                ? `대진표 ${drawStageLabel[drawStage(nextDraw)]} · 종목 ${nextDraw.events.length}개`
+                : "아직 대진표를 만들지 않았습니다."
+          }
+        >
+          {next && (
+            <Link href={`/admin/tournaments/${next.id}/draw`} className="btn btn-accent btn-sm">
+              {nextDraw ? <TrophyIcon className="size-4" /> : <PlusIcon className="size-4" />}
+              {nextDraw ? "대진표 관리" : "대진표 만들기"}
+            </Link>
+          )}
+          {nextDraw && usesCheckIn(nextDraw) && (
+            <Link href={`/admin/tournaments/${nextDraw.id}/checkin`} className="btn btn-ghost btn-sm">
+              <CheckIcon className="size-4" />
+              체크인
+            </Link>
+          )}
+          <Link href="/admin/draws" className="btn btn-ghost btn-sm">
+            전체 대진표
+          </Link>
+        </SectionCard>
+
         <SectionCard
           icon={<FilmIcon className="size-5" />}
           title="메인 화면"

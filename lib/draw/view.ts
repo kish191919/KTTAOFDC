@@ -67,8 +67,8 @@ export type EntryStatus =
       kind: "ready";
       match: DrawMatch;
       opponent: string;
-      /** 그 경기를 치는 조 테이블. 본선 경기는 빈 테이블에서 시작하므로 비어 있습니다. */
-      table?: number;
+      /** 그 경기를 치는 조 테이블 (4팀 조는 둘). 본선 경기는 빈 테이블에서 시작하므로 비어 있습니다. */
+      tables?: number[];
       busy: boolean;
       /** 도착 확인 전이라 시작할 수 없는 중 */
       absent: boolean;
@@ -120,8 +120,8 @@ export function entryStatus(
   const next = board.queue.find((item) => item.event.id === event.id && sideOf(item.match));
   if (next) {
     const { match, busy, absent } = next;
-    const table = match.stage === "group" ? board.groupTable(event, match.group ?? 0) : undefined;
-    return { kind: "ready", match, opponent: opponentOf(match), ...(table ? { table } : {}), busy, absent };
+    const tables = match.stage === "group" ? board.groupTables(event, match.group ?? 0) : [];
+    return { kind: "ready", match, opponent: opponentOf(match), ...(tables.length > 0 ? { tables } : {}), busy, absent };
   }
 
   const waiting = event.matches.find((m) => sideOf(m) && context.stateOf(m) === "pending");

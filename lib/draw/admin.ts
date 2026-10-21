@@ -1,7 +1,17 @@
 import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { parseEntries, parsePeople } from "./entries";
 import { ko } from "@/lib/i18n/dictionaries/ko";
-import { cloneDraw, eventContext, fillGroupTables, isStarted, matchBestOf, roundSize, settle, winnerOf } from "./play";
+import {
+  cloneDraw,
+  eventContext,
+  fillGroupTables,
+  groupCapacity,
+  isStarted,
+  matchBestOf,
+  roundSize,
+  settle,
+  winnerOf,
+} from "./play";
 import {
   MAX_PLAYERS,
   personKey,
@@ -68,7 +78,9 @@ export type DrawOp =
   /** 경기 중 불참 처리(value = true)와 취소 */
   | { op: "forfeit"; event: string; entry: string; value: boolean }
   /** 경기 중인 종목에서 조 하나가 쓰는 테이블을 바꿉니다. (경기를 테이블에 올리는 것은 play.ts 의 applyTable) */
-  | { op: "groupTable"; event: string; group: number; table: number };
+  | { op: "groupTable"; event: string; group: number; table: number }
+  /** 4팀 이상인 조가 조 테이블 말고 함께 쓰는 테이블을 바꿉니다. 빈 배열이면 조 테이블만 씁니다. */
+  | { op: "extraTables"; event: string; group: number; tables: number[] };
 
 export type OpResult = { draw: Draw } | { error: string };
 
@@ -458,6 +470,7 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       delete event.startedAt;
       delete event.checkIn;
       delete event.groupTables;
+      delete event.extraTables;
       for (const entry of event.entries) delete entry.absent;
       next.log = next.log.filter((item) => item.event !== event.id);
       settle(next, now);
@@ -508,6 +521,25 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       if (!isInt(op.table, 1, next.tables)) return { error: "테이블 번호가 올바르지 않습니다." };
       fillGroupTables(next);
       event.groupTables![op.group] = op.table;
+      // 함께 쓰던 테이블을 조 테이블로 고르면 함께 쓰는 테이블에서는 뺍니다.
+      event.extraTables![op.group] = event.extraTables![op.group].filter((n) => n !== op.table);
+      settle(next, now);
+      return { draw: next };
+    }
+
+    case "extraTables": {
+      if (!live) return { error: "경기를 시작한 종목이 아닙니다." };
+      if (!isInt(op.group, 0, event.groups.length - 1)) return { error: "조를 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
+      if (!Array.isArray(op.tables) || !op.tables.every((n) => isInt(n, 1, next.tables))) {
+        return { error: "테이블 번호가 올바르지 않습니다." };
+      }
+      const tables = [...new Set(op.tables)];
+      if (tables.length > groupCapacity(event.groups[op.group].length) - 1) {
+        return { error: "이 조는 테이블을 그만큼 함께 쓸 수 없습니다." };
+      }
+      fillGroupTables(next);
+      if (tables.includes(event.groupTables![op.group])) return { error: "조 테이블과 다른 테이블을 골라 주세요." };
+      event.extraTables![op.group] = tables;
       settle(next, now);
       return { draw: next };
     }

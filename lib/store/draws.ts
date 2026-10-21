@@ -1,7 +1,7 @@
 import "server-only";
 import { newDraw } from "@/lib/draw/admin";
 import type { Draw } from "@/lib/types";
-import { insertItem, readOne, removeItem, replaceItemIf } from "./db";
+import { insertItem, readAll, readOne, removeItem, replaceItemIf } from "./db";
 
 // 대진표 저장소. Supabase 의 draws 테이블에 대회 하나가 한 줄로 들어갑니다. (id = 대회 id)
 // 대회 날에는 여러 사람이 동시에 점수를 넣으므로, 읽은 뒤 그 사이 바뀌지 않았을 때만 저장하고
@@ -12,6 +12,11 @@ const ATTEMPTS = 6;
 
 export async function getDraw(id: string): Promise<Draw | null> {
   return readOne<Draw>(TABLE, id);
+}
+
+/** 모든 대진표. 관리 화면에서 어느 대회에 대진표가 있는지 보여 줄 때 씁니다. */
+export async function listDraws(): Promise<Draw[]> {
+  return readAll<Draw>(TABLE);
 }
 
 /** 대진표를 처음 만듭니다. 이미 있으면 있는 것을 돌려줍니다. */

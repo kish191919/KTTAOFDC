@@ -12,8 +12,8 @@ import { MatchSides, type MatchSide } from "./MatchSides";
 
 /**
  * 빈 테이블에서 시작할 수 있는 경기. 본선 경기를 먼저 놓습니다.
- * 조 테이블이 비어 있는 예선 경기는 그 테이블에서 치므로 넣지 않습니다.
- * (4팀 조가 두 경기를 동시에 칠 때처럼 조 테이블을 쓰고 있는 경기만 넣습니다)
+ * 조 테이블이 비어 있는 예선 경기는 그 조의 테이블(함께 쓰는 테이블 포함)에서 치므로 다른 테이블에는 넣지 않습니다.
+ * (조 테이블을 다른 경기가 쓰고 있는 경기만 넣습니다)
  */
 export function startableAt(
   draw: Draw,
@@ -25,7 +25,8 @@ export function startableAt(
   return board.queue
     .filter(({ event, match }) => {
       const choices = tableChoices(draw, board, event, match, admin, contexts);
-      if (choices.home && !choices.home.replaces && choices.home.table !== table) return false;
+      const own = match.stage === "group" && board.groupTables(event, match.group ?? 0).includes(table);
+      if (!own && choices.home && !choices.home.replaces) return false;
       return choices.home?.table === table || choices.free.includes(table);
     })
     .sort((x, y) => Number(x.match.stage === "group") - Number(y.match.stage === "group"));

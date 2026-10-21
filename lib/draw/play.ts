@@ -419,21 +419,35 @@ const leaveTable = (match: DrawMatch) => {
 
 // ───────────────────────── 테이블 ─────────────────────────
 // 조마다 테이블을 하나씩 정하고(groupTables), 조 안의 경기는 그 테이블에서 아무 순서로나 칩니다.
+// 4팀 조는 두 경기를 동시에 칠 수 있어 남는 테이블을 하나 더 씁니다(extraTables).
 // 본선 경기와 남는 테이블은 빈 테이블에서 칠 경기를 골라 시작합니다.
 
 const isTable = (draw: Pick<Draw, "tables">, n: unknown): n is number =>
   typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= draw.tables;
 
-/** 조 테이블을 새로 정해야 하는 종목: 경기 중인데 조 테이블이 없거나, 조 수와 맞지 않거나, 없는 테이블을 가리킵니다. */
+/**
+ * 한 조가 동시에 칠 수 있는 경기 수 = 그 조가 쓸 수 있는 테이블 수.
+ * 3팀 조는 어느 두 경기든 같은 팀이 끼어 있어 한 경기씩, 4·5팀 조는 두 경기, 6팀 조는 세 경기입니다.
+ */
+export const groupCapacity = (size: number) => Math.max(1, Math.floor(size / 2));
+
+/**
+ * 조 테이블을 새로 정해야 하는 종목: 경기 중인데 조 테이블이 없거나, 조 수와 맞지 않거나, 없는 테이블을 가리킵니다.
+ * 함께 쓰는 테이블이 아직 없거나(예전 대진표), 없는 테이블·조 테이블과 같은 번호를 가리켜도 다시 정합니다.
+ */
 const needsGroupTables = (draw: Draw, event: DrawEvent) =>
   event.status === "live" &&
   (event.groupTables?.length !== event.groups.length ||
-    event.groupTables.some((n) => !isTable(draw, n)));
+    event.groupTables.some((n) => !isTable(draw, n)) ||
+    event.extraTables?.length !== event.groups.length ||
+    event.extraTables.some((list, group) => list.some((n) => !isTable(draw, n) || n === event.groupTables![group])));
 
 /**
  * 조 테이블이 없거나 잘못된 조에 테이블을 정합니다. (draw 를 그 자리에서 고칩니다)
  * 경기가 남은 다른 조가 가장 적게 쓰는 테이블을 고르고, 같으면 번호가 낮은 테이블입니다.
- * 테이블이 조보다 적으면 두 조가 한 테이블을 나눠 씁니다.
+ * 테이블이 조보다 적으면 두 조가 한 테이블을 나눠 씁니다. 그때는 다른 조가 함께 쓰는 테이블을 먼저 나눕니다.
+ * 함께 쓰는 테이블을 아직 정하지 않은 종목은, 조 테이블을 다 나눈 뒤 아무 조도 쓰지 않는 테이블을
+ * 남은 경기가 많은 조부터 하나씩 더 줍니다. 이미 정한 것(관리자가 '없음'으로 둔 것 포함)은 그대로 둡니다.
  * 조 테이블이 아예 없던 종목(빈 테이블에 다음 경기를 저절로 올리던 때 확정한 종목)은
  * 점수 없이 테이블에 올라 있던 경기를 내립니다. 그때는 아무도 시작을 누르지 않았기 때문입니다.
  */
@@ -443,27 +457,73 @@ export function fillGroupTables(draw: Draw): void {
   if (!live.some((event) => needsGroupTables(draw, event))) return;
 
   const contexts = new Map(live.map((event) => [event, eventContext(event)]));
+  const open = (event: DrawEvent, group: number) => !contexts.get(event)!.groupComplete(group);
+
+  // 그대로 둘 테이블. 함께 쓰는 테이블은 아직 정하지 않은 종목만 새로 채웁니다.
+  const plans = live.map((event) => {
+    const mains = event.groups.map((_, group) => {
+      const n = event.groupTables?.[group];
+      return isTable(draw, n) ? n : undefined;
+    });
+    const fresh = event.extraTables?.length !== event.groups.length;
+    const extras = event.groups.map((_, group) =>
+      fresh
+        ? []
+        : [...new Set(event.extraTables![group].filter((n) => isTable(draw, n) && n !== mains[group]))],
+    );
+    return { event, mains, extras, fresh };
+  });
+
+  // 테이블마다 경기가 남은 조가 얼마나 쓰는지. 함께 쓰는 테이블은 반만 셉니다.
   const load = Array.from({ length: draw.tables + 1 }, () => 0);
-  for (const event of live) {
-    if (needsGroupTables(draw, event)) continue;
-    event.groupTables!.forEach((n, group) => {
-      if (!contexts.get(event)!.groupComplete(group)) load[n] += 1;
+  for (const { event, mains, extras } of plans) {
+    event.groups.forEach((_, group) => {
+      if (!open(event, group)) return;
+      if (mains[group]) load[mains[group]] += 1;
+      for (const n of extras[group]) load[n] += 0.5;
     });
   }
 
-  for (const event of live) {
-    if (!needsGroupTables(draw, event)) continue;
-    const before = event.groupTables;
-    event.groupTables = event.groups.map((_, group) => {
-      const kept = before?.[group];
-      let table = kept;
-      if (!isTable(draw, table)) {
-        table = 1;
-        for (let n = 2; n <= draw.tables; n++) if (load[n] < load[table]) table = n;
-      }
-      if (!contexts.get(event)!.groupComplete(group)) load[table] += 1;
+  for (const plan of plans) {
+    plan.mains = plan.mains.map((kept, group) => {
+      if (kept) return kept;
+      let table = 1;
+      for (let n = 2; n <= draw.tables; n++) if (load[n] < load[table]) table = n;
+      if (open(plan.event, group)) load[table] += 1;
       return table;
     });
+  }
+
+  // 함께 쓰는 테이블: 아무 조도 쓰지 않는 테이블을, 동시에 더 칠 수 있는 조에 남은 경기가 많은 조부터 줍니다.
+  const wanting = plans
+    .filter((plan) => plan.fresh)
+    .flatMap((plan) =>
+      plan.event.groups.map((members, group) => ({
+        plan,
+        group,
+        want: open(plan.event, group) ? groupCapacity(members.length) - 1 : 0,
+        left: contexts
+          .get(plan.event)!
+          .groupMatches(group)
+          .filter((match) => !winnerOf(match, plan.event)).length,
+      })),
+    )
+    .filter(({ want }) => want > 0)
+    .sort((x, y) => y.left - x.left);
+  for (let round = 0; wanting.some(({ want }) => want > round); round++) {
+    for (const { plan, group, want } of wanting) {
+      if (want <= round) continue;
+      const table = load.findIndex((value, n) => n >= 1 && value === 0);
+      if (table < 0) break;
+      plan.extras[group].push(table);
+      load[table] += 0.5;
+    }
+  }
+
+  for (const { event, mains, extras } of plans) {
+    const before = event.groupTables;
+    event.groupTables = mains as number[];
+    event.extraTables = extras;
     if (!before) {
       for (const match of event.matches) if (match.table && !isStarted(match)) leaveTable(match);
     }
@@ -483,7 +543,7 @@ export type Placed = { event: DrawEvent; match: DrawMatch };
 
 export type TableSlot = {
   table: number;
-  /** 이 테이블을 쓰는 조 가운데 아직 경기가 남은 조 */
+  /** 이 테이블을 쓰는 조 가운데 아직 경기가 남은 조 (함께 쓰는 테이블 포함) */
   groups: { event: DrawEvent; group: number }[];
   /** 이 테이블에서 경기 중인 경기. 시작을 누른 경기와, 점수가 들어갔지만 테이블을 모르는 이 조의 경기입니다. */
   playing: Placed[];
@@ -498,8 +558,8 @@ export type TableBoard = {
   queue: QueueItem[];
   /** 경기 중인 경기가 있는 테이블 */
   tableOf: (match: DrawMatch) => number | undefined;
-  /** 예선 조의 테이블 */
-  groupTable: (event: DrawEvent, group: number) => number | undefined;
+  /** 예선 조가 쓰는 테이블. 조 테이블이 앞이고, 함께 쓰는 테이블이 뒤에 옵니다. */
+  groupTables: (event: DrawEvent, group: number) => number[];
 };
 
 export function tableBoard(draw: Draw, contexts = draw.events.map(eventContext)): TableBoard {
@@ -508,19 +568,22 @@ export function tableBoard(draw: Draw, contexts = draw.events.map(eventContext))
     groups: [],
     playing: [],
   }));
-  const groupTable = (event: DrawEvent, group: number) => {
-    const n = event.groupTables?.[group];
-    return isTable(draw, n) ? n : undefined;
-  };
+  const groupTables = (event: DrawEvent, group: number) => [
+    ...new Set(
+      [event.groupTables?.[group], ...(event.extraTables?.[group] ?? [])].filter((n): n is number =>
+        isTable(draw, n),
+      ),
+    ),
+  ];
   const where = new Map<DrawMatch, number>();
-  const unplaced: { placed: Placed; home?: number }[] = [];
+  const unplaced: { placed: Placed; homes: number[] }[] = [];
 
   draw.events.forEach((event, i) => {
     if (event.status !== "live") return;
     const context = contexts[i];
     event.groups.forEach((_, group) => {
-      const n = groupTable(event, group);
-      if (n && !context.groupComplete(group)) tables[n - 1].groups.push({ event, group });
+      if (context.groupComplete(group)) return;
+      for (const n of groupTables(event, group)) tables[n - 1].groups.push({ event, group });
     });
     for (const match of event.matches) {
       if (context.stateOf(match) !== "playing") continue;
@@ -529,17 +592,19 @@ export function tableBoard(draw: Draw, contexts = draw.events.map(eventContext))
         tables[match.table - 1].playing.push(placed);
         where.set(match, match.table);
       } else {
-        unplaced.push({ placed, home: match.stage === "group" ? groupTable(event, match.group ?? 0) : undefined });
+        unplaced.push({ placed, homes: match.stage === "group" ? groupTables(event, match.group ?? 0) : [] });
       }
     }
   });
 
-  // 점수만 들어가고 테이블을 모르는 예선 경기는 그 조의 테이블에 보여 줍니다.
-  // 그 테이블에서 시작을 누른 다른 경기가 있으면 어디서 치는지 모르는 경기로 둡니다.
+  // 점수만 들어가고 테이블을 모르는 예선 경기는 그 조의 테이블에 보여 줍니다. 조 테이블이 여럿이면 빈 테이블부터 씁니다.
+  // 그 테이블들에서 모두 시작을 누른 다른 경기가 있으면 어디서 치는지 모르는 경기로 둡니다.
   const elsewhere: Placed[] = [];
-  for (const { placed, home } of unplaced) {
-    const slot = home ? tables[home - 1] : undefined;
-    if (slot && !slot.playing.some((p) => p.match.table)) {
+  for (const { placed, homes } of unplaced) {
+    const slots = homes.map((n) => tables[n - 1]);
+    const slot =
+      slots.find((s) => s.playing.length === 0) ?? slots.find((s) => !s.playing.some((p) => p.match.table));
+    if (slot) {
       slot.playing.push(placed);
       where.set(placed.match, slot.table);
     } else {
@@ -552,7 +617,7 @@ export function tableBoard(draw: Draw, contexts = draw.events.map(eventContext))
     elsewhere,
     queue: waitingQueue(draw, contexts),
     tableOf: (match) => where.get(match),
-    groupTable,
+    groupTables,
   };
 }
 
@@ -561,7 +626,10 @@ export const occupantKey = (slot: TableSlot | undefined) =>
   slot?.playing[0] ? `${slot.playing[0].event.id}:${slot.playing[0].match.id}` : "";
 
 export type TableChoices = {
-  /** 예선 경기가 치는 조 테이블. replaces 는 시작만 누르고 점수가 없어 대기로 돌아갈 경기입니다. */
+  /**
+   * 예선 경기가 치는 조 테이블. replaces 는 시작만 누르고 점수가 없어 대기로 돌아갈 경기입니다.
+   * 조 테이블이 여럿이면(4팀 조) 빈 테이블이 먼저이고, 나머지 빈 조 테이블은 free 에 들어갑니다.
+   */
   home?: { table: number; replaces?: Placed };
   /** 이 경기를 시작할 수 있는 다른 빈 테이블 */
   free: number[];
@@ -574,7 +642,7 @@ export type TableChoices = {
 /**
  * 이 경기를 어느 테이블에서 시작할 수 있는지. 점수 입력 창의 버튼과 서버의 검사가 같은 함수를 씁니다.
  * - 조 테이블: 점수가 들어간 경기가 있으면 쓸 수 없고, 시작만 누른 경기는 대기로 돌리고 올릴 수 있습니다.
- * - 빈 테이블: 경기가 남은 조가 없고 아무 경기도 하지 않는 테이블입니다.
+ * - 빈 테이블: 경기가 남은 조가 없고 아무 경기도 하지 않는 테이블입니다. 그 경기의 조가 함께 쓰는 빈 테이블도 됩니다.
  * - 선수가 다른 경기 중이거나 도착 확인 전인 팀이 있으면 시작할 수 없습니다.
  * 관리자는 제한 없이 모든 테이블에 올릴 수 있습니다.
  */
@@ -610,27 +678,28 @@ export function tableChoices(
     return peopleOf((c.pairOf(p.match) ?? []).map((id) => c.entryById.get(id))).some((x) => mine.has(x));
   };
 
-  let home: TableChoices["home"];
-  const homeTable = match.stage === "group" ? board.groupTable(event, match.group ?? 0) : undefined;
-  if (homeTable && homeTable !== match.table) {
-    const there = board.tables[homeTable - 1].playing.filter((p) => p.match !== match);
-    if (there.every((p) => !isStarted(p.match))) {
+  const homeTables = match.stage === "group" ? board.groupTables(event, match.group ?? 0) : [];
+  const homes = homeTables
+    .filter((n) => n !== match.table)
+    .flatMap((n) => {
+      const there = board.tables[n - 1].playing.filter((p) => p.match !== match);
+      if (!there.every((p) => !isStarted(p.match))) return [];
       const replaced = new Set(there.map((p) => p.match));
-      if (!others.some((p) => !replaced.has(p.match) && clashes(p))) {
-        home = { table: homeTable, ...(there[0] ? { replaces: there[0] } : {}) };
-      }
-    }
-  }
+      if (others.some((p) => !replaced.has(p.match) && clashes(p))) return [];
+      return [{ table: n, ...(there[0] ? { replaces: there[0] } : {}) }];
+    });
+  const home: TableChoices["home"] = homes.find((h) => !h.replaces) ?? homes[0];
 
+  // 빈 테이블: 아무 조도 쓰지 않는 테이블과, 이 경기의 조가 함께 쓰는 다른 빈 테이블
   const busy = others.some(clashes);
   const free = busy
     ? []
     : board.tables
         .filter(
           (slot) =>
-            slot.table !== homeTable &&
+            slot.table !== home?.table &&
             slot.table !== match.table &&
-            slot.groups.length === 0 &&
+            (slot.groups.length === 0 || homeTables.includes(slot.table)) &&
             slot.playing.length === 0,
         )
         .map((slot) => slot.table);

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { drawAdminAction } from "@/lib/actions";
 import type { DrawOp, EventSettings } from "@/lib/draw/admin";
 import { entriesToText, entryName, parseEntries } from "@/lib/draw/entries";
-import { eventContext, winnerOf, withGroupTables } from "@/lib/draw/play";
+import { eventContext, groupCapacity, winnerOf, withGroupTables } from "@/lib/draw/play";
 import {
   arrivedPlayers,
   personKey,
@@ -1834,20 +1834,28 @@ function ConfirmPanel({
 
 // ───────────────────────── 조별 테이블 ─────────────────────────
 
-/** 조마다 경기하는 테이블. 대진을 확정할 때 저절로 정해지고, 여기서 바꿉니다. */
+/**
+ * 조마다 경기하는 테이블. 대진을 확정할 때 저절로 정해지고, 여기서 바꿉니다.
+ * 4팀 이상인 조는 동시에 두 경기를 칠 수 있어 '함께 쓰는 테이블'을 더 고를 수 있습니다.
+ */
 function GroupTablesEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; busy: boolean; run: Run }) {
   // 조 테이블을 아직 저장하지 않은 대진표도 화면과 같은 값을 보여 줍니다.
   const shown = withGroupTables(draw);
-  const tables = shown.events.find((e) => e.id === event.id)?.groupTables ?? [];
+  const current = shown.events.find((e) => e.id === event.id);
+  const tables = current?.groupTables ?? [];
+  const extras = current?.extraTables ?? [];
   const context = eventContext(event);
   // 테이블마다 그 테이블을 쓰는, 경기가 남은 조 (다른 종목 포함)
   const users = new Map<number, string[]>();
   for (const other of shown.events) {
     if (other.status !== "live") continue;
     const c = eventContext(other);
-    (other.groupTables ?? []).forEach((table, group) => {
+    other.groups.forEach((_, group) => {
       if (c.groupComplete(group)) return;
-      users.set(table, [...(users.get(table) ?? []), `${other.id}:${group}`]);
+      const used = [other.groupTables?.[group], ...(other.extraTables?.[group] ?? [])];
+      for (const table of new Set(used)) {
+        if (table) users.set(table, [...(users.get(table) ?? []), `${other.id}:${group}`]);
+      }
     });
   }
   const groupName = (key: string) => {
@@ -1855,18 +1863,45 @@ function GroupTablesEditor({ draw, event, busy, run }: { draw: Draw; event: Draw
     const other = shown.events.find((e) => e.id === id);
     return other ? `${other.id === event.id ? "" : `${other.name} `}${groupLetter(Number(group))}조` : "";
   };
+  const tableOptions = (skip?: number) =>
+    Array.from({ length: draw.tables }, (_, i) => i + 1)
+      .filter((n) => n !== skip)
+      .map((n) => (
+        <option key={n} value={n}>
+          {n}번 테이블
+        </option>
+      ));
+  const selectClass = "rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm";
 
   return (
     <div>
       <h3 className="font-black text-brand-950">조별 테이블</h3>
       <p className="mt-1 text-sm break-keep text-slate-500">
-        조 안의 경기는 그 조의 테이블에서 아무 순서로나 칩니다. 조 경기가 끝난 테이블과 남는 테이블은 본선 경기와 다른 경기에 씁니다.
+        조 안의 경기는 그 조의 테이블에서 아무 순서로나 칩니다. 4팀 조는 겹치지 않는 두 경기를 함께 칠 수 있어, 남는 테이블을
+        하나 더 씁니다. 조 경기가 끝난 테이블과 남는 테이블은 본선 경기와 다른 경기에 씁니다.
       </p>
       <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {event.groups.map((_, group) => {
+        {event.groups.map((members, group) => {
           const table = tables[group];
+          const extra = extras[group] ?? [];
           const complete = context.groupComplete(group);
-          const sharing = (users.get(table) ?? []).filter((key) => key !== `${event.id}:${group}`);
+          const sharing = [
+            ...new Set([table, ...extra].flatMap((n) => users.get(n) ?? [])),
+          ].filter((key) => key !== `${event.id}:${group}`);
+          // 함께 쓸 수 있는 테이블 수만큼 칸을 둡니다. (4·5팀 조 1칸, 6팀 조 2칸)
+          const slots = groupCapacity(members.length) - 1;
+          const setExtra = (index: number, value: number) => {
+            const next = [...extra];
+            if (value) next[index] = value;
+            else next.splice(index, 1);
+            const list = [...new Set(next.filter(Boolean))];
+            void run(
+              { op: "extraTables", event: event.id, group, tables: list },
+              list.length > 0
+                ? `${groupLetter(group)}조가 ${list.map((n) => `${n}번`).join("·")} 테이블을 함께 씁니다.`
+                : `${groupLetter(group)}조는 조 테이블만 씁니다.`,
+            );
+          };
           return (
             <li key={group} className="rounded-xl border border-slate-200 px-4 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -1884,15 +1919,26 @@ function GroupTablesEditor({ draw, event, busy, run }: { draw: Draw; event: Draw
                       `${groupLetter(group)}조를 ${e.target.value}번 테이블로 옮겼습니다.`,
                     )
                   }
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
+                  className={selectClass}
                 >
-                  {Array.from({ length: draw.tables }, (_, i) => (
-                    <option key={i} value={i + 1}>
-                      {i + 1}번 테이블
-                    </option>
-                  ))}
+                  {tableOptions()}
                 </select>
               </div>
+              {Array.from({ length: slots }, (_, index) => (
+                <div key={index} className="mt-1.5 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-slate-500">함께 쓰는 테이블</span>
+                  <select
+                    aria-label={`${groupLetter(group)}조가 함께 쓰는 테이블`}
+                    value={extra[index] ?? 0}
+                    disabled={busy || index > extra.length}
+                    onChange={(e) => setExtra(index, Number(e.target.value))}
+                    className={selectClass}
+                  >
+                    <option value={0}>없음</option>
+                    {tableOptions(table)}
+                  </select>
+                </div>
+              ))}
               {!complete && sharing.length > 0 && (
                 <p className="mt-1 text-xs break-keep text-slate-500">{sharing.map(groupName).join(", ")}와 함께 씀</p>
               )}

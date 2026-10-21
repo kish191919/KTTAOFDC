@@ -6,6 +6,7 @@ const tabs = [
   { href: "/admin", label: "관리 홈" },
   { href: "/admin/hero", label: "메인 화면" },
   { href: "/admin/tournaments", label: "대회 정보" },
+  { href: "/admin/draws", label: "대진표" },
   { href: "/admin/albums", label: "갤러리 앨범" },
   { href: "/admin/news", label: "탁구 소식" },
 ] as const;
@@ -14,7 +15,7 @@ type Props = {
   current: (typeof tabs)[number]["href"];
 };
 
-/** 관리 화면 맨 위의 제목·로그아웃 버튼과, 구역(메인 화면·대회·앨범·소식)을 오가는 탭 */
+/** 관리 화면 맨 위의 제목·로그아웃 버튼과, 구역(메인 화면·대회·대진표·앨범·소식)을 오가는 탭 */
 export function AdminHeader({ current }: Props) {
   return (
     <>
@@ -22,7 +23,7 @@ export function AdminHeader({ current }: Props) {
         <div>
           <h1 className="text-3xl font-black text-brand-950">홈페이지 관리</h1>
           <p className="mt-1 break-keep text-slate-500">
-            메인 화면 동영상, 대회 정보, 갤러리 사진, 탁구 소식을 등록하고 수정합니다.
+            메인 화면 동영상, 대회 정보와 대진표, 갤러리 사진, 탁구 소식을 등록하고 수정합니다.
           </p>
         </div>
         <form action={logoutAction}>
@@ -33,7 +34,7 @@ export function AdminHeader({ current }: Props) {
         </form>
       </div>
 
-      {/* 탭 다섯 개가 좁은 휴대폰 화면에서도 넘치지 않도록 모자라면 줄을 바꿉니다. */}
+      {/* 탭 여섯 개가 좁은 휴대폰 화면에서도 넘치지 않도록 모자라면 줄을 바꿉니다. */}
       <nav aria-label="관리 메뉴" className="mt-6 flex flex-wrap gap-2">
         {tabs.map((tab) => {
           const active = tab.href === current;

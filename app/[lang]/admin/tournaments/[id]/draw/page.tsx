@@ -7,7 +7,7 @@ import { canVisitorsScore } from "@/lib/draw/play";
 import { getDraw } from "@/lib/store/draws";
 import { getTournament } from "@/lib/store/tournaments";
 import { DrawManager } from "@/components/admin/DrawManager";
-import { ArrowLeftIcon } from "@/components/icons";
+import { ArrowLeftIcon, PencilIcon } from "@/components/icons";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -23,13 +23,19 @@ export default async function DrawAdminPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">
       <Link
-        href={`/admin/tournaments/${id}`}
+        href="/admin/draws"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-brand-700"
       >
         <ArrowLeftIcon className="size-4" />
-        대회 정보 수정
+        대진표 목록
       </Link>
-      <h1 className="mt-4 text-3xl font-black text-brand-950">대진표 관리</h1>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-black text-brand-950">대진표 관리</h1>
+        <Link href={`/admin/tournaments/${id}`} className="btn btn-ghost btn-sm">
+          <PencilIcon className="size-4" />
+          대회 정보 수정
+        </Link>
+      </div>
       <p className="mt-1 mb-8 break-keep text-slate-500">
         {tournament.title} · {formatSchedule(tournament, "ko")}
         {tournament.hidden && " · 방문자에게 숨긴 대회"}

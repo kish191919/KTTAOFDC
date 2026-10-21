@@ -2,6 +2,8 @@ import Link from "next/link";
 import { deleteTournamentAction, setTournamentHiddenAction } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateRange, statusLabel, statusOf, today, yearOf } from "@/lib/dates";
+import { drawStage, drawStageLabel } from "@/lib/draw/summary";
+import { listDraws } from "@/lib/store/draws";
 import { listTournaments } from "@/lib/store/tournaments";
 import { AdminHeader, AdminNotice } from "@/components/admin/AdminHeader";
 import { AdminList, type AdminListItem } from "@/components/admin/AdminList";
@@ -20,15 +22,18 @@ const filters = [
 
 export default async function AdminTournamentsPage({ searchParams }: Props) {
   await requireAdmin();
-  const [{ saved, deleted }, tournaments] = await Promise.all([
+  const [{ saved, deleted }, tournaments, draws] = await Promise.all([
     searchParams,
     listTournaments({ includeHidden: true }),
+    listDraws(),
   ]);
   const now = today();
   const savedItem = saved ? tournaments.find((tournament) => tournament.id === saved) : undefined;
+  const drawOf = new Map(draws.map((draw) => [draw.id, draw]));
 
   const items: AdminListItem[] = tournaments.map((tournament) => {
     const past = statusOf(tournament, now) === "past";
+    const draw = drawOf.get(tournament.id);
     return {
       id: tournament.id,
       title: tournament.title,
@@ -42,6 +47,14 @@ export default async function AdminTournamentsPage({ searchParams }: Props) {
       filters: [past ? "past" : "upcoming", ...(tournament.hidden ? ["hidden"] : [])],
       viewHref: `/tournaments/${tournament.id}`,
       editHref: `/admin/tournaments/${tournament.id}`,
+      // 대진표 버튼은 앞으로 열 대회와 대진표를 만든 대회에만 둡니다.
+      draw:
+        !past || draw
+          ? {
+              href: `/admin/tournaments/${tournament.id}/draw`,
+              stage: draw && drawStageLabel[drawStage(draw)],
+            }
+          : undefined,
       deleteMessage: `'${tournament.title}' 대회를 삭제할까요?\n포스터와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`,
     };
   });
