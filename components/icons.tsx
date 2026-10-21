@@ -288,6 +288,13 @@ export const CheckIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** 별. 채우려면 fill="currentColor" 를 줍니다. */
+export const StarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+  </Icon>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="11" cy="11" r="8" />

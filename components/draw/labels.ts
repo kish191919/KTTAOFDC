@@ -69,9 +69,9 @@ export function sideName(
 export const matchup = (match: DrawMatch, context: EventContext, t: T) =>
   `${sideName(match, "a", context, t).name} ${t.versus} ${sideName(match, "b", context, t).name}`;
 
-/** 게임별 점수 "11-7, 9-11, 11-5" */
-export const pointsText = (match: DrawMatch) =>
-  (match.points ?? []).map(([a, b]) => `${a}-${b}`).join(", ");
+/** 게임별 점수 "11-7, 9-11, 11-5". flip 이면 b 쪽 점수를 앞에 적습니다. (b 쪽 팀을 왼쪽에 그릴 때) */
+export const pointsText = (match: DrawMatch, flip = false) =>
+  (match.points ?? []).map(([a, b]) => (flip ? `${b}-${a}` : `${a}-${b}`)).join(", ");
 
 /** 대회 현지 시각 "오후 1:05" · "1:05 PM" */
 export function clockTime(value: string | number, lang: Locale, seconds = false): string {

@@ -51,7 +51,8 @@ export default async function BracketPage({ params }: Props) {
   const tournament = localizeTournament(stored, lang);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+    // 휴대폰에서는 위쪽 여백과 제목을 줄여, 첫 화면에 대진표가 조금이라도 더 보이게 합니다.
+    <div className="mx-auto max-w-6xl px-4 pt-4 pb-8 md:py-12">
       <Link
         href={localePath(lang, `/tournaments/${id}`)}
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-brand-700"
@@ -59,9 +60,9 @@ export default async function BracketPage({ params }: Props) {
         <ArrowLeftIcon className="size-4" />
         {t.back}
       </Link>
-      <header className="mt-4 mb-6">
+      <header className="mt-3 mb-4 md:mt-4 md:mb-6">
         <span className="eyebrow">{t.eyebrow}</span>
-        <h1 className="mt-2 text-2xl leading-tight font-black break-keep text-brand-950 md:text-3xl">
+        <h1 className="mt-1.5 text-xl leading-tight font-black break-keep text-brand-950 md:mt-2 md:text-3xl">
           {tournament.title}
         </h1>
       </header>

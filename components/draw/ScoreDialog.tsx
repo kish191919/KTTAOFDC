@@ -41,6 +41,11 @@ type Props = {
   draw: Draw;
   board: TableBoard;
   contexts: EventContext[];
+  /**
+   * 목록에서 b 쪽 팀을 왼쪽에 두고 보던 경기면 창도 b 쪽을 왼쪽에 그립니다. (우리 팀 점수를 늘 왼쪽 칸에 적게)
+   * 입력값은 그대로 a, b 순서로 들고 있다가 저장합니다.
+   */
+  flip?: boolean;
   onSaved: (draw: Draw) => void;
   /** 다른 사람이 먼저 입력해 거절되었을 때 화면을 바로 새로 받아 오게 합니다. */
   onConflict: () => void;
@@ -83,11 +88,16 @@ export function ScoreDialog({
   draw,
   board,
   contexts,
+  flip = false,
   onSaved,
   onConflict,
   onClose,
 }: Props) {
   const t = getDictionary(lang).draw;
+  /** 화면에 그리는 순서. 왼쪽 칸(0)부터 */
+  const order: [Side, Side] = flip ? ["b", "a"] : ["a", "b"];
+  /** 화면 칸 → a(0) · b(1) 자리 */
+  const sideAt = (col: number) => (flip ? 1 - col : col);
   // 본선 방식을 따로 정한 종목은 경기마다 방식이 다릅니다.
   const bestOf = matchBestOf(event, match);
   const need = gamesToWin(bestOf);
@@ -123,22 +133,25 @@ export function ScoreDialog({
 
   const a = sideName(match, "a", context, t);
   const b = sideName(match, "b", context, t);
+  const named = { a, b };
 
   const { games, badRow } = readGames(rows);
   const pointSets = setsFromPoints(games);
+  /** 세트별 점수 칸. 화면 순서로 (1세트 왼쪽, 1세트 오른쪽, 2세트 왼쪽 …) */
   const cellRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 세트별 점수 칸: 점수를 다 적으면 다음 칸으로 넘어갑니다. (1세트 왼쪽 → 오른쪽 → 2세트 왼쪽 …)
   // 1 은 10점대의 앞자리일 수 있어 둘째 자리를 기다립니다. 맞지 않는 세트는 고치도록 그 칸에 머물고,
   // 그 세트로 승부가 났거나 마지막 세트면 키보드를 닫아 저장 버튼이 보이게 합니다. (마저 친 세트는 그 칸을 눌러 적습니다)
-  function typePoint(i: number, side: number, input: HTMLInputElement) {
+  function typePoint(i: number, col: number, input: HTMLInputElement) {
     const value = input.value.replace(/\D/g, "").slice(0, 2);
+    const side = sideAt(col);
     const next = rows.map((r, k) => (k === i ? (side === 0 ? [value, r[1]] : [r[0], value]) : r));
     // 다음 세트 칸이 열린 뒤에 옮겨 가도록 바로 그립니다.
     flushSync(() => setRows(next));
     setError(null);
     if (value === "" || value === "1") return;
-    if (side === 0) return cellRefs.current[i * 2 + 1]?.focus();
+    if (col === 0) return cellRefs.current[i * 2 + 1]?.focus();
     const read = readGames(next);
     if (read.games.length <= i) return;
     const [x, y] = setsFromPoints(read.games.slice(0, i + 1));
@@ -265,20 +278,21 @@ export function ScoreDialog({
     </button>
   );
 
-  // 게임 세트 칸: 한 칸에 숫자 하나. 첫 칸을 적으면 둘째 칸으로 넘어가고,
+  // 게임 세트 칸: 한 칸에 숫자 하나. 왼쪽 칸을 적으면 오른쪽 칸으로 넘어가고,
   // 둘째 칸까지 맞게 적으면 키보드를 닫아 저장 버튼이 보이게 합니다.
-  const setsField = (i: 0 | 1, name: string) => (
+  const setsField = (col: number, name: string) => (
     <input
       ref={(el) => {
-        setsRefs.current[i] = el;
+        setsRefs.current[col] = el;
       }}
       type="text"
       inputMode="numeric"
       pattern="[0-9]*"
       placeholder="0"
       aria-label={`${name} ${t.score.total}`}
-      value={setInputs[i]}
+      value={setInputs[sideAt(col)]}
       onChange={(e) => {
+        const i = sideAt(col);
         // 이미 적힌 칸에 새로 누르면 그 숫자로 바꿉니다.
         const digits = e.target.value.replace(/\D/g, "");
         const value = (digits.length > 1 ? digits.replace(setInputs[i], "") : digits).slice(-1);
@@ -287,7 +301,7 @@ export function ScoreDialog({
         setSetInputs(next);
         setError(null);
         if (value === "") return;
-        if (i === 0) setsRefs.current[1]?.focus();
+        if (col === 0) setsRefs.current[1]?.focus();
         else if (readSets(next, need, bestOf)) e.target.blur();
       }}
       className="w-8 rounded-lg border border-slate-300 bg-white py-0.5 text-center placeholder:text-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-hidden"
@@ -341,6 +355,20 @@ export function ScoreDialog({
       }
       closeLabel={t.score.close}
       onClose={onClose}
+      footer={
+        canEdit && (
+          <>
+            {error && (
+              <p role="alert" className="mb-3 rounded-xl bg-accent-50 px-4 py-3 text-sm font-semibold break-keep text-accent-700">
+                {error}
+              </p>
+            )}
+            <button type="button" onClick={save} disabled={pending} className="btn btn-brand w-full">
+              {pending ? t.score.saving : t.score.save}
+            </button>
+          </>
+        )
+      }
     >
       {/* 테이블 옮기기: 제목의 테이블 표시를 누르면 열립니다. */}
       {moving && moveChoices && (
@@ -367,25 +395,26 @@ export function ScoreDialog({
       <div className="mt-4">
         <MatchSides
           sides={
-            [a, b].map((side, i) => ({
-              name: side.name,
-              decided: Boolean(side.entry),
+            order.map((side, col) => ({
+              name: named[side].name,
+              decided: Boolean(named[side].entry),
               score: editingSets
-                ? setsField(i as 0 | 1, side.name)
+                ? setsField(col, named[side].name)
                 : shown
-                  ? shown[i]
-                  : withdrawn === (i === 0 ? "a" : "b")
+                  ? shown[sideAt(col)]
+                  : withdrawn === side
                     ? "–"
                     : "",
             })) as [MatchSide, MatchSide]
           }
-          winner={shownWinner}
+          // MatchSides 의 a 는 왼쪽에 그린 쪽입니다.
+          winner={shownWinner && (shownWinner === order[0] ? "a" : "b")}
           versus={t.versus}
           size="board"
         />
       </div>
       {match.points && match.points.length > 0 && mode !== "points" && (
-        <p className="mt-2 text-sm text-slate-500">{pointsText(match)}</p>
+        <p className="mt-2 text-sm text-slate-500">{pointsText(match, flip)}</p>
       )}
 
       {/* 테이블: 아직 테이블에 없는 경기를 어느 테이블에서 칠지. 시작을 누르면 모두의 화면에 경기 중으로 보입니다.
@@ -442,8 +471,11 @@ export function ScoreDialog({
             <div className="mt-4">
               <div className="grid grid-cols-[4.5rem_1fr_1fr] items-center gap-2 text-xs font-bold text-slate-500">
                 <span />
-                <span className="truncate text-center" title={a.name}>{a.name}</span>
-                <span className="truncate text-center" title={b.name}>{b.name}</span>
+                {order.map((side) => (
+                  <span key={side} className="truncate text-center" title={named[side].name}>
+                    {named[side].name}
+                  </span>
+                ))}
               </div>
               {rows.map((row, i) => {
                 // 위 세트부터 차례로 적습니다. 승부가 난 뒤에도 남은 세트를 마저 친 점수를 적을 수 있습니다.
@@ -451,22 +483,22 @@ export function ScoreDialog({
                 return (
                   <div key={i} className="mt-2 grid grid-cols-[4.5rem_1fr_1fr] items-center gap-2">
                     <span className="text-sm font-semibold text-slate-600">{t.score.game(i + 1)}</span>
-                    {[0, 1].map((side) => (
+                    {order.map((side, col) => (
                       <input
                         key={side}
                         ref={(el) => {
-                          cellRefs.current[i * 2 + side] = el;
+                          cellRefs.current[i * 2 + col] = el;
                         }}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         maxLength={2}
                         disabled={locked && row[0] === "" && row[1] === ""}
-                        aria-label={`${t.score.game(i + 1)} ${side === 0 ? a.name : b.name}`}
-                        value={row[side]}
+                        aria-label={`${t.score.game(i + 1)} ${named[side].name}`}
+                        value={row[sideAt(col)]}
                         // 이미 적힌 칸에 들어오면 전체를 골라 두어, 새로 누르는 숫자로 바로 바뀝니다.
                         onFocus={(e) => e.target.select()}
-                        onChange={(e) => typePoint(i, side, e.target)}
+                        onChange={(e) => typePoint(i, col, e.target)}
                         className={`field py-2 text-center text-lg font-bold tabular-nums ${
                           badRow === i ? "border-accent-400 ring-2 ring-accent-100" : ""
                         }`}
@@ -483,7 +515,7 @@ export function ScoreDialog({
 
           {mode === "walkover" && (
             <div className="mt-4 space-y-2">
-              {(["a", "b"] as const).map((side) => {
+              {order.map((side) => {
                 const active = withdrawn === side;
                 return (
                   <button
@@ -497,28 +529,13 @@ export function ScoreDialog({
                         : "border-slate-200 text-slate-700 hover:border-accent-200"
                     }`}
                   >
-                    {t.score.withdrew((side === "a" ? a : b).name)}
+                    {t.score.withdrew(named[side].name)}
                   </button>
                 );
               })}
               <p className="hint break-keep">{t.score.walkoverHint}</p>
             </div>
           )}
-
-          {error && (
-            <p role="alert" className="mt-4 rounded-xl bg-accent-50 px-4 py-3 text-sm font-semibold break-keep text-accent-700">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="btn btn-brand mt-5 w-full"
-          >
-            {pending ? t.score.saving : t.score.save}
-          </button>
         </>
       )}
 
