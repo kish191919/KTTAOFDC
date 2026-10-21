@@ -706,7 +706,6 @@ export type ScoreError =
   | "conflict"
   | "points"
   | "sets"
-  | "tooManyGames"
   | "locked"
   /** 동시에 입력한 사람이 많아 저장하지 못한 경우 (다시 누르면 됩니다) */
   | "busy"
@@ -739,14 +738,13 @@ export function isValidGame([x, y]: [number, number]): boolean {
   return low >= 10 ? high - low === 2 : high === 11;
 }
 
-/** 게임별 점수로 이긴 게임 수를 셉니다. 경기가 끝난 뒤에 더 적은 게임이 있으면 null */
-export function setsFromPoints(points: [number, number][], bestOf: number): [number, number] | null {
-  const need = gamesToWin(bestOf);
+/**
+ * 게임별 점수로 이긴 게임 수를 셉니다. 승부가 난 뒤에 마저 친 게임도 셉니다. (3세트 2선승을 끝까지 쳐서 3:0)
+ * bestOf 게임을 넘지 않으면 먼저 이길 게임 수를 채운 쪽이 끝까지 앞서므로 승자는 바뀌지 않습니다.
+ */
+export function setsFromPoints(points: [number, number][]): [number, number] {
   const sets: [number, number] = [0, 0];
-  for (const [x, y] of points) {
-    if (sets[0] >= need || sets[1] >= need) return null;
-    sets[x > y ? 0 : 1] += 1;
-  }
+  for (const [x, y] of points) sets[x > y ? 0 : 1] += 1;
   return sets;
 }
 
@@ -756,7 +754,6 @@ export function readScore(
   bestOf: number,
 ): { ok: Pick<DrawMatch, "sets" | "points" | "walkover"> } | { error: ScoreError } {
   const value = (input ?? {}) as Record<string, unknown>;
-  const need = gamesToWin(bestOf);
   if (value.kind === "clear") return { ok: {} };
   if (value.kind === "walkover") {
     if (value.winner !== "a" && value.winner !== "b") return { error: "sets" };
@@ -766,7 +763,8 @@ export function readScore(
     const sets = value.sets;
     if (!Array.isArray(sets) || sets.length !== 2 || !sets.every(isScore)) return { error: "sets" };
     const [x, y] = sets as [number, number];
-    if (x > need || y > need || x + y === 0 || (x === need && y === need)) return { error: "sets" };
+    // 승부가 난 뒤에 마저 친 게임까지 합쳐 bestOf 게임까지 적습니다. (그러면 두 쪽이 다 이길 게임 수를 채울 수 없습니다)
+    if (x + y === 0 || x + y > bestOf) return { error: "sets" };
     return { ok: { sets: [x, y] } };
   }
   if (value.kind === "points") {
@@ -781,9 +779,7 @@ export function readScore(
       }
       games.push([game[0], game[1]]);
     }
-    const sets = setsFromPoints(games, bestOf);
-    if (!sets) return { error: "tooManyGames" };
-    return { ok: { sets, points: games } };
+    return { ok: { sets: setsFromPoints(games), points: games } };
   }
   return { error: "sets" };
 }

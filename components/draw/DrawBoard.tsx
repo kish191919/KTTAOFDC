@@ -24,7 +24,7 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
-import { ChevronDownIcon, PencilIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import { CheckIcon, ChevronDownIcon, PencilIcon, PlusIcon, SearchIcon, TrophyIcon } from "@/components/icons";
 import { clockTime, eventName, formatLabel, matchLabel, pointsText, sideName, slotLabel } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
@@ -744,7 +744,7 @@ function EventView({
             hint={t.knockoutHint}
             action={canScore ? t.tapToScore : undefined}
           />
-          <Bracket lang={lang} event={event} context={context} board={board} onOpen={onOpen} />
+          <Bracket lang={lang} event={event} context={context} board={board} canScore={canScore} onOpen={onOpen} />
         </section>
       )}
     </div>
@@ -972,111 +972,245 @@ function GroupMatchRow({
 }
 
 /**
- * 본선 대진표. 라운드를 왼쪽에서 오른쪽으로 놓고, 화면이 좁으면 옆으로 밀어서 봅니다.
- * 멀리서도 잘 보이게 글자를 키우고, 넓은 화면에서는 라운드 칸이 화면 너비를 나눠 씁니다.
+ * 본선 대진표. 라운드를 왼쪽에서 오른쪽으로 놓고 선으로 이어, 맨 끝에 우승 칸을 둡니다.
+ * 멀리서도 잘 보이게 글자를 키우고, 넓은 화면에서는 라운드 칸이 화면 너비를 나눠 쓰며, 좁으면 옆으로 밀어서 봅니다.
  */
 function Bracket({
   lang,
   event,
   context,
   board,
+  canScore,
   onOpen,
 }: {
   lang: Locale;
   event: DrawEvent;
   context: EventContext;
   board: TableBoard;
+  canScore: boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
   const knockout = event.matches.filter((m) => m.stage === "knockout");
   const rounds = Math.max(...knockout.map((m) => m.round)) + 1;
-  // 휴대폰에서 라운드 칸 하나의 너비 (px). 다음 라운드가 조금 비쳐 보여 옆으로 밀 수 있다는 걸 알 수 있습니다.
-  const COLUMN = 260;
-  const GAP = 20;
+  const final = knockout.find((m) => m.round === rounds - 1);
+  const champion = final && winnerOf(final, event);
 
   return (
-    <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-2">
-      <div className="flex gap-5" style={{ minWidth: rounds * COLUMN + (rounds - 1) * GAP }}>
+    <div className="-mx-4 mt-6 overflow-x-auto px-4 pb-3">
+      {/* 이음선은 칸 사이 간격(gap-8)의 가운데에서 만나므로, 이음선 길이(w-4)는 간격의 절반입니다. */}
+      <div className="flex gap-8">
         {Array.from({ length: rounds }, (_, round) => {
-          const matches = knockout.filter((m) => m.round === round);
+          const matches = knockout
+            .filter((m) => m.round === round)
+            .sort((x, y) => (x.position ?? 0) - (y.position ?? 0));
           return (
-            <div key={round} className="flex max-w-[400px] min-w-0 flex-1 flex-col">
-              <p className="mb-3 text-center text-base font-black text-brand-800 lg:text-lg">
-                {t.round(roundSize(event, round))}
-                {/* 본선 방식을 따로 정한 종목은 라운드마다 경기 방식을 적습니다. */}
-                {event.knockoutBestOf && matches[0] && (
-                  <span className="block text-xs font-semibold text-slate-500 lg:text-sm">
-                    {t.bestOf(matchBestOf(event, matches[0]))}
-                  </span>
-                )}
-              </p>
+            <div key={round} className="flex max-w-[400px] min-w-[250px] flex-1 flex-col lg:min-w-[200px]">
+              <RoundHeading
+                title={t.round(roundSize(event, round))}
+                // 본선 방식을 따로 정한 종목은 라운드마다 경기 방식을 적습니다.
+                sub={event.knockoutBestOf && matches[0] ? t.bestOf(matchBestOf(event, matches[0])) : undefined}
+              />
               {/* 라운드 칸은 높이가 같고 경기마다 같은 높이를 나눠 가져, 다음 라운드 경기가 앞 라운드 두 경기 사이에 옵니다.
                   첫 라운드 경기 칸의 최소 높이가 대진표 전체 높이를 정합니다. */}
               <ol className="flex flex-1 flex-col">
-                {matches.map((match) => {
-                  const bye = isByeMatch(match);
-                  const state = context.stateOf(match);
-                  const winner = winnerOf(match, event);
-                  const clickable = !bye && state !== "pending";
-                  const table = state === "playing" ? board.tableOf(match) : undefined;
-                  return (
-                    <li key={match.id} className="flex min-h-36 flex-1 items-center lg:min-h-40">
-                      <button
-                        type="button"
-                        disabled={!clickable}
-                        onClick={() => onOpen(event, match)}
-                        className={`w-full overflow-hidden rounded-xl border-2 text-left text-base transition-colors enabled:hover:border-brand-300 disabled:cursor-default lg:text-lg ${
-                          state === "playing"
-                            ? "border-accent-300 ring-2 ring-accent-100"
-                            : bye
-                              ? "border-dashed border-slate-200 bg-slate-50/60"
-                              : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        {(["a", "b"] as const).map((side, i) => {
-                          const { name, entry } = sideName(match, side, context, t);
-                          const isBye = "bye" in match[side];
-                          return (
-                            <span
-                              key={side}
-                              className={`flex items-center gap-3 px-4 py-2.5 lg:px-5 lg:py-3 ${i === 1 ? "border-t border-slate-100" : ""}`}
-                            >
-                              <span
-                                className={`min-w-0 flex-1 truncate ${
-                                  isBye || !entry
-                                    ? "text-slate-400 italic"
-                                    : winner === side
-                                      ? "font-black text-brand-950"
-                                      : winner
-                                        ? "text-slate-500"
-                                        : "font-semibold text-slate-800"
-                                }`}
-                                title={name}
-                              >
-                                {name}
-                              </span>
-                              <span className="w-6 text-right text-lg font-black text-brand-800 tabular-nums lg:text-xl">
-                                {match.walkover ? (match.walkover === side ? "W" : "") : (match.sets?.[i] ?? "")}
-                              </span>
-                            </span>
-                          );
-                        })}
-                        {table && (
-                          <span className="block bg-accent-50 px-4 py-1 text-xs font-bold text-accent-700 lg:px-5 lg:text-sm">
-                            {t.table(table)}
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
+                {matches.map((match, index) => (
+                  <li key={match.id} className="relative flex min-h-40 flex-1 items-center lg:min-h-44">
+                    {round > 0 && <Connector shape="in" on={context.stateOf(match) !== "pending"} />}
+                    <BracketMatch
+                      event={event}
+                      match={match}
+                      context={context}
+                      board={board}
+                      canScore={canScore}
+                      t={t}
+                      onOpen={onOpen}
+                    />
+                    {/* 짝 경기(위·아래)와 이어 다음 라운드로, 결승은 우승 칸으로 곧게 나갑니다. */}
+                    <Connector
+                      shape={round === rounds - 1 ? "out" : index % 2 === 0 ? "down" : "up"}
+                      on={Boolean(winnerOf(match, event))}
+                    />
+                  </li>
+                ))}
               </ol>
             </div>
           );
         })}
+        {final && (
+          // 우승 칸은 이름 하나만 적으므로 폭을 고정해, 남는 폭을 라운드 칸이 쓰게 합니다.
+          <div className="flex w-[180px] shrink-0 flex-col lg:w-[200px]">
+            <RoundHeading title={t.podium.champion} champion />
+            <div className="relative flex flex-1 items-center">
+              <Connector shape="in" on={Boolean(champion)} />
+              <div
+                className={`w-full rounded-xl border px-4 py-4 text-center lg:px-5 ${
+                  champion ? "border-accent-200 bg-accent-50 shadow-sm" : "border-dashed border-slate-200 bg-white"
+                }`}
+              >
+                <TrophyIcon className={`mx-auto size-7 lg:size-8 ${champion ? "text-accent-500" : "text-slate-300"}`} />
+                <p
+                  className={`mt-2 text-base break-keep lg:text-lg ${
+                    champion ? "font-black text-brand-950" : "font-medium text-slate-400"
+                  }`}
+                >
+                  {champion ? sideName(final, champion, context, t).name : t.winnerOf(matchLabel(event, final, t))}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/** 대진표 라운드 제목 "준결승 · 5세트 3선승". 라운드마다 제목 높이가 같아야 이음선이 맞으므로 한 줄로 적습니다. */
+function RoundHeading({ title, sub, champion = false }: { title: string; sub?: string; champion?: boolean }) {
+  return (
+    <p className="mb-4 text-center">
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm whitespace-nowrap lg:text-base ${
+          champion ? "bg-accent-50 text-accent-700" : "bg-brand-50 text-brand-800"
+        }`}
+      >
+        {champion && <TrophyIcon className="size-4" />}
+        <span className="font-black">{title}</span>
+        {sub && <span className="text-xs font-semibold opacity-75 lg:text-sm">· {sub}</span>}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * 대진표 칸을 잇는 선. in 은 왼쪽에서 들어오는 선, out 은 오른쪽으로 곧게 나가는 선이고,
+ * down · up 은 오른쪽으로 나가 짝 경기 쪽으로 꺾여, 두 경기 사이(다음 라운드 경기의 높이)에서 짝의 선과 만납니다.
+ * 결과가 나와 이긴 쪽이 지나간 선은 파랗게 칠합니다.
+ */
+function Connector({ shape, on }: { shape: "in" | "out" | "down" | "up"; on: boolean }) {
+  // 2px 선이 칸의 한가운데를 지나도록 1px 씩 올려 둡니다.
+  const position = {
+    in: "-left-4 top-[calc(50%-1px)] border-t-2",
+    out: "-right-4 top-[calc(50%-1px)] border-t-2",
+    down: "-right-4 top-[calc(50%-1px)] bottom-0 rounded-tr-lg border-t-2 border-r-2",
+    up: "-right-4 top-0 bottom-[calc(50%-1px)] rounded-br-lg border-r-2 border-b-2",
+  }[shape];
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute w-4 ${position} ${on ? "border-brand-400" : "border-slate-200"}`}
+    />
+  );
+}
+
+/** 본선 경기 칸: 위에 경기 이름과 상태, 아래에 두 참가자와 이긴 세트 수. 누르면 점수 입력 창이 열립니다. */
+function BracketMatch({
+  event,
+  match,
+  context,
+  board,
+  canScore,
+  t,
+  onOpen,
+}: {
+  event: DrawEvent;
+  match: DrawMatch;
+  context: EventContext;
+  board: TableBoard;
+  canScore: boolean;
+  t: T;
+  onOpen: (event: DrawEvent, match: DrawMatch) => void;
+}) {
+  const bye = isByeMatch(match);
+  const state = context.stateOf(match);
+  const winner = winnerOf(match, event);
+  const playing = state === "playing";
+  const table = playing ? board.tableOf(match) : undefined;
+  const clickable = !bye && state !== "pending";
+
+  return (
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={() => onOpen(event, match)}
+      className={`w-full overflow-hidden rounded-xl border text-left transition enabled:hover:border-brand-300 enabled:hover:shadow-md disabled:cursor-default ${
+        playing
+          ? "border-accent-300 bg-white ring-2 ring-accent-100"
+          : bye
+            ? "border-dashed border-slate-200 bg-slate-50/60"
+            : "border-slate-200 bg-white shadow-sm"
+      }`}
+    >
+      <span
+        className={`flex items-center justify-between gap-2 border-b px-4 py-1.5 text-xs font-bold lg:px-5 lg:text-sm ${
+          playing ? "border-accent-100 bg-accent-50" : "border-slate-100 bg-slate-50"
+        }`}
+      >
+        <span className="truncate text-slate-500">{matchLabel(event, match, t)}</span>
+        {/* 상대가 정해지기 전에는 비워 둡니다. (본선 첫 화면이 온통 '상대 결정 전'이 되지 않게)
+            끝난 경기는 글 대신 체크 표시를 둡니다. (영어 'Final' 이 결승과 헷갈리지 않게) */}
+        {playing ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-accent-700">
+            <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
+            {table ? t.table(table) : t.state.playing}
+          </span>
+        ) : state === "ready" && canScore ? (
+          <span className="inline-flex shrink-0 items-center gap-1 text-brand-700">
+            <PencilIcon className="size-3.5" />
+            {t.enterScore}
+          </span>
+        ) : state === "done" ? (
+          <span className="shrink-0 text-slate-400">
+            <CheckIcon className="size-4" />
+            <span className="sr-only">{t.state.done}</span>
+          </span>
+        ) : (
+          state !== "pending" && (
+            <span className={`shrink-0 ${state === "ready" ? "text-brand-700" : "text-slate-400"}`}>
+              {t.state[state]}
+            </span>
+          )
+        )}
+      </span>
+      {(["a", "b"] as const).map((side, i) => {
+        const { name, entry } = sideName(match, side, context, t);
+        const won = winner === side;
+        return (
+          <span
+            key={side}
+            className={`flex items-center gap-2.5 px-4 py-2.5 lg:px-5 lg:py-3 ${i === 1 ? "border-t border-slate-100" : ""} ${
+              won ? "bg-brand-50" : ""
+            }`}
+          >
+            {/* 아직 정해지지 않은 자리("준결승 1경기 승자")는 점수 칸 없이 한 단계 작게 적어 긴 이름도 다 보이게 합니다.
+                줄 높이(leading-7)는 점수 칸과 같게 두어 줄마다 높이가 같습니다. */}
+            <span
+              className={`min-w-0 flex-1 truncate ${
+                !entry
+                  ? "text-base leading-7 font-medium text-slate-400"
+                  : won
+                    ? "font-black text-brand-950"
+                    : winner
+                      ? "text-slate-400"
+                      : "font-bold text-slate-800"
+              } ${entry ? "text-base lg:text-lg" : ""}`}
+              title={name}
+            >
+              {name}
+            </span>
+            {entry && (
+              <span
+                className={`w-7 shrink-0 text-right text-lg font-black tabular-nums lg:text-xl ${
+                won ? "text-brand-700" : winner ? "text-slate-400" : "text-slate-700"
+              }`}
+            >
+                {match.walkover ? (match.walkover === side ? "W" : "") : (match.sets?.[i] ?? "")}
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </button>
   );
 }
 

@@ -230,7 +230,8 @@ export const en: Dictionary = {
       pointsHint:
         "Enter finished games only. Saving after each game lets everyone follow the match.",
       setsHint: "Enter the games each side won in the boxes above. Use this if you don't have the game scores.",
-      setsInvalid: (need) => `Please check the score. The winner has ${need} games and the loser fewer.`,
+      setsInvalid: (need, bestOf) =>
+        `Please check the score. The winner has at least ${need} games, with no more than ${bestOf} in total.`,
       walkoverHint: "Choose who withdrew. The opponent is recorded as the winner.",
       withdrew: (name) => `${name} withdrew`,
       total: "Games",
@@ -246,7 +247,6 @@ export const en: Dictionary = {
       points:
         "Please check the game scores. A game is won at 11, or by 2 points after 10–10.",
       sets: "Please check the number of games.",
-      tooManyGames: "Scores were entered for games after the match was decided.",
       locked:
         "This change would alter a match that has already started. Please let the tournament desk know.",
       busy: "Many people are entering scores right now. Please try again.",

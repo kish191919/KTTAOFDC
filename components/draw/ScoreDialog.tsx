@@ -49,10 +49,13 @@ type Props = {
 
 const emptyRows = (count: number) => Array.from({ length: count }, () => ["", ""]);
 
-/** 게임 세트 두 칸을 읽습니다. 빈 칸은 0 이고, 한쪽이 이길 게임 수를 채워야 끝난 결과입니다. */
-function readSets(inputs: [string, string], need: number): [number, number] | null {
+/**
+ * 게임 세트 두 칸을 읽습니다. 빈 칸은 0 이고, 한쪽이 이길 게임 수를 채워야 끝난 결과입니다.
+ * 승부가 난 뒤에 마저 친 게임까지 합쳐 bestOf 게임까지 적을 수 있습니다. (3세트 2선승을 끝까지 쳐서 3:0)
+ */
+function readSets(inputs: [string, string], need: number, bestOf: number): [number, number] | null {
   const sets: [number, number] = [Number(inputs[0]), Number(inputs[1])];
-  return Math.max(...sets) === need && Math.min(...sets) < need ? sets : null;
+  return Math.max(...sets) >= need && sets[0] + sets[1] <= bestOf ? sets : null;
 }
 
 /** 경기 한 판의 점수 입력 창. 게임별 점수, 게임 세트, 기권 가운데 골라 적습니다. */
@@ -91,7 +94,7 @@ export function ScoreDialog({
     match.sets && !match.points ? [String(match.sets[0]), String(match.sets[1])] : ["", ""],
   );
   const setsRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const sets = readSets(setInputs, need);
+  const sets = readSets(setInputs, need, bestOf);
   const [withdrawn, setWithdrawn] = useState<Side | null>(
     match.walkover ? (match.walkover === "a" ? "b" : "a") : null,
   );
@@ -121,8 +124,7 @@ export function ScoreDialog({
     }
     games.push(game);
   }
-  const pointSets = setsFromPoints(games, bestOf) ?? [0, 0];
-  const decided = pointSets[0] >= need || pointSets[1] >= need;
+  const pointSets = setsFromPoints(games);
 
   const shown =
     mode === "points"
@@ -173,7 +175,7 @@ export function ScoreDialog({
       if (badRow >= 0 || games.length === 0) return setError(t.errors.points);
       submit({ kind: "points", points: games });
     } else if (mode === "sets") {
-      if (!sets) return setError(t.score.setsInvalid(need));
+      if (!sets) return setError(t.score.setsInvalid(need, bestOf));
       submit({ kind: "sets", sets });
     } else {
       if (!withdrawn) return setError(t.errors.sets);
@@ -259,15 +261,15 @@ export function ScoreDialog({
         // 이미 적힌 칸에 새로 누르면 그 숫자로 바꿉니다.
         const digits = e.target.value.replace(/\D/g, "");
         const value = (digits.length > 1 ? digits.replace(setInputs[i], "") : digits).slice(-1);
-        if (Number(value) > need) return;
+        if (Number(value) > bestOf) return;
         const next: [string, string] = i === 0 ? [value, setInputs[1]] : [setInputs[0], value];
         setSetInputs(next);
         setError(null);
         if (value === "") return;
         if (i === 0) setsRefs.current[1]?.focus();
-        else if (readSets(next, need)) e.target.blur();
+        else if (readSets(next, need, bestOf)) e.target.blur();
       }}
-      className="w-14 rounded-lg border border-slate-300 bg-white py-0.5 text-center placeholder:text-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-hidden"
+      className="w-8 rounded-lg border border-slate-300 bg-white py-0.5 text-center placeholder:text-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-hidden"
     />
   );
   const editingSets = canEdit && mode === "sets";
@@ -339,7 +341,7 @@ export function ScoreDialog({
         </section>
       )}
 
-      {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수. 이기는 쪽 상자가 바로 파랗게 바뀝니다.
+      {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수를 한 줄로 "A  3 vs 2  B". 이기는 쪽 이름과 게임 수가 바로 파랗게 바뀝니다.
           게임 세트로 적을 때는 게임 수 자리가 입력 칸이 됩니다. */}
       <div className="mt-4">
         <MatchSides
@@ -423,7 +425,8 @@ export function ScoreDialog({
                 <span className="truncate text-center" title={b.name}>{b.name}</span>
               </div>
               {rows.map((row, i) => {
-                const locked = i > games.length || (decided && i >= games.length);
+                // 위 세트부터 차례로 적습니다. 승부가 난 뒤에도 남은 세트를 마저 친 점수를 적을 수 있습니다.
+                const locked = i > games.length;
                 return (
                   <div key={i} className="mt-2 grid grid-cols-[4.5rem_1fr_1fr] items-center gap-2">
                     <span className="text-sm font-semibold text-slate-600">{t.score.game(i + 1)}</span>
@@ -444,6 +447,7 @@ export function ScoreDialog({
                               k === i ? (side === 0 ? [value, r[1]] : [r[0], value]) : r,
                             ),
                           );
+                          setError(null);
                         }}
                         className={`field py-2 text-center text-lg font-bold tabular-nums ${
                           badRow === i ? "border-accent-400 ring-2 ring-accent-100" : ""
