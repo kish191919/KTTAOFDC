@@ -51,6 +51,8 @@ export type DrawOp =
   | { op: "updatePlayer"; player: string; name: string; rating: number | null; club: string }
   | { op: "removePlayer"; player: string }
   | { op: "checkIn"; player: string; value: boolean }
+  /** 명단의 모든 선수를 한꺼번에 도착(value = true) 또는 도착 전으로 바꿉니다. */
+  | { op: "checkInAll"; value: boolean }
   // 종목의 팀
   | { op: "entries"; event: string; text: string }
   | { op: "addTeam"; event: string; players: string[] }
@@ -212,6 +214,17 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult 
       }
       if (roster.length > MAX_PLAYERS) return { error: `명단에는 ${MAX_PLAYERS}명까지 넣을 수 있습니다.` };
       syncRatings(next);
+      return { draw: next };
+    }
+
+    case "checkInAll": {
+      if (typeof op.value !== "boolean") return { error: "체크인 정보를 읽지 못했습니다." };
+      // 이미 도착한 선수는 처음 도착한 시각을 그대로 둡니다.
+      for (const player of roster) {
+        if (op.value) player.checkedInAt ??= now;
+        else delete player.checkedInAt;
+      }
+      settle(next, now);
       return { draw: next };
     }
 

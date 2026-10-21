@@ -585,12 +585,14 @@ function RosterPanel({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run 
   const [picked, setPicked] = useState<RosterFilter>("all");
 
   const rows = roster.map((player) => ({ player, teams: entriesOf(draw, player) }));
+  const arrivedCount = roster.filter((p) => p.checkedInAt).length;
+  const waitingCount = roster.length - arrivedCount;
   const filters: { id: RosterFilter; label: string; count: number }[] = [
     { id: "all", label: "전체", count: rows.length },
     ...(checkIn
       ? [
-          { id: "waiting" as const, label: "도착 전", count: rows.filter((r) => !r.player.checkedInAt).length },
-          { id: "arrived" as const, label: "도착", count: rows.filter((r) => r.player.checkedInAt).length },
+          { id: "waiting" as const, label: "도착 전", count: waitingCount },
+          { id: "arrived" as const, label: "도착", count: arrivedCount },
         ]
       : []),
     ...(draw.events.length > 0
@@ -607,6 +609,22 @@ function RosterPanel({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run 
     if (filter === "noTeam") return teams.length === 0;
     return true;
   });
+
+  // 찾기·고른 칸과 상관없이 명단 전체를 바꿉니다.
+  const checkInAll = (value: boolean) => {
+    const count = value ? waitingCount : arrivedCount;
+    const question = value
+      ? `아직 도착하지 않은 ${count}명을 모두 도착으로 표시할까요?`
+      : `도착한 ${count}명을 모두 도착 전으로 되돌릴까요? 도착 시각도 함께 지워집니다.` +
+        (draw.events.some((event) => event.status === "live" && event.checkIn)
+          ? "\n\n경기 중인 종목은 선수가 다시 도착할 때까지 그 선수의 경기를 시작할 수 없습니다."
+          : "");
+    if (!window.confirm(question)) return;
+    void run(
+      { op: "checkInAll", value },
+      value ? `${count}명을 도착으로 표시했습니다.` : `${count}명을 도착 전으로 되돌렸습니다.`,
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -697,6 +715,29 @@ function RosterPanel({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run 
               ))}
             </div>
           </div>
+
+          {/* 줄마다 있는 도착 단추 바로 위에 두어, 같은 일을 한꺼번에 한다는 것이 보이게 합니다. */}
+          {checkIn && (
+            <div className="mt-3 flex flex-wrap justify-end gap-1.5">
+              <button
+                type="button"
+                disabled={busy || waitingCount === 0}
+                onClick={() => checkInAll(true)}
+                className="btn btn-ghost btn-sm"
+              >
+                <CheckIcon className="size-4" />
+                모두 도착
+              </button>
+              <button
+                type="button"
+                disabled={busy || arrivedCount === 0}
+                onClick={() => checkInAll(false)}
+                className="btn btn-ghost btn-sm"
+              >
+                모두 도착 전으로
+              </button>
+            </div>
+          )}
 
           <ul className="mt-4 divide-y divide-slate-100">
             {shown.map(({ player, teams }) =>
