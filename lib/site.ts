@@ -28,9 +28,9 @@ export const nav = [
   { href: "/", label: { ko: "홈", en: "Home" } },
   { href: "/about", label: { ko: "협회 소개", en: "About" } },
   { href: "/tournaments", label: { ko: "대회 정보", en: "Tournaments" } },
-  { href: "/games", label: { ko: "번개 게임", en: "Games" } },
   { href: "/gallery", label: { ko: "갤러리", en: "Gallery" } },
   { href: "/community", label: { ko: "커뮤니티", en: "Community" } },
+  { href: "/games", label: { ko: "친선 경기", en: "Friendlies" } },
 ] as const;
 
 /** 배포 주소. 공유 미리보기(OG)·sitemap 의 절대 주소를 만들 때 사용합니다. */

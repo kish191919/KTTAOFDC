@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** 새 번개 게임 만들기 */
+/** 새 친선 경기 만들기 */
 export default async function NewGamePage({ params }: Props) {
   const lang = await readLang(params);
   const t = getDictionary(lang).games;

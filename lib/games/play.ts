@@ -10,7 +10,7 @@ import { personKey } from "@/lib/draw/roster";
 import { roundRobin } from "@/lib/draw/setup";
 import type { DrawEvent, Game, GameMatch } from "@/lib/types";
 
-// 번개 게임의 계산: 새 게임 만들기, 점수·경기 기록, 테이블, 순위.
+// 친선 경기의 계산: 새 게임 만들기, 점수·경기 기록, 테이블, 순위.
 // 서버(저장할 때)와 브라우저(화면을 그릴 때)가 같은 함수를 씁니다.
 // 리그전 순위는 대회 대진표와 같은 규칙(lib/draw/play.ts 의 standings)으로 정합니다.
 

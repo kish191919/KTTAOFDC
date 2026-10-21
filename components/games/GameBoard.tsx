@@ -42,7 +42,7 @@ type Props = {
 };
 
 /**
- * 번개 게임 화면: 순위표, 경기 목록(리그전) 또는 경기 기록(자유 기록), 테이블 현황, 관리.
+ * 친선 경기 화면: 순위표, 경기 목록(리그전) 또는 경기 기록(자유 기록), 테이블 현황, 관리.
  * 5초마다 새 결과를 받아 와 다시 그립니다.
  */
 export function GameBoard({ lang, initial, admin, renderedAt }: Props) {

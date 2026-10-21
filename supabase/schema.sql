@@ -32,7 +32,7 @@ alter table public.draws enable row level security;
 revoke all on table public.draws from anon, authenticated;
 grant select, insert, update, delete on table public.draws to service_role;
 
--- 번개 게임. 게임 하나가 한 줄이고 id 는 공유 주소의 짧은 글입니다. (lib/types.ts 의 Game)
+-- 친선 경기. 게임 하나가 한 줄이고 id 는 공유 주소의 짧은 글입니다. (lib/types.ts 의 Game)
 -- game_people 은 게임에 쓴 이름을 한 사람씩 모아 둔 것으로, id 는 띄어쓰기·대소문자를 뺀 이름입니다. (GamePerson)
 create table if not exists public.games (id text primary key, data jsonb not null);
 create table if not exists public.game_people (id text primary key, data jsonb not null);

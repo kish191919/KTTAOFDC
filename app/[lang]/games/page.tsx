@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** 번개 게임 홈: 새 게임 만들기, 이름으로 기록 찾기, 최근 게임 */
+/** 친선 경기 홈: 새 게임 만들기, 이름으로 기록 찾기, 최근 게임 */
 export default async function GamesPage({ params, searchParams }: Props) {
   const lang = await readLang(params);
   const t = getDictionary(lang).games;

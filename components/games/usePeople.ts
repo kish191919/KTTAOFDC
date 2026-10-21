@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useStored } from "@/components/draw/useStored";
 
-// 번개 게임에 쓴 이름 목록(최근에 쓴 순서)과 이 휴대폰에 저장한 '내 이름'.
+// 친선 경기에 쓴 이름 목록(최근에 쓴 순서)과 이 휴대폰에 저장한 '내 이름'.
 
 /** 한 화면에서 이름 목록은 한 번만 받아 옵니다. */
 let loading: Promise<string[]> | null = null;

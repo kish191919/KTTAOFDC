@@ -7,7 +7,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { GamesAdmin } from "@/components/admin/GamesAdmin";
 import { ExternalLinkIcon } from "@/components/icons";
 
-/** 번개 게임 관리: 누구나 만든 게임과 저장된 이름 가운데 장난이나 잘못 들어간 것을 지웁니다. */
+/** 친선 경기 관리: 누구나 만든 게임과 저장된 이름 가운데 장난이나 잘못 들어간 것을 지웁니다. */
 export default async function AdminGamesPage() {
   await requireAdmin();
   const [games, people] = await Promise.all([listAllGames(), listPeople()]);
@@ -19,7 +19,7 @@ export default async function AdminGamesPage() {
 
       <div className="mt-8 flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-3xl break-keep text-slate-600">
-          번개 게임은 로그인 없이 누구나 만들고 기록합니다. 장난으로 만든 게임이나 잘못 들어간 이름을 여기서 지웁니다.
+          친선 경기는 로그인 없이 누구나 만들고 기록합니다. 장난으로 만든 게임이나 잘못 들어간 이름을 여기서 지웁니다.
           관리자로 로그인한 채 게임 화면을 열면 맨 아래 <strong>게임 관리</strong>에서 이름·참가자를 고치거나 마감할 수 있습니다.
         </p>
         <Link href="/games" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">

@@ -12,7 +12,7 @@ const recordPath = (lang: Locale, name: string) =>
   `${localePath(lang, "/games")}?name=${encodeURIComponent(name)}`;
 
 /**
- * 번개 게임 홈의 이름 찾기. 전에 쓴 이름을 몇 글자나 초성으로 찾아 누르면 그 사람이 나온 게임과 성적을 보여 줍니다.
+ * 친선 경기 홈의 이름 찾기. 전에 쓴 이름을 몇 글자나 초성으로 찾아 누르면 그 사람이 나온 게임과 성적을 보여 줍니다.
  * 이 휴대폰에 내 이름을 저장해 두었으면 '내 기록' 버튼으로 바로 갑니다.
  */
 export function GameFinder({ lang, people, current }: { lang: Locale; people: string[]; current: string }) {

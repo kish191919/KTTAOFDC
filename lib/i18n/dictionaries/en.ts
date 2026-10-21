@@ -286,14 +286,14 @@ export const en: Dictionary = {
   },
 
   games: {
-    eyebrow: "Quick Games",
-    title: "Quick Games",
+    eyebrow: "Friendly Matches",
+    title: "Friendly Matches",
     metaDescription:
       "Set up a round robin or a match log for any casual session, and record scores together from your phones.",
     description:
       "No tournament needed. Set up a round robin or a match log, share the link, and anyone can enter scores from their phone.",
     create: "New game",
-    back: "Quick Games",
+    back: "Friendly Matches",
     recent: "Recent games",
     recentEmpty: "No games yet. Start the first one.",
     findTitle: "Find records by name",

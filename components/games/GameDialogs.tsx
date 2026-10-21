@@ -23,7 +23,7 @@ import { NamePicker } from "./NamePicker";
 import { readResult, ResultInput, startResult } from "./ResultInput";
 import { useMe } from "./usePeople";
 
-// 번개 게임의 창: 경기 결과(점수 적기·고치기), 경기 기록(자유 기록의 새 경기), 빈 테이블에서 칠 경기 고르기.
+// 친선 경기의 창: 경기 결과(점수 적기·고치기), 경기 기록(자유 기록의 새 경기), 빈 테이블에서 칠 경기 고르기.
 
 type Common = {
   lang: Locale;

@@ -8,7 +8,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { GameMatch } from "@/lib/types";
 import { MatchSides, type MatchSide } from "@/components/draw/MatchSides";
 
-// 번개 게임의 결과 입력: 세트 스코어 단추(3:0 · 3:1 · 3:2) 한 번, 또는 세트별 점수, 또는 기권.
+// 친선 경기의 결과 입력: 세트 스코어 단추(3:0 · 3:1 · 3:2) 한 번, 또는 세트별 점수, 또는 기권.
 // 경기 결과 창과 경기 기록 창이 함께 씁니다. 입력값은 화면 순서(왼쪽 0 · 오른쪽 1)로 들고 있다가
 // 저장할 때 readResult 로 경기의 a · b 순서로 바꿉니다.
 

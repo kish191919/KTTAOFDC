@@ -20,7 +20,7 @@ export type GameListItem = {
 
 const t = getDictionary("ko").games;
 
-/** 관리 화면의 번개 게임 목록과 저장된 이름. 장난으로 만든 게임이나 잘못 들어간 이름을 지웁니다. */
+/** 관리 화면의 친선 경기 목록과 저장된 이름. 장난으로 만든 게임이나 잘못 들어간 이름을 지웁니다. */
 export function GamesAdmin({ games, people }: { games: GameListItem[]; people: GamePerson[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");

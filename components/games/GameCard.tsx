@@ -6,7 +6,7 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { ChevronRightIcon } from "@/components/icons";
 
 /**
- * 번개 게임 목록의 한 줄: 방식·날짜·이름과 진행 상황(리그전 우승 또는 지금 1위).
+ * 친선 경기 목록의 한 줄: 방식·날짜·이름과 진행 상황(리그전 우승 또는 지금 1위).
  * record 를 주면 이름으로 찾은 사람의 그 게임 성적을 함께 적습니다.
  */
 export function GameCard({

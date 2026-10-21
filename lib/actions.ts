@@ -477,7 +477,7 @@ export async function setDrawTableAction(
   return result;
 }
 
-// ───────────────────────── 번개 게임 ─────────────────────────
+// ───────────────────────── 친선 경기 ─────────────────────────
 // 대회와 상관없이 누구나 만들고 기록합니다. 게임 이름·참가자를 고치거나 마감·삭제하는 일은
 // 만든 사람(만든 휴대폰에 남긴 열쇠)이나 관리자만 합니다. (lib/games/play.ts 의 applyGameOp)
 
@@ -502,7 +502,7 @@ async function rememberGameNames(names: unknown[], now: string): Promise<void> {
 
 export type NewGameResult = { id: string; key: string } | { error: GameError };
 
-/** 새 번개 게임을 만듭니다. 누구나 씁니다. 돌려준 열쇠는 브라우저가 그 게임의 관리용으로 기억해 둡니다. */
+/** 새 친선 경기를 만듭니다. 누구나 씁니다. 돌려준 열쇠는 브라우저가 그 게임의 관리용으로 기억해 둡니다. */
 export async function createGameAction(input: NewGameInput): Promise<NewGameResult> {
   const address = await clientAddress();
   const started = Date.now();
@@ -523,7 +523,7 @@ export async function createGameAction(input: NewGameInput): Promise<NewGameResu
 export type GameActionResult = GamePayload | { error: GameError };
 
 /**
- * 번개 게임의 기록과 관리. 점수·경기 기록은 누구나, 관리 조작은 만든 사람 열쇠(key)가 맞거나 관리자일 때만 합니다.
+ * 친선 경기의 기록과 관리. 점수·경기 기록은 누구나, 관리 조작은 만든 사람 열쇠(key)가 맞거나 관리자일 때만 합니다.
  * 바뀐 게임을 돌려주므로 화면이 기다리지 않고 따라옵니다.
  */
 export async function gameAction(id: string, op: GameOp, key?: string): Promise<GameActionResult> {
@@ -551,7 +551,7 @@ export async function gameAction(id: string, op: GameOp, key?: string): Promise<
   return { game: publicGame(result.game), open: isGameOpen(result.game, day) };
 }
 
-/** 번개 게임을 지웁니다. 만든 사람이나 관리자만 합니다. */
+/** 친선 경기를 지웁니다. 만든 사람이나 관리자만 합니다. */
 export async function deleteGameAction(id: string, key?: string): Promise<{ error?: GameError }> {
   if (typeof id !== "string") return { error: "notFound" };
   const game = await getGame(id);

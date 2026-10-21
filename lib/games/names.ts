@@ -1,7 +1,7 @@
 import { personKey } from "@/lib/draw/roster";
 import { MAX_GAME_NAME } from "./play";
 
-// 번개 게임의 이름 찾기. 띄어쓰기·대소문자를 무시하고, 한글 이름은 초성(ㅎㄱㄷ)으로도 찾습니다.
+// 친선 경기의 이름 찾기. 띄어쓰기·대소문자를 무시하고, 한글 이름은 초성(ㅎㄱㄷ)으로도 찾습니다.
 
 const CHOSEONG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
 

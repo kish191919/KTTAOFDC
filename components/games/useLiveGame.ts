@@ -7,7 +7,7 @@ import type { GamePayload } from "@/lib/games/play";
 const INTERVAL_MS = 5000;
 
 /**
- * 번개 게임을 5초마다 새로 받아 옵니다. 화면이 가려져 있는 동안에는 쉬었다가 다시 보이면 바로 받아 옵니다.
+ * 친선 경기를 5초마다 새로 받아 옵니다. 화면이 가려져 있는 동안에는 쉬었다가 다시 보이면 바로 받아 옵니다.
  * 내가 저장해서 받은 게임(apply)이 받아 온 것보다 새것이면 그대로 둡니다. (components/draw/useLiveDraw.ts 와 같은 방식)
  */
 export function useLiveGame(id: string, initial: GamePayload) {

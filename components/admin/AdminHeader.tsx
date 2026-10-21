@@ -7,7 +7,7 @@ const tabs = [
   { href: "/admin/hero", label: "메인 화면" },
   { href: "/admin/tournaments", label: "대회 정보" },
   { href: "/admin/draws", label: "대진표" },
-  { href: "/admin/games", label: "번개 게임" },
+  { href: "/admin/games", label: "친선 경기" },
   { href: "/admin/albums", label: "갤러리 앨범" },
   { href: "/admin/news", label: "탁구 소식" },
 ] as const;
