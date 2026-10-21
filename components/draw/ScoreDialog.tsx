@@ -6,6 +6,7 @@ import { ChevronDownIcon } from "@/components/icons";
 import { setDrawTableAction, submitDrawScoreAction } from "@/lib/actions";
 import {
   gamesToWin,
+  isStarted,
   isValidGame,
   matchBestOf,
   occupantKey,
@@ -230,9 +231,11 @@ export function ScoreDialog({
       : null;
   // 조 테이블에 올리면 대기로 돌아갈 경기 (시작만 누르고 점수가 없는 경기)
   const replaced = choices?.home && choices.home.table !== shownTable ? choices.home.replaces : undefined;
+  // 시작만 누르고 점수가 없는 경기는 테이블에서 내릴 수 있습니다. (잘못 배정했을 때)
+  const unassignable = Boolean(match.table) && !isStarted(match);
 
-  // 테이블에 올리기(시작)·옮기기. 시작하면 창을 닫고, 옮기면 적던 점수가 남도록 창을 그대로 둡니다.
-  function place(table: number) {
+  // 테이블에 올리기(시작)·옮기기·내리기(null). 시작하면 창을 닫고, 옮기거나 내리면 적던 점수가 남도록 창을 그대로 둡니다.
+  function place(table: number | null) {
     setTableError(null);
     startTransition(async () => {
       try {
@@ -240,7 +243,7 @@ export function ScoreDialog({
           event: event.id,
           match: match.id,
           table,
-          occupant: occupantKey(board.tables[table - 1]),
+          occupant: table === null ? "" : occupantKey(board.tables[table - 1]),
         });
         if ("error" in result) {
           setTableError(t.errors[result.error]);
@@ -387,6 +390,16 @@ export function ScoreDialog({
             </>
           ) : (
             <p className="text-sm break-keep text-slate-600">{t.start.moveNone}</p>
+          )}
+          {unassignable && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => place(null)}
+              className="mt-3 text-sm font-bold text-accent-700 hover:underline disabled:opacity-60"
+            >
+              {t.start.unassign}
+            </button>
           )}
           {tableErrorNote}
         </section>

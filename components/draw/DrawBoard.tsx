@@ -37,13 +37,16 @@ import {
 import { clockTime, eventName, formatLabel, matchLabel, pointsText, sideName, slotLabel } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
-import { startableAt, TablePicker } from "./TablePicker";
+import { startableAt, TablePicker, TableQuickPick } from "./TablePicker";
 import { useStored } from "./useStored";
 
 type T = Dictionary["draw"];
 
 /** 경기를 누르면 점수 입력 창을 엽니다. flip 은 b 쪽 팀을 왼쪽에 두고 보던 경기입니다. (창도 같은 순서로 그립니다) */
 type OpenMatch = (event: DrawEvent, match: DrawMatch, flip?: boolean) => void;
+
+/** 본선 경기 칸 아래에 넣는 빈 테이블 번호 줄 */
+type QuickPick = (event: DrawEvent, match: DrawMatch) => ReactNode;
 
 type Props = {
   tournamentId: string;
@@ -94,6 +97,23 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
   const open: OpenMatch = (event, match, flip = false) => setOpened({ event: event.id, match: match.id, flip });
   const openedEvent = opened && draw.events.find((e) => e.id === opened.event);
   const openedMatch = openedEvent?.matches.find((m) => m.id === opened?.match);
+  // 본선 경기 칸에서 빈 테이블 번호를 눌러 바로 시작합니다. 테이블 현황의 '경기 시작'처럼 점수를 입력할 수 있으면 누구나 씁니다.
+  const quickPick: QuickPick | undefined =
+    canScore && draw.tables > 0
+      ? (event, match) => (
+          <TableQuickPick
+            tournamentId={tournamentId}
+            lang={lang}
+            draw={draw}
+            board={board}
+            contexts={contexts}
+            event={event}
+            match={match}
+            onSaved={onDraw}
+            onConflict={onRefresh}
+          />
+        )
+      : undefined;
   // 테이블이 없는 대회는 테이블 현황 탭 없이 첫 종목을 보여 줍니다.
   const tabs = [
     ...(draw.tables > 0 ? [{ id: "tables", label: t.tablesTab }] : []),
@@ -165,6 +185,7 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
             context={contextOf(current)}
             board={board}
             canScore={canScore}
+            quickPick={quickPick}
             onOpen={open}
           />
         ) : tab === "log" ? (
@@ -822,6 +843,7 @@ function EventView({
   context,
   board,
   canScore,
+  quickPick,
   onOpen,
 }: {
   lang: Locale;
@@ -829,6 +851,7 @@ function EventView({
   context: EventContext;
   board: TableBoard;
   canScore: boolean;
+  quickPick?: QuickPick;
   onOpen: OpenMatch;
 }) {
   const t = getDictionary(lang).draw;
@@ -905,11 +928,19 @@ function EventView({
             id={`${event.id}-knockout`}
             step={2}
             title={t.knockout}
-            hint={t.knockoutHint}
+            hint={quickPick ? `${t.knockoutHint} ${t.knockoutTableHint}` : t.knockoutHint}
             action={canScore ? t.tapToScore : undefined}
             t={t}
           />
-          <Bracket lang={lang} event={event} context={context} board={board} canScore={canScore} onOpen={onOpen} />
+          <Bracket
+            lang={lang}
+            event={event}
+            context={context}
+            board={board}
+            canScore={canScore}
+            quickPick={quickPick}
+            onOpen={onOpen}
+          />
         </section>
       )}
     </div>
@@ -1166,6 +1197,7 @@ function Bracket({
   context,
   board,
   canScore,
+  quickPick,
   onOpen,
 }: {
   lang: Locale;
@@ -1173,6 +1205,7 @@ function Bracket({
   context: EventContext;
   board: TableBoard;
   canScore: boolean;
+  quickPick?: QuickPick;
   onOpen: OpenMatch;
 }) {
   const t = getDictionary(lang).draw;
@@ -1188,7 +1221,16 @@ function Bracket({
     return event.knockoutBestOf && first ? t.bestOf(matchBestOf(event, first)) : undefined;
   };
   const matchBox = (match: DrawMatch) => (
-    <BracketMatch event={event} match={match} context={context} board={board} canScore={canScore} t={t} onOpen={onOpen} />
+    <BracketMatch
+      event={event}
+      match={match}
+      context={context}
+      board={board}
+      canScore={canScore}
+      quickPick={quickPick}
+      t={t}
+      onOpen={onOpen}
+    />
   );
   const championBox = final && (
     <div
@@ -1360,13 +1402,17 @@ function Connector({ shape, on }: { shape: "in" | "out" | "down" | "up"; on: boo
   );
 }
 
-/** 본선 경기 칸: 위에 경기 이름과 상태, 아래에 두 참가자와 이긴 세트 수. 누르면 점수 입력 창이 열립니다. */
+/**
+ * 본선 경기 칸: 위에 경기 이름과 상태, 아래에 두 참가자와 이긴 세트 수. 누르면 점수 입력 창이 열립니다.
+ * 상대가 정해지고 아직 시작하지 않은 경기는 맨 아래에 빈 테이블 번호 줄(quickPick)을 둡니다. 점수 입력 버튼과 겹치지 않게 칸 밖에 둡니다.
+ */
 function BracketMatch({
   event,
   match,
   context,
   board,
   canScore,
+  quickPick,
   t,
   onOpen,
 }: {
@@ -1375,6 +1421,7 @@ function BracketMatch({
   context: EventContext;
   board: TableBoard;
   canScore: boolean;
+  quickPick?: QuickPick;
   t: T;
   onOpen: OpenMatch;
 }) {
@@ -1386,11 +1433,8 @@ function BracketMatch({
   const clickable = !bye && state !== "pending";
 
   return (
-    <button
-      type="button"
-      disabled={!clickable}
-      onClick={() => onOpen(event, match)}
-      className={`w-full overflow-hidden rounded-xl border text-left transition enabled:hover:border-brand-300 enabled:hover:shadow-md disabled:cursor-default ${
+    <div
+      className={`w-full overflow-hidden rounded-xl border transition has-[>button:enabled:hover]:border-brand-300 has-[>button:enabled:hover]:shadow-md ${
         playing
           ? "border-accent-300 bg-white ring-2 ring-accent-100"
           : bye
@@ -1398,76 +1442,84 @@ function BracketMatch({
             : "border-slate-200 bg-white shadow-sm"
       }`}
     >
-      <span
-        className={`flex items-center justify-between gap-2 border-b px-4 py-1.5 text-xs font-bold lg:px-5 lg:text-sm ${
-          playing ? "border-accent-100 bg-accent-50" : "border-slate-100 bg-slate-50"
-        }`}
+      <button
+        type="button"
+        disabled={!clickable}
+        onClick={() => onOpen(event, match)}
+        className="block w-full text-left disabled:cursor-default"
       >
-        <span className="truncate text-slate-500">{matchLabel(event, match, t)}</span>
-        {/* 상대가 정해지기 전에는 비워 둡니다. (본선 첫 화면이 온통 '상대 결정 전'이 되지 않게)
-            끝난 경기는 글 대신 체크 표시를 둡니다. (영어 'Final' 이 결승과 헷갈리지 않게) */}
-        {playing ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-accent-700">
-            <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
-            {table ? t.table(table) : t.state.playing}
-          </span>
-        ) : state === "ready" && canScore ? (
-          <span className="inline-flex shrink-0 items-center gap-1 text-brand-700">
-            <PencilIcon className="size-3.5" />
-            {t.enterScore}
-          </span>
-        ) : state === "done" ? (
-          <span className="shrink-0 text-slate-400">
-            <CheckIcon className="size-4" />
-            <span className="sr-only">{t.state.done}</span>
-          </span>
-        ) : (
-          state !== "pending" && (
-            <span className={`shrink-0 ${state === "ready" ? "text-brand-700" : "text-slate-400"}`}>
-              {t.state[state]}
+        <span
+          className={`flex items-center justify-between gap-2 border-b px-4 py-1.5 text-xs font-bold lg:px-5 lg:text-sm ${
+            playing ? "border-accent-100 bg-accent-50" : "border-slate-100 bg-slate-50"
+          }`}
+        >
+          <span className="truncate text-slate-500">{matchLabel(event, match, t)}</span>
+          {/* 상대가 정해지기 전에는 비워 둡니다. (본선 첫 화면이 온통 '상대 결정 전'이 되지 않게)
+              끝난 경기는 글 대신 체크 표시를 둡니다. (영어 'Final' 이 결승과 헷갈리지 않게) */}
+          {playing ? (
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-accent-700">
+              <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
+              {table ? t.table(table) : t.state.playing}
             </span>
-          )
-        )}
-      </span>
-      {(["a", "b"] as const).map((side, i) => {
-        const { name, entry } = sideName(match, side, context, t);
-        const won = winner === side;
-        return (
-          <span
-            key={side}
-            className={`flex items-center gap-2.5 px-4 py-2.5 lg:px-5 lg:py-3 ${i === 1 ? "border-t border-slate-100" : ""} ${
-              won ? "bg-brand-50" : ""
-            }`}
-          >
-            {/* 아직 정해지지 않은 자리("준결승 1경기 승자")는 점수 칸 없이 한 단계 작게 적어 긴 이름도 다 보이게 합니다.
-                줄 높이(leading-7)는 점수 칸과 같게 두어 줄마다 높이가 같습니다. */}
+          ) : state === "ready" && canScore ? (
+            <span className="inline-flex shrink-0 items-center gap-1 text-brand-700">
+              <PencilIcon className="size-3.5" />
+              {t.enterScore}
+            </span>
+          ) : state === "done" ? (
+            <span className="shrink-0 text-slate-400">
+              <CheckIcon className="size-4" />
+              <span className="sr-only">{t.state.done}</span>
+            </span>
+          ) : (
+            state !== "pending" && (
+              <span className={`shrink-0 ${state === "ready" ? "text-brand-700" : "text-slate-400"}`}>
+                {t.state[state]}
+              </span>
+            )
+          )}
+        </span>
+        {(["a", "b"] as const).map((side, i) => {
+          const { name, entry } = sideName(match, side, context, t);
+          const won = winner === side;
+          return (
             <span
-              className={`min-w-0 flex-1 truncate ${
-                !entry
-                  ? "text-base leading-7 font-medium text-slate-400"
-                  : won
-                    ? "font-black text-brand-950"
-                    : winner
-                      ? "text-slate-400"
-                      : "font-bold text-slate-800"
-              } ${entry ? "text-base lg:text-lg" : ""}`}
-              title={name}
-            >
-              {name}
-            </span>
-            {entry && (
-              <span
-                className={`w-7 shrink-0 text-right text-lg font-black tabular-nums lg:text-xl ${
-                won ? "text-brand-700" : winner ? "text-slate-400" : "text-slate-700"
+              key={side}
+              className={`flex items-center gap-2.5 px-4 py-2.5 lg:px-5 lg:py-3 ${i === 1 ? "border-t border-slate-100" : ""} ${
+                won ? "bg-brand-50" : ""
               }`}
             >
-                {match.walkover ? (match.walkover === side ? "W" : "") : (match.sets?.[i] ?? "")}
+              {/* 아직 정해지지 않은 자리("준결승 1경기 승자")는 점수 칸 없이 한 단계 작게 적어 긴 이름도 다 보이게 합니다.
+                  줄 높이(leading-7)는 점수 칸과 같게 두어 줄마다 높이가 같습니다. */}
+              <span
+                className={`min-w-0 flex-1 truncate ${
+                  !entry
+                    ? "text-base leading-7 font-medium text-slate-400"
+                    : won
+                      ? "font-black text-brand-950"
+                      : winner
+                        ? "text-slate-400"
+                        : "font-bold text-slate-800"
+                } ${entry ? "text-base lg:text-lg" : ""}`}
+                title={name}
+              >
+                {name}
               </span>
-            )}
-          </span>
-        );
-      })}
-    </button>
+              {entry && (
+                <span
+                  className={`w-7 shrink-0 text-right text-lg font-black tabular-nums lg:text-xl ${
+                  won ? "text-brand-700" : winner ? "text-slate-400" : "text-slate-700"
+                }`}
+              >
+                  {match.walkover ? (match.walkover === side ? "W" : "") : (match.sets?.[i] ?? "")}
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </button>
+      {state === "ready" && quickPick?.(event, match)}
+    </div>
   );
 }
 

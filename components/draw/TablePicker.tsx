@@ -5,7 +5,7 @@ import { setDrawTableAction } from "@/lib/actions";
 import { occupantKey, tableChoices, type EventContext, type QueueItem, type TableBoard } from "@/lib/draw/play";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
-import type { Draw } from "@/lib/types";
+import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
 import { Dialog } from "./Dialog";
 import { eventName, matchLabel, sideName } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
@@ -142,5 +142,92 @@ export function TablePicker({
         </>
       )}
     </Dialog>
+  );
+}
+
+/**
+ * 본선 경기 칸 아래의 빈 테이블 번호 줄. 번호를 누르면 그 경기를 그 테이블에서 시작합니다.
+ * 테이블 현황의 '경기 시작'과 같은 일이라 점수를 입력할 수 있으면 누구나 씁니다.
+ * 관리자도 여기서는 빈 테이블만 보여 줍니다. (다른 테이블에 올리려면 점수 입력 창을 씁니다)
+ */
+export function TableQuickPick({
+  tournamentId,
+  lang,
+  draw,
+  board,
+  contexts,
+  event,
+  match,
+  onSaved,
+  onConflict,
+}: {
+  tournamentId: string;
+  lang: Locale;
+  draw: Draw;
+  board: TableBoard;
+  contexts: EventContext[];
+  event: DrawEvent;
+  match: DrawMatch;
+  onSaved: (draw: Draw) => void;
+  onConflict: () => void;
+}) {
+  const t = getDictionary(lang).draw;
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const choices = tableChoices(draw, board, event, match, false, contexts);
+
+  function pick(table: number) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await setDrawTableAction(tournamentId, {
+          event: event.id,
+          match: match.id,
+          table,
+          occupant: occupantKey(board.tables[table - 1]),
+        });
+        if ("error" in result) {
+          setError(t.errors[result.error]);
+          if (result.error === "tableTaken") onConflict();
+          return;
+        }
+        onSaved(result.draw);
+      } catch {
+        setError(t.errors.network);
+      }
+    });
+  }
+
+  return (
+    <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-2 lg:px-5">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+        <span className="text-xs font-bold text-slate-500">{t.assignTable}</span>
+        {choices.free.length > 0 ? (
+          <span className="flex flex-wrap gap-1.5">
+            {choices.free.map((table) => (
+              <button
+                key={table}
+                type="button"
+                disabled={pending}
+                onClick={() => pick(table)}
+                aria-label={t.table(table)}
+                className="min-w-9 rounded-lg border border-brand-200 bg-white px-2 py-1 text-sm font-black text-brand-700 tabular-nums shadow-xs transition-colors hover:border-brand-400 hover:bg-brand-50 disabled:opacity-60"
+              >
+                {table}
+              </button>
+            ))}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold text-slate-400">
+            {choices.blocked ? t[choices.blocked] : t.noOpenTable}
+          </span>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="mt-1.5 text-xs font-semibold break-keep text-accent-700">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
