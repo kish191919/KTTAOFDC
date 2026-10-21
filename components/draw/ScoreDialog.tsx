@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { setDrawTableAction, submitDrawScoreAction } from "@/lib/actions";
 import {
   gamesToWin,
@@ -9,7 +10,6 @@ import {
   resultKey,
   setsFromPoints,
   tableChoices,
-  winnerOf,
   type EventContext,
   type ScoreInput,
   type Side,
@@ -19,7 +19,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
 import { Dialog } from "./Dialog";
-import { eventName, matchLabel, pointsText, sideName } from "./labels";
+import { eventName, matchLabel, matchup, pointsText, sideName } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 
 type Mode = "points" | "sets" | "walkover";
@@ -46,6 +46,12 @@ type Props = {
 };
 
 const emptyRows = (count: number) => Array.from({ length: count }, () => ["", ""]);
+
+/** 게임 세트 두 칸을 읽습니다. 빈 칸은 0 이고, 한쪽이 이길 게임 수를 채워야 끝난 결과입니다. */
+function readSets(inputs: [string, string], need: number): [number, number] | null {
+  const sets: [number, number] = [Number(inputs[0]), Number(inputs[1])];
+  return Math.max(...sets) === need && Math.min(...sets) < need ? sets : null;
+}
 
 /** 경기 한 판의 점수 입력 창. 게임별 점수, 게임 세트, 기권 가운데 골라 적습니다. */
 export function ScoreDialog({
@@ -76,16 +82,12 @@ export function ScoreDialog({
     (match.points ?? []).forEach(([a, b], i) => (rows[i] = [String(a), String(b)]));
     return rows;
   });
-  // 게임 세트: 이긴 쪽을 먼저 고르고, 진 쪽이 딴 게임 수를 고릅니다. (3:0, 3:1, 3:2)
-  const savedSets = match.sets && !match.points && winnerOf(match, event.bestOf) ? match.sets : null;
-  const [winner, setWinner] = useState<Side | null>(
-    savedSets ? (savedSets[0] > savedSets[1] ? "a" : "b") : null,
+  // 게임 세트: 점수판의 게임 수 자리에 양쪽이 딴 게임 수를 바로 적습니다. (3:1 이면 3 과 1)
+  const [setInputs, setSetInputs] = useState<[string, string]>(() =>
+    match.sets && !match.points ? [String(match.sets[0]), String(match.sets[1])] : ["", ""],
   );
-  const [loserGames, setLoserGames] = useState<number | null>(
-    savedSets ? Math.min(...savedSets) : null,
-  );
-  const sets: [number, number] | null =
-    winner && loserGames !== null ? (winner === "a" ? [need, loserGames] : [loserGames, need]) : null;
+  const setsRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const sets = readSets(setInputs, need);
   const [withdrawn, setWithdrawn] = useState<Side | null>(
     match.walkover ? (match.walkover === "a" ? "b" : "a") : null,
   );
@@ -119,12 +121,12 @@ export function ScoreDialog({
     mode === "points"
       ? pointSets
       : mode === "sets"
-        ? (sets ?? match.sets ?? [0, 0])
+        ? ([Number(setInputs[0]), Number(setInputs[1])] as [number, number])
         : null;
   const shownWinner: Side | undefined = shown
-    ? shown[0] >= need
+    ? shown[0] >= need && shown[1] < need
       ? "a"
-      : shown[1] >= need
+      : shown[1] >= need && shown[0] < need
         ? "b"
         : undefined
     : withdrawn
@@ -164,7 +166,7 @@ export function ScoreDialog({
       if (badRow >= 0 || games.length === 0) return setError(t.errors.points);
       submit({ kind: "points", points: games });
     } else if (mode === "sets") {
-      if (!sets) return setError(t.score.setsMissing);
+      if (!sets) return setError(t.score.setsInvalid(need));
       submit({ kind: "sets", sets });
     } else {
       if (!withdrawn) return setError(t.errors.sets);
@@ -212,12 +214,44 @@ export function ScoreDialog({
     </button>
   );
 
+  // 게임 세트 칸: 한 칸에 숫자 하나. 첫 칸을 적으면 둘째 칸으로 넘어가고,
+  // 둘째 칸까지 맞게 적으면 키보드를 닫아 저장 버튼이 보이게 합니다.
+  const setsField = (i: 0 | 1, name: string) => (
+    <input
+      ref={(el) => {
+        setsRefs.current[i] = el;
+      }}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      placeholder="0"
+      aria-label={`${name} ${t.score.total}`}
+      value={setInputs[i]}
+      onChange={(e) => {
+        // 이미 적힌 칸에 새로 누르면 그 숫자로 바꿉니다.
+        const digits = e.target.value.replace(/\D/g, "");
+        const value = (digits.length > 1 ? digits.replace(setInputs[i], "") : digits).slice(-1);
+        if (Number(value) > need) return;
+        const next: [string, string] = i === 0 ? [value, setInputs[1]] : [setInputs[0], value];
+        setSetInputs(next);
+        setError(null);
+        if (value === "") return;
+        if (i === 0) setsRefs.current[1]?.focus();
+        else if (readSets(next, need)) e.target.blur();
+      }}
+      className="w-14 rounded-lg border border-slate-300 bg-white py-0.5 text-center placeholder:text-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-hidden"
+    />
+  );
+  const editingSets = canEdit && mode === "sets";
+
   const tab = (value: Mode, label: string) => (
     <button
       type="button"
       onClick={() => {
-        setMode(value);
+        // 게임 세트를 고르면 점수판 첫 칸에 바로 적을 수 있게 합니다.
+        flushSync(() => setMode(value));
         setError(null);
+        if (value === "sets") setsRefs.current[0]?.focus();
       }}
       aria-pressed={mode === value}
       className={`flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-colors ${
@@ -244,14 +278,21 @@ export function ScoreDialog({
       closeLabel={t.score.close}
       onClose={onClose}
     >
-      {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수. 이기는 쪽 상자가 바로 파랗게 바뀝니다. */}
+      {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수. 이기는 쪽 상자가 바로 파랗게 바뀝니다.
+          게임 세트로 적을 때는 게임 수 자리가 입력 칸이 됩니다. */}
       <div className="mt-4">
         <MatchSides
           sides={
             [a, b].map((side, i) => ({
               name: side.name,
               decided: Boolean(side.entry),
-              score: shown ? shown[i] : withdrawn === (i === 0 ? "a" : "b") ? "–" : "",
+              score: editingSets
+                ? setsField(i as 0 | 1, side.name)
+                : shown
+                  ? shown[i]
+                  : withdrawn === (i === 0 ? "a" : "b")
+                    ? "–"
+                    : "",
             })) as [MatchSide, MatchSide]
           }
           winner={shownWinner}
@@ -285,7 +326,9 @@ export function ScoreDialog({
               </button>
               {choices.home.replaces && (
                 <p className="mt-2 text-xs break-keep text-slate-500">
-                  {t.start.replaces(matchLabel(choices.home.replaces.event, choices.home.replaces.match, t))}
+                  {t.start.replaces(
+                    matchup(choices.home.replaces.match, contexts[draw.events.indexOf(choices.home.replaces.event)], t),
+                  )}
                 </p>
               )}
             </>
@@ -369,53 +412,7 @@ export function ScoreDialog({
             </div>
           )}
 
-          {mode === "sets" && (
-            <div className="mt-4">
-              <p className="text-sm font-bold text-slate-600">{t.score.setsWinner}</p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {(["a", "b"] as const).map((side) => {
-                  const active = winner === side;
-                  return (
-                    <button
-                      key={side}
-                      type="button"
-                      onClick={() => setWinner(side)}
-                      aria-pressed={active}
-                      className={`rounded-xl border-2 px-3 py-3 font-bold break-keep transition-colors ${
-                        active
-                          ? "border-brand-700 bg-brand-700 text-white"
-                          : "border-slate-200 text-slate-700 hover:border-brand-300"
-                      }`}
-                    >
-                      {(side === "a" ? a : b).name}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-4 text-sm font-bold text-slate-600">{t.score.setsScore}</p>
-              <div className="mt-2 flex gap-2">
-                {Array.from({ length: need }, (_, lost) => {
-                  const active = loserGames === lost;
-                  return (
-                    <button
-                      key={lost}
-                      type="button"
-                      onClick={() => setLoserGames(lost)}
-                      aria-pressed={active}
-                      className={`flex-1 rounded-xl border-2 py-2.5 text-lg font-black tabular-nums transition-colors ${
-                        active
-                          ? "border-brand-700 bg-brand-700 text-white"
-                          : "border-slate-200 text-slate-700 hover:border-brand-300"
-                      }`}
-                    >
-                      {need} : {lost}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="hint break-keep">{t.score.setsHint}</p>
-            </div>
-          )}
+          {mode === "sets" && <p className="hint mt-3 break-keep">{t.score.setsHint}</p>}
 
           {mode === "walkover" && (
             <div className="mt-4 space-y-2">

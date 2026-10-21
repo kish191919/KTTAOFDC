@@ -6,22 +6,16 @@ import type { Dictionary } from "@/lib/i18n/dictionaries";
 import { site } from "@/lib/site";
 import type { DrawEvent, DrawMatch, DrawSlot } from "@/lib/types";
 
-// 대진표 화면에 쓰는 이름표: 종목 이름, "A조 · 2경기", "A조 1위", "8강 1경기 승자" 같은 글
+// 대진표 화면에 쓰는 이름표: 종목 이름, "A조", "A조 1위", "8강 1경기 승자" 같은 글
 
 type T = Dictionary["draw"];
 
 export const eventName = (event: DrawEvent, lang: Locale) =>
   (lang === "en" && event.nameEn) || event.name;
 
-/** "A조 · 2경기" · "8강 1경기" · "결승" */
+/** "A조" · "8강 1경기" · "결승". 예선 경기는 순서가 자유라 번호를 붙이지 않습니다. */
 export function matchLabel(event: DrawEvent, match: DrawMatch, t: T): string {
-  if (match.stage === "group") {
-    const index =
-      event.matches
-        .filter((m) => m.stage === "group" && m.group === match.group)
-        .findIndex((m) => m.id === match.id) + 1;
-    return `${t.group(groupLetter(match.group ?? 0))} · ${t.matchNo(index)}`;
-  }
+  if (match.stage === "group") return t.group(groupLetter(match.group ?? 0));
   const size = roundSize(event, match.round);
   return size <= 2 ? t.round(size) : `${t.round(size)} ${t.matchNo((match.position ?? 0) + 1)}`;
 }
@@ -55,6 +49,10 @@ export function sideName(
   }
   return { name: slotLabel(match[side], context, t) };
 }
+
+/** 두 참가자 이름 "김수미 · 이도임 vs 정경리 · Hanna Kim". 예선 경기를 글로 가리킬 때 씁니다. */
+export const matchup = (match: DrawMatch, context: EventContext, t: T) =>
+  `${sideName(match, "a", context, t).name} ${t.versus} ${sideName(match, "b", context, t).name}`;
 
 /** 게임별 점수 "11-7, 9-11, 11-5" */
 export const pointsText = (match: DrawMatch) =>

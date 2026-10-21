@@ -148,23 +148,36 @@ export const ko = {
     findPlaceholder: "이름을 입력하세요",
     findEmpty: "그 이름의 참가자가 없습니다.",
     findClear: "지우기",
+    findHint: "이름을 적으면 내 경기와 경기할 테이블이 나옵니다.",
+    /** 경기를 눌러 점수를 입력할 수 있다는 안내 (점수 입력을 할 수 있을 때만) */
+    tapToScore: "경기가 끝나면 그 경기를 눌러 점수를 입력해 주세요.",
     viewsLabel: "대진표 보기 선택",
     tablesTab: "테이블 현황",
     table: (n: number) => `${n}번 테이블`,
     tableOpen: "비어 있음",
     /** 조 테이블 카드: 그 조의 아직 치지 않은 경기 */
     remaining: (n: number) => `남은 경기 ${n}`,
-    groupTableHint: "순서는 자유입니다. 칠 경기를 누르고 시작을 누르면 모두에게 보입니다.",
-    /** 빈 테이블 카드의 버튼과 고르기 창 */
+    groupTableHint: "조 경기는 순서가 자유입니다. 테이블의 ‘경기 시작’을 눌러 칠 경기를 고르면 모두에게 보입니다.",
+    /** 경기가 없는 테이블 카드의 버튼과 고르기 창 */
     startMatch: "경기 시작",
     pickTitle: (table: string) => `${table}에서 칠 경기`,
+    pickGroupHint: "이 테이블을 쓰는 조의 남은 경기입니다. 오래 기다린 순서로 보여 드리지만 순서는 자유입니다.",
     pickHint: "본선 경기부터, 오래 기다린 순서로 보여 드립니다. 선수가 다른 경기 중이거나 조 테이블이 비어 있는 경기는 빠져 있습니다.",
     pickEmpty: "지금 이 테이블에서 시작할 수 있는 경기가 없습니다. 예선 경기는 각 조의 테이블에서 칩니다.",
     elsewhere: "테이블을 모르는 진행 중 경기",
     playerBusy: "선수가 다른 경기 중",
     notArrived: "도착 확인 전",
-    groupStage: "예선 조별 리그",
+    groupStage: "조별 예선",
+    /** 단계 제목 아래 진행 방식 설명. advance 는 조마다 본선에 오르는 인원 */
+    groupStageHint: (advance: number) =>
+      `같은 조의 모든 팀과 한 번씩 경기합니다. 조 ${
+        advance === 1 ? "1위가" : advance === 2 ? "1·2위가" : `1~${advance}위가`
+      } 본선 토너먼트에 오릅니다. 경기 순서는 자유입니다.`,
+    leagueHint: "모든 팀과 한 번씩 경기해 이긴 경기 수로 순위를 정합니다. 경기 순서는 자유입니다.",
     knockout: "본선 토너먼트",
+    knockoutHint: "지면 탈락하고, 이기면 다음 라운드에 오릅니다.",
+    /** 조 카드의 경기 목록 제목 */
+    groupMatches: (done: number, total: number) => `경기 · ${total}경기 중 ${done}경기 끝남`,
     group: (letter: string) => `${letter}조`,
     groupRank: (letter: string, rank: number) => `${letter}조 ${rank}위`,
     /** size 는 그 라운드에 오른 인원 */
@@ -177,16 +190,16 @@ export const ko = {
     rank: "순위",
     entryHeading: (doubles: boolean): string => (doubles ? "팀" : "선수"),
     record: "승패",
-    games: "게임",
+    games: "게임 득실",
     winLoss: (wins: number, losses: number) => `${wins}승 ${losses}패`,
     provisional: "조 경기가 끝나면 순위가 확정됩니다.",
-    advances: "본선",
+    advances: "본선 진출",
     withdrawn: "불참",
     bestOf: (n: number) => `${n}게임 ${Math.floor(n / 2) + 1}선승`,
     state: {
       done: "종료",
       playing: "경기 중",
-      ready: "대기",
+      ready: "경기 전",
       pending: "상대 결정 전",
       bye: "부전승",
     },
@@ -224,10 +237,8 @@ export const ko = {
       game: (n: number) => `${n}게임`,
       pointsHint:
         "끝난 게임까지만 적어도 됩니다. 게임이 끝날 때마다 저장하면 진행 상황이 모두에게 보입니다.",
-      setsWinner: "누가 이겼나요?",
-      setsScore: "몇 대 몇인가요?",
-      setsHint: "게임별 점수를 모를 때 씁니다.",
-      setsMissing: "이긴 쪽과 게임 세트를 모두 골라 주세요.",
+      setsHint: "양쪽이 딴 게임 수를 위 점수판에 적어 주세요. 게임별 점수를 모를 때 씁니다.",
+      setsInvalid: (need: number) => `게임 수를 다시 확인해 주세요. 이긴 쪽은 ${need}게임, 진 쪽은 그보다 적어야 합니다.`,
       walkoverHint: "기권한 쪽을 고르면 상대가 이긴 것으로 적힙니다.",
       withdrew: (name: string) => `${name} 기권`,
       total: "게임 스코어",

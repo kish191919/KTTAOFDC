@@ -9,7 +9,6 @@ import {
   withGroupTables,
   type EventContext,
   type MatchState,
-  type QueueItem,
   type TableBoard,
   type TableSlot,
 } from "@/lib/draw/play";
@@ -24,7 +23,7 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
-import { PlusIcon, SearchIcon } from "@/components/icons";
+import { PencilIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { clockTime, eventName, matchLabel, pointsText, sideName, slotLabel } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
@@ -69,6 +68,7 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
     );
   }
 
+  const canScore = scoring || admin;
   const open = (event: DrawEvent, match: DrawMatch) => setOpened({ event: event.id, match: match.id });
   const openedEvent = opened && draw.events.find((e) => e.id === opened.event);
   const openedMatch = openedEvent?.matches.find((m) => m.id === opened?.match);
@@ -84,7 +84,7 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
 
   return (
     <div className="space-y-6">
-      <EntryFinder lang={lang} live={live} contextOf={contextOf} board={board} onOpen={open} />
+      <EntryFinder lang={lang} live={live} contextOf={contextOf} board={board} canScore={canScore} onOpen={open} />
 
       <div role="tablist" aria-label={t.viewsLabel} className="flex flex-wrap gap-2">
         {tabs.map((item) => {
@@ -109,7 +109,14 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
       </div>
 
       {current ? (
-        <EventView lang={lang} event={current} context={contextOf(current)} board={board} onOpen={open} />
+        <EventView
+          lang={lang}
+          event={current}
+          context={contextOf(current)}
+          board={board}
+          canScore={canScore}
+          onOpen={open}
+        />
       ) : tab === "log" && admin ? (
         <LogView lang={lang} draw={draw} contextOf={contextOf} />
       ) : (
@@ -117,7 +124,11 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
           lang={lang}
           board={board}
           contextOf={contextOf}
-          canStart={(table) => (scoring || admin) && startableAt(draw, board, contexts, table, admin).length > 0}
+          // 조 테이블은 지금 시작할 수 없는 경기만 남았어도 버튼을 둡니다. 고르기 창에서 까닭을 보여 줍니다.
+          canStart={(table) =>
+            (scoring || admin) &&
+            (board.tables[table - 1].groups.length > 0 || startableAt(draw, board, contexts, table, admin).length > 0)
+          }
           onOpen={open}
           onPick={setPicking}
         />
@@ -163,16 +174,38 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
 
 // ───────────────────────── 공통 조각 ─────────────────────────
 
-/** 경기 상태 표시. 경기 중이면 테이블 번호를 함께 적습니다. */
-function StateChip({ state, table, t }: { state: MatchState; table?: number; t: T }) {
+/** 점수를 입력할 수 있다는 표시. 누를 곳임을 알 수 있게 버튼처럼 그립니다. */
+function ScoreChip({ t }: { t: T }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs font-bold text-brand-700 shadow-xs">
+      <PencilIcon className="size-3.5" />
+      {t.enterScore}
+    </span>
+  );
+}
+
+/**
+ * 경기 상태 표시. 경기 중이면 테이블 번호를 함께 적습니다.
+ * scorable 이면 아직 끝나지 않은 경기에 점수 입력 표시를 둡니다.
+ */
+function StateChip({ state, table, scorable = false, t }: { state: MatchState; table?: number; scorable?: boolean; t: T }) {
   if (state === "playing") {
-    return (
+    const chip = (
       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-50 px-2.5 py-1 text-xs font-bold text-accent-700 ring-1 ring-accent-200">
         <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
         {table ? t.table(table) : t.state.playing}
       </span>
     );
+    return scorable ? (
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        {chip}
+        <ScoreChip t={t} />
+      </span>
+    ) : (
+      chip
+    );
   }
+  if (state === "ready" && scorable) return <ScoreChip t={t} />;
   const style =
     state === "ready"
       ? "bg-brand-50 text-brand-700 ring-1 ring-brand-100"
@@ -196,6 +229,7 @@ function MatchLine({
   label,
   chip = true,
   table,
+  scorable = false,
   compact = false,
 }: {
   event: DrawEvent;
@@ -207,6 +241,8 @@ function MatchLine({
   chip?: boolean;
   /** 경기 중인 테이블 (상태 표시에 적습니다) */
   table?: number;
+  /** 방문자가 점수를 입력할 수 있는 때인지 (끝나지 않은 경기에 점수 입력 표시를 둡니다) */
+  scorable?: boolean;
   /** 테이블 카드처럼 좁은 칸에 넣을 때 */
   compact?: boolean;
 }) {
@@ -237,7 +273,12 @@ function MatchLine({
           <span className="mt-1 block text-xs text-slate-400 tabular-nums">{pointsText(match)}</span>
         )}
       </span>
-      {chip && <StateChip state={state} table={table} t={t} />}
+      {/* 상태 칸 너비를 맞춰 두어 경기마다 이름 상자 너비가 같게 합니다. */}
+      {chip && (
+        <span className="flex min-w-[5.5rem] shrink-0 justify-end">
+          <StateChip state={state} table={table} scorable={scorable} t={t} />
+        </span>
+      )}
     </button>
   );
 }
@@ -251,12 +292,14 @@ function EntryFinder({
   live,
   contextOf,
   board,
+  canScore,
   onOpen,
 }: {
   lang: Locale;
   live: DrawEvent[];
   contextOf: (event: DrawEvent) => EventContext;
   board: TableBoard;
+  canScore: boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
@@ -273,6 +316,7 @@ function EntryFinder({
   return (
     <section aria-labelledby="find-heading" className="card p-4 sm:p-5">
       <h2 id="find-heading" className="text-base font-black text-brand-950">{t.findTitle}</h2>
+      <p className="mt-1 text-sm break-keep text-slate-500">{t.findHint}</p>
       <div className="relative mt-3">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400" />
         <input
@@ -292,8 +336,14 @@ function EntryFinder({
             const status = entryStatus(context, board, entry.id);
             const group = event.groups.findIndex((members) => members.includes(entry.id));
             const row = group >= 0 ? context.standings(group).find((r) => r.entry === entry.id) : undefined;
+            // 이 참가자의 경기를 모두 보여 줍니다. 예선은 순서가 자유라 남은 경기 어느 것이든 칠 수 있습니다.
+            const mine = event.matches.filter(
+              (match) =>
+                context.stateOf(match) !== "bye" &&
+                context.participants(match).some((side) => "entry" in side && side.entry === entry.id),
+            );
             return (
-              <li key={`${event.id}:${entry.id}`} className="rounded-xl border border-brand-100 bg-brand-50/40">
+              <li key={`${event.id}:${entry.id}`} className="overflow-hidden rounded-xl border border-brand-100 bg-brand-50/40">
                 <div className="px-4 pt-3">
                   <p className="text-xs font-bold text-accent-600">
                     {eventName(event, lang)}
@@ -302,7 +352,25 @@ function EntryFinder({
                   </p>
                   <p className="mt-0.5 font-black break-keep text-brand-950">{entryName(entry)}</p>
                 </div>
-                <StatusLine status={status} event={event} context={context} t={t} onOpen={onOpen} />
+                <StatusLine status={status} event={event} context={context} t={t} />
+                {mine.length > 0 && (
+                  <ul className="divide-y divide-brand-100 border-t border-brand-100">
+                    {mine.map((match) => (
+                      <li key={match.id}>
+                        <MatchLine
+                          event={event}
+                          match={match}
+                          context={context}
+                          t={t}
+                          onOpen={onOpen}
+                          label={match.stage === "knockout" ? matchLabel(event, match, t) : undefined}
+                          table={board.tableOf(match)}
+                          scorable={canScore}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             );
           })}
@@ -312,18 +380,17 @@ function EntryFinder({
   );
 }
 
+/** 내 경기 찾기의 지금 상태 한두 줄. 경기 목록은 그 아래에 따로 보여 줍니다. */
 function StatusLine({
   status,
   event,
   context,
   t,
-  onOpen,
 }: {
   status: EntryStatus;
   event: DrawEvent;
   context: EventContext;
   t: T;
-  onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const text = (headline: string, tone: "accent" | "brand" | "muted" = "muted") => (
     <p
@@ -347,9 +414,9 @@ function StatusLine({
             ? t.status.nextAt(t.table(status.table))
             : t.status.nextFree;
       return (
-        <>
+        <div className="px-4 pt-1.5 pb-3">
           <p
-            className={`px-4 pt-1.5 text-sm font-bold break-keep ${
+            className={`text-sm font-bold break-keep ${
               status.kind === "playing" ? "text-accent-700" : "text-brand-700"
             }`}
           >
@@ -361,20 +428,9 @@ function StatusLine({
             )}
           </p>
           {status.kind === "ready" && status.absent && (
-            <p className="px-4 pt-1 text-xs break-keep text-accent-700">{t.status.checkInFirst}</p>
+            <p className="mt-1 text-xs break-keep text-accent-700">{t.status.checkInFirst}</p>
           )}
-          <div className="mt-1 border-t border-brand-100">
-            <MatchLine
-              event={event}
-              match={status.match}
-              context={context}
-              t={t}
-              onOpen={onOpen}
-              label={matchLabel(event, status.match, t)}
-              chip={false}
-            />
-          </div>
-        </>
+        </div>
       );
     }
     case "waitingOpponent": {
@@ -417,13 +473,13 @@ function TablesView({
   lang: Locale;
   board: TableBoard;
   contextOf: (event: DrawEvent) => EventContext;
-  /** 빈 테이블에서 시작할 수 있는 경기가 있는지 (점수 입력을 할 수 있을 때만) */
+  /** 경기가 없는 테이블에 칠 경기를 고르는 버튼을 둘지 (점수 입력을 할 수 있을 때만) */
   canStart: (table: number) => boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
   onPick: (table: number) => void;
 }) {
   const t = getDictionary(lang).draw;
-  const queued = new Map(board.queue.map((item) => [item.match, item]));
+  const queued = new Set(board.queue.map((item) => item.match));
   const hasGroups = board.tables.some((slot) => slot.groups.length > 0);
 
   return (
@@ -470,8 +526,9 @@ function TablesView({
 }
 
 /**
- * 테이블 카드 하나. 경기 중인 경기와, 이 테이블을 쓰는 조의 남은 경기를 보여 줍니다.
- * 맡은 조가 없고 경기도 없으면 한 줄짜리 빈 테이블 카드로, 칠 경기를 고르는 버튼을 둡니다.
+ * 테이블 카드 하나. 이 테이블에서 경기 중인 경기만 보여 줍니다.
+ * 경기가 없는 조 테이블은 남은 경기 수와, 그 조에서 칠 경기를 고르는 버튼을 둡니다.
+ * 맡은 조가 없고 경기도 없으면 한 줄짜리 빈 테이블 카드입니다.
  */
 function TableCard({
   lang,
@@ -484,7 +541,7 @@ function TableCard({
 }: {
   lang: Locale;
   slot: TableSlot;
-  queued: Map<DrawMatch, QueueItem>;
+  queued: Set<DrawMatch>;
   contextOf: (event: DrawEvent) => EventContext;
   canStart: (table: number) => boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
@@ -492,6 +549,12 @@ function TableCard({
 }) {
   const t = getDictionary(lang).draw;
   const { table, groups, playing } = slot;
+  const startButton = canStart(table) && (
+    <button type="button" onClick={() => onPick(table)} className="btn btn-ghost btn-sm shrink-0">
+      <PlusIcon className="size-4" />
+      {t.startMatch}
+    </button>
+  );
 
   if (groups.length === 0 && playing.length === 0) {
     return (
@@ -500,38 +563,15 @@ function TableCard({
           {t.table(table)}
           <span className="ml-2 font-semibold text-slate-400">{t.tableOpen}</span>
         </span>
-        {canStart(table) && (
-          <button type="button" onClick={() => onPick(table)} className="btn btn-ghost btn-sm shrink-0">
-            <PlusIcon className="size-4" />
-            {t.startMatch}
-          </button>
-        )}
+        {startButton}
       </li>
     );
   }
 
-  // 두 조가 한 테이블을 나눠 쓰면 경기 이름에 조를 붙입니다.
-  const shared = groups.length > 1;
-  const remaining = groups.flatMap(({ event, group }) => {
-    const context = contextOf(event);
-    return context.groupMatches(group).flatMap((match, index) => {
-      const item = queued.get(match);
-      if (!item) return [];
-      const sides = (["a", "b"] as const).map((side) => {
-        const { name, entry } = sideName(match, side, context, t);
-        return { name, decided: Boolean(entry) };
-      }) as [MatchSide, MatchSide];
-      return [
-        {
-          event,
-          match,
-          sides,
-          label: shared ? matchLabel(event, match, t) : t.matchNo(index + 1),
-          note: item.absent ? t.notArrived : item.busy ? t.playerBusy : undefined,
-        },
-      ];
-    });
-  });
+  const remaining = groups.reduce(
+    (n, { event, group }) => n + contextOf(event).groupMatches(group).filter((match) => queued.has(match)).length,
+    0,
+  );
   const title =
     groups.length > 0
       ? groups.map(({ event, group }) => `${eventName(event, lang)} ${t.group(groupLetter(group))}`).join(", ")
@@ -548,67 +588,91 @@ function TableCard({
         <span className="text-xs font-bold break-keep">{title}</span>
       </div>
 
-      {playing.map(({ event, match }) => (
-        <div key={`${event.id}:${match.id}`} className="border-b border-slate-100 last:border-0">
-          <MatchLine
-            event={event}
-            match={match}
-            context={contextOf(event)}
-            t={t}
-            onOpen={onOpen}
-            label={`${t.state.playing} · ${matchLabel(event, match, t)}`}
-            chip={false}
-            compact
-          />
-        </div>
-      ))}
-
-      {remaining.length > 0 && (
-        <div className="bg-slate-50/40 pb-1.5">
-          <p className="px-3.5 pt-2.5 pb-1 text-xs font-bold text-slate-500">{t.remaining(remaining.length)}</p>
-          <ul>
-            {remaining.map(({ event, match, sides, label, note }) => (
-              <li key={`${event.id}:${match.id}`}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(event, match)}
-                  title={note}
-                  className="flex w-full items-center gap-2 px-3.5 py-1.5 text-left transition-colors hover:bg-brand-50/60"
-                >
-                  <span className={`shrink-0 text-xs font-bold break-keep text-slate-400 ${shared ? "w-16" : "w-12"}`}>
-                    {label}
-                  </span>
-                  <span className={`min-w-0 flex-1 ${note ? "opacity-45" : ""}`}>
-                    <MatchSides sides={sides} versus={t.versus} size="compact" row />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+      {playing.length > 0 ? (
+        playing.map(({ event, match }) => (
+          <div key={`${event.id}:${match.id}`} className="border-b border-slate-100 last:border-0">
+            <MatchLine
+              event={event}
+              match={match}
+              context={contextOf(event)}
+              t={t}
+              onOpen={onOpen}
+              label={`${t.state.playing} · ${matchLabel(event, match, t)}`}
+              chip={false}
+              compact
+            />
+          </div>
+        ))
+      ) : (
+        <div className="flex min-h-12 items-center justify-between gap-3 px-3.5 py-2">
+          <span className="text-xs font-bold text-slate-500">{t.remaining(remaining)}</span>
+          {startButton}
         </div>
       )}
     </li>
   );
 }
 
-// ───────────────────────── 종목 (조별 리그 + 본선) ─────────────────────────
+// ───────────────────────── 종목 (조별 예선 + 본선) ─────────────────────────
+
+/** 단계 제목. 처음 보는 사람도 알 수 있게 진행 방식을 한두 줄로 덧붙입니다. */
+function StageHeading({
+  id,
+  step,
+  title,
+  hint,
+  action,
+}: {
+  id: string;
+  /** 예선 → 본선처럼 단계가 둘 이상일 때의 차례 */
+  step?: number;
+  title: string;
+  hint: string;
+  /** 점수 입력 안내 (점수를 입력할 수 있을 때만) */
+  action?: string;
+}) {
+  return (
+    <>
+      <h2 id={id} className="flex items-center gap-2.5 text-xl font-black text-brand-950">
+        {step !== undefined && (
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm text-white tabular-nums">
+            {step}
+          </span>
+        )}
+        {title}
+      </h2>
+      <p className="mt-2 text-sm break-keep text-slate-600">{hint}</p>
+      {action && (
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold break-keep text-brand-700">
+          <PencilIcon className="size-4 shrink-0" />
+          {action}
+        </p>
+      )}
+    </>
+  );
+}
 
 function EventView({
   lang,
   event,
   context,
   board,
+  canScore,
   onOpen,
 }: {
   lang: Locale;
   event: DrawEvent;
   context: EventContext;
   board: TableBoard;
+  canScore: boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
   const top = podium(context);
   const knockout = event.matches.filter((m) => m.stage === "knockout");
+  // 조가 둘 이상이면 예선 → 본선 두 단계, 조가 하나면 리그로 끝납니다.
+  const staged = knockout.length > 0;
+  const action = canScore ? t.tapToScore : undefined;
   const name = (id?: string) => {
     const entry = id ? context.entryById.get(id) : undefined;
     return entry ? entryName(entry) : "";
@@ -647,10 +711,14 @@ function EventView({
       )}
 
       <section aria-labelledby={`${event.id}-groups`}>
-        <h2 id={`${event.id}-groups`} className="text-xl font-black text-brand-950">
-          {event.groups.length > 1 ? t.groupStage : eventName(event, lang)}
-        </h2>
-        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+        <StageHeading
+          id={`${event.id}-groups`}
+          step={staged ? 1 : undefined}
+          title={staged ? t.groupStage : eventName(event, lang)}
+          hint={staged ? t.groupStageHint(event.advance) : t.leagueHint}
+          action={action}
+        />
+        <div className="mt-4 grid items-start gap-5 lg:grid-cols-2">
           {event.groups.map((_, group) => (
             <GroupCard
               key={group}
@@ -659,15 +727,16 @@ function EventView({
               group={group}
               context={context}
               board={board}
+              canScore={canScore}
               onOpen={onOpen}
             />
           ))}
         </div>
       </section>
 
-      {knockout.length > 0 && (
+      {staged && (
         <section aria-labelledby={`${event.id}-knockout`}>
-          <h2 id={`${event.id}-knockout`} className="text-xl font-black text-brand-950">{t.knockout}</h2>
+          <StageHeading id={`${event.id}-knockout`} step={2} title={t.knockout} hint={t.knockoutHint} action={action} />
           <Bracket lang={lang} event={event} context={context} board={board} onOpen={onOpen} />
         </section>
       )}
@@ -681,6 +750,7 @@ function GroupCard({
   group,
   context,
   board,
+  canScore,
   onOpen,
 }: {
   lang: Locale;
@@ -688,6 +758,7 @@ function GroupCard({
   group: number;
   context: EventContext;
   board: TableBoard;
+  canScore: boolean;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
 }) {
   const t = getDictionary(lang).draw;
@@ -695,6 +766,7 @@ function GroupCard({
   const table = board.groupTable(event, group);
   const complete = context.groupComplete(group);
   const matches = context.groupMatches(group);
+  const played = matches.filter((match) => winnerOf(match, event.bestOf)).length;
   const advancing = event.groups.length > 1;
 
   return (
@@ -706,10 +778,10 @@ function GroupCard({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-500">
-            <th scope="col" className="w-12 py-2 text-center font-bold">{t.rank}</th>
+            <th scope="col" className="w-11 py-2 text-center font-bold">{t.rank}</th>
             <th scope="col" className="py-2 text-left font-bold">{t.entryHeading(event.doubles)}</th>
             <th scope="col" className="w-16 py-2 text-center font-bold">{t.record}</th>
-            <th scope="col" className="w-16 py-2 pr-3 text-center font-bold">{t.games}</th>
+            <th scope="col" className="w-20 py-2 pr-3 text-center font-bold">{t.games}</th>
           </tr>
         </thead>
         <tbody>
@@ -735,7 +807,9 @@ function GroupCard({
                   )}
                   {entry?.club && <span className="block text-xs text-slate-400">{entry.club}</span>}
                 </td>
-                <td className="py-2.5 text-center text-slate-700 tabular-nums">{row.wins}-{row.losses}</td>
+                <td className="py-2.5 text-center whitespace-nowrap text-slate-700 tabular-nums">
+                  {t.winLoss(row.wins, row.losses)}
+                </td>
                 <td className="py-2.5 pr-3 text-center text-slate-500 tabular-nums">
                   {row.setsWon}:{row.setsLost}
                 </td>
@@ -747,21 +821,25 @@ function GroupCard({
       {!complete && rows.some((row) => row.played > 0) && (
         <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">{t.provisional}</p>
       )}
-      <ul className="divide-y divide-slate-100 border-t border-slate-200 bg-slate-50/40">
-        {matches.map((match, index) => (
-          <li key={match.id}>
-            <MatchLine
-              event={event}
-              match={match}
-              context={context}
-              t={t}
-              onOpen={onOpen}
-              label={t.matchNo(index + 1)}
-              table={board.tableOf(match)}
-            />
-          </li>
-        ))}
-      </ul>
+      {/* 조 안의 경기. 순서가 자유라 번호 없이, 경기마다 점수 입력 표시를 둡니다. */}
+      <div className="border-t border-slate-200 bg-slate-50/40">
+        <p className="px-4 pt-3 text-xs font-bold text-slate-500">{t.groupMatches(played, matches.length)}</p>
+        <ul className="divide-y divide-slate-100">
+          {matches.map((match) => (
+            <li key={match.id}>
+              <MatchLine
+                event={event}
+                match={match}
+                context={context}
+                t={t}
+                onOpen={onOpen}
+                table={board.tableOf(match)}
+                scorable={canScore}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
     </article>
   );
 }
