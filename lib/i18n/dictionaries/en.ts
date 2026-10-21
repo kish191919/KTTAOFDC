@@ -137,6 +137,7 @@ export const en: Dictionary = {
     findClear: "Clear",
     findHint: "Type your name to see your matches and table.",
     tapToScore: "When a match ends, tap it to enter the score.",
+    tapTableToScore: "When a match ends, tap your table under the group, find the match, and enter the score.",
     viewsLabel: "Choose a view",
     tablesTab: "Tables",
     table: (n) => `Table ${n}`,
@@ -156,10 +157,13 @@ export const en: Dictionary = {
       `Each team plays every other team in its group once. ${
         advance === 1 ? "The group winner advances" : `The top ${advance} in each group advance`
       } to the knockout stage. Matches can be played in any order.`,
-    leagueHint: "Everyone plays everyone once, and most wins takes first place. Matches can be played in any order.",
+    leagueHint: "Everyone plays everyone once. Matches can be played in any order.",
+    rankingRule: "Standings go by match points (win 2, loss 1, forfeit 0). Ties are decided by head-to-head results.",
     knockout: "Knockout Stage",
     knockoutHint: "Win to move on to the next round. Lose and you're out.",
-    groupMatches: (done, total) => `Matches · ${done} of ${total} played`,
+    showMatches: "Matches",
+    hideMatches: "Hide",
+    groupMatchesTitle: "Group matches",
     group: (letter) => `Group ${letter}`,
     groupRank: (letter, rank) => `Group ${letter} #${rank}`,
     round: (size) =>

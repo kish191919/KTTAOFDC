@@ -36,11 +36,19 @@ export type Standing = {
   played: number;
   wins: number;
   losses: number;
+  /** 진 경기 중 기권패 (경기 없이 진 것) */
+  forfeits: number;
   setsWon: number;
   setsLost: number;
   pointsWon: number;
   pointsLost: number;
 };
+
+/**
+ * 순위의 첫 기준. ITTF 승점(승 2 · 패 1 · 기권패 0)은 치른 경기 수가 같으면 "승수 − 기권패 수" 순서와 같습니다.
+ * 조 경기 도중에는 경기 수가 달라 승점으로 비교하면 진 경기를 더 치른 쪽이 앞설 수 있어 이 값을 씁니다.
+ */
+const rankScore = (row: Standing) => row.wins - row.forfeits;
 
 /** 비율 x1/x2 와 y1/y2 비교 (나눗셈 없이). x 가 크면 양수 */
 const compareRatio = (x1: number, x2: number, y1: number, y2: number) => x1 * y2 - y1 * x2;
@@ -70,6 +78,7 @@ export function eventContext(event: DrawEvent) {
       played: 0,
       wins: 0,
       losses: 0,
+      forfeits: 0,
       setsWon: 0,
       setsLost: 0,
       pointsWon: 0,
@@ -95,9 +104,11 @@ export function eventContext(event: DrawEvent) {
         if (winner === "a") {
           ra.wins += 1;
           rb.losses += 1;
+          if (m.walkover) rb.forfeits += 1;
         } else {
           rb.wins += 1;
           ra.losses += 1;
+          if (m.walkover) ra.forfeits += 1;
         }
         ra.setsWon += sa;
         ra.setsLost += sb;
@@ -115,8 +126,8 @@ export function eventContext(event: DrawEvent) {
 
     const seedIndex = (id: string) => members.indexOf(id);
 
-    // 승수가 같은 참가자끼리 순위를 가립니다.
-    // 두 명이면 둘의 경기 승자, 세 명 이상이면 그들 사이의 경기만으로 승수 → 게임 득실 → 점수 득실을 봅니다.
+    // 승점이 같은 참가자끼리 순위를 가립니다. (ITTF 방식)
+    // 두 명이면 둘의 경기 승자, 세 명 이상이면 그들 사이의 경기만으로 승점 → 게임 득실 → 점수 득실을 봅니다.
     // 그래도 같으면 시드(레이팅) 순서입니다.
     function breakTie(ids: string[]): string[] {
       if (ids.length < 2) return ids;
@@ -141,7 +152,7 @@ export function eventContext(event: DrawEvent) {
         const x = rows.get(p)!;
         const y = rows.get(q)!;
         return (
-          y.wins - x.wins ||
+          rankScore(y) - rankScore(x) ||
           -compareRatio(x.setsWon, x.setsLost, y.setsWon, y.setsLost) ||
           -compareRatio(x.pointsWon, x.pointsLost, y.pointsWon, y.pointsLost)
         );
@@ -158,14 +169,13 @@ export function eventContext(event: DrawEvent) {
     }
 
     const rows = tally(members);
-    const byWins = [...members].sort(
-      (p, q) => rows.get(q)!.wins - rows.get(p)!.wins || seedIndex(p) - seedIndex(q),
-    );
+    const score = (id: string) => rankScore(rows.get(id)!);
+    const byScore = [...members].sort((p, q) => score(q) - score(p) || seedIndex(p) - seedIndex(q));
     const order: string[] = [];
-    for (let i = 0; i < byWins.length; ) {
+    for (let i = 0; i < byScore.length; ) {
       let j = i;
-      while (j < byWins.length && rows.get(byWins[j])!.wins === rows.get(byWins[i])!.wins) j++;
-      order.push(...breakTie(byWins.slice(i, j)));
+      while (j < byScore.length && score(byScore[j]) === score(byScore[i])) j++;
+      order.push(...breakTie(byScore.slice(i, j)));
       i = j;
     }
     const result = order.map((id, index) => ({ ...rows.get(id)!, rank: index + 1 }));

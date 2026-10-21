@@ -931,9 +931,9 @@ function SettingsForm({
           value={value.bestOf}
           onChange={(e) => set("bestOf", Number(e.target.value))}
         >
-          <option value={3}>3게임 2선승</option>
-          <option value={5}>5게임 3선승</option>
-          <option value={7}>7게임 4선승</option>
+          <option value={3}>3세트 2선승</option>
+          <option value={5}>5세트 3선승</option>
+          <option value={7}>7세트 4선승</option>
         </select>
       </label>
       <label className="block">
@@ -1079,7 +1079,7 @@ function EventPanel({
             </span>
           </span>
         }
-        description={`${event.doubles ? "복식" : "단식"} · ${event.bestOf}게임 ${Math.floor(event.bestOf / 2) + 1}선승 · 참가 ${playing}${unit}${
+        description={`${event.doubles ? "복식" : "단식"} · ${event.bestOf}세트 ${Math.floor(event.bestOf / 2) + 1}선승 · 참가 ${playing}${unit}${
           event.groups.length > 0 ? ` · ${event.groups.length}개 조` : ""
         }${event.nameEn ? ` · 영어 이름 ${event.nameEn}` : ""}`}
       >

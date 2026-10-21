@@ -151,6 +151,8 @@ export const ko = {
     findHint: "이름을 적으면 내 경기와 경기할 테이블이 나옵니다.",
     /** 경기를 눌러 점수를 입력할 수 있다는 안내 (점수 입력을 할 수 있을 때만) */
     tapToScore: "경기가 끝나면 그 경기를 눌러 점수를 입력해 주세요.",
+    /** 조별 예선의 같은 안내. 조 경기는 조 카드 아래 테이블을 눌러야 펼쳐집니다. */
+    tapTableToScore: "경기가 끝나면 조 아래의 테이블을 눌러 그 경기를 찾아 점수를 입력해 주세요.",
     viewsLabel: "대진표 보기 선택",
     tablesTab: "테이블 현황",
     table: (n: number) => `${n}번 테이블`,
@@ -173,11 +175,16 @@ export const ko = {
       `같은 조의 모든 팀과 한 번씩 경기합니다. 조 ${
         advance === 1 ? "1위가" : advance === 2 ? "1·2위가" : `1~${advance}위가`
       } 본선 토너먼트에 오릅니다. 경기 순서는 자유입니다.`,
-    leagueHint: "모든 팀과 한 번씩 경기해 이긴 경기 수로 순위를 정합니다. 경기 순서는 자유입니다.",
+    leagueHint: "모든 팀과 한 번씩 경기합니다. 경기 순서는 자유입니다.",
+    /** 조 순위 기준. 진행 방식 설명 뒤에 붙습니다. (lib/draw/play.ts 의 standings) */
+    rankingRule: "순위는 승점(승 2 · 패 1 · 기권패 0)으로 정하고, 승점이 같으면 서로 맞붙은 경기 결과로 정합니다.",
     knockout: "본선 토너먼트",
     knockoutHint: "지면 탈락하고, 이기면 다음 라운드에 오릅니다.",
-    /** 조 카드의 경기 목록 제목 */
-    groupMatches: (done: number, total: number) => `경기 · ${total}경기 중 ${done}경기 끝남`,
+    /** 조 카드 아래 경기 목록을 펼치고 접는 버튼 */
+    showMatches: "경기 보기",
+    hideMatches: "접기",
+    /** 테이블이 없는 대회에서 조 카드 아래 경기 목록의 제목 (테이블이 있으면 테이블 번호를 씁니다) */
+    groupMatchesTitle: "조 경기",
     group: (letter: string) => `${letter}조`,
     groupRank: (letter: string, rank: number) => `${letter}조 ${rank}위`,
     /** size 는 그 라운드에 오른 인원 */
@@ -190,12 +197,12 @@ export const ko = {
     rank: "순위",
     entryHeading: (doubles: boolean): string => (doubles ? "팀" : "선수"),
     record: "승패",
-    games: "게임 득실",
+    games: "세트 승패",
     winLoss: (wins: number, losses: number) => `${wins}승 ${losses}패`,
     provisional: "조 경기가 끝나면 순위가 확정됩니다.",
     advances: "본선 진출",
     withdrawn: "불참",
-    bestOf: (n: number) => `${n}게임 ${Math.floor(n / 2) + 1}선승`,
+    bestOf: (n: number) => `${n}세트 ${Math.floor(n / 2) + 1}선승`,
     state: {
       done: "종료",
       playing: "경기 중",
@@ -231,17 +238,17 @@ export const ko = {
     score: {
       title: "점수 입력",
       close: "닫기",
-      modePoints: "게임별 점수",
-      modeSets: "게임 세트",
+      modePoints: "세트별 점수",
+      modeSets: "세트 스코어",
       modeWalkover: "기권",
-      game: (n: number) => `${n}게임`,
+      game: (n: number) => `${n}세트`,
       pointsHint:
-        "끝난 게임까지만 적어도 됩니다. 게임이 끝날 때마다 저장하면 진행 상황이 모두에게 보입니다.",
-      setsHint: "양쪽이 딴 게임 수를 위 점수판에 적어 주세요. 게임별 점수를 모를 때 씁니다.",
-      setsInvalid: (need: number) => `게임 수를 다시 확인해 주세요. 이긴 쪽은 ${need}게임, 진 쪽은 그보다 적어야 합니다.`,
+        "끝난 세트까지만 적어도 됩니다. 세트가 끝날 때마다 저장하면 진행 상황이 모두에게 보입니다.",
+      setsHint: "양쪽이 딴 세트 수를 위 점수판에 적어 주세요. 세트별 점수를 모를 때 씁니다.",
+      setsInvalid: (need: number) => `세트 수를 다시 확인해 주세요. 이긴 쪽은 ${need}세트, 진 쪽은 그보다 적어야 합니다.`,
       walkoverHint: "기권한 쪽을 고르면 상대가 이긴 것으로 적힙니다.",
       withdrew: (name: string) => `${name} 기권`,
-      total: "게임 스코어",
+      total: "세트 스코어",
       save: "저장",
       saving: "저장하는 중…",
     },
@@ -252,9 +259,9 @@ export const ko = {
       conflict:
         "그 사이 다른 분이 이 경기의 점수를 입력했습니다. 바뀐 결과를 확인한 뒤 다시 입력해 주세요.",
       points:
-        "게임 점수를 다시 확인해 주세요. 11점을 먼저 내야 이기고, 10:10 뒤에는 2점을 앞서야 합니다.",
-      sets: "게임 수를 다시 확인해 주세요.",
-      tooManyGames: "경기가 끝난 뒤의 게임 점수까지 적혀 있습니다.",
+        "세트 점수를 다시 확인해 주세요. 11점을 먼저 내야 이기고, 10:10 뒤에는 2점을 앞서야 합니다.",
+      sets: "세트 수를 다시 확인해 주세요.",
+      tooManyGames: "경기가 끝난 뒤의 세트 점수까지 적혀 있습니다.",
       locked:
         "이 결과로 다음 경기의 상대가 바뀌는데, 그 경기가 이미 시작되어 고칠 수 없습니다. 대회 본부에 알려 주세요.",
       busy: "지금 입력하는 분이 많습니다. 한 번 더 눌러 주세요.",
