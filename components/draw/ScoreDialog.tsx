@@ -58,6 +58,19 @@ function readSets(inputs: [string, string], need: number, bestOf: number): [numb
   return Math.max(...sets) >= need && sets[0] + sets[1] <= bestOf ? sets : null;
 }
 
+/** 게임별 점수: 위에서부터 빈 줄 전까지 읽습니다. 규칙에 맞지 않는 줄이 있으면 그 줄에서 멈추고 badRow 로 알려 줍니다. */
+function readGames(rows: string[][]): { games: [number, number][]; badRow: number } {
+  const games: [number, number][] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const [x, y] = rows[i];
+    if (x === "" && y === "") break;
+    const game: [number, number] = [Number(x), Number(y)];
+    if (x === "" || y === "" || !isValidGame(game)) return { games, badRow: i };
+    games.push(game);
+  }
+  return { games, badRow: -1 };
+}
+
 /** 경기 한 판의 점수 입력 창. 게임별 점수, 게임 세트, 기권 가운데 골라 적습니다. */
 export function ScoreDialog({
   tournamentId,
@@ -111,20 +124,28 @@ export function ScoreDialog({
   const a = sideName(match, "a", context, t);
   const b = sideName(match, "b", context, t);
 
-  // 게임별 점수: 위에서부터 빈 줄 전까지 읽습니다.
-  const games: [number, number][] = [];
-  let badRow = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const [x, y] = rows[i];
-    if (x === "" && y === "") break;
-    const game: [number, number] = [Number(x), Number(y)];
-    if (x === "" || y === "" || !isValidGame(game)) {
-      badRow = i;
-      break;
-    }
-    games.push(game);
-  }
+  const { games, badRow } = readGames(rows);
   const pointSets = setsFromPoints(games);
+  const cellRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // 세트별 점수 칸: 점수를 다 적으면 다음 칸으로 넘어갑니다. (1세트 왼쪽 → 오른쪽 → 2세트 왼쪽 …)
+  // 1 은 10점대의 앞자리일 수 있어 둘째 자리를 기다립니다. 맞지 않는 세트는 고치도록 그 칸에 머물고,
+  // 그 세트로 승부가 났거나 마지막 세트면 키보드를 닫아 저장 버튼이 보이게 합니다. (마저 친 세트는 그 칸을 눌러 적습니다)
+  function typePoint(i: number, side: number, input: HTMLInputElement) {
+    const value = input.value.replace(/\D/g, "").slice(0, 2);
+    const next = rows.map((r, k) => (k === i ? (side === 0 ? [value, r[1]] : [r[0], value]) : r));
+    // 다음 세트 칸이 열린 뒤에 옮겨 가도록 바로 그립니다.
+    flushSync(() => setRows(next));
+    setError(null);
+    if (value === "" || value === "1") return;
+    if (side === 0) return cellRefs.current[i * 2 + 1]?.focus();
+    const read = readGames(next);
+    if (read.games.length <= i) return;
+    const [x, y] = setsFromPoints(read.games.slice(0, i + 1));
+    const following = cellRefs.current[(i + 1) * 2];
+    if (x >= need || y >= need || !following) input.blur();
+    else following.focus();
+  }
 
   const shown =
     mode === "points"
@@ -433,6 +454,9 @@ export function ScoreDialog({
                     {[0, 1].map((side) => (
                       <input
                         key={side}
+                        ref={(el) => {
+                          cellRefs.current[i * 2 + side] = el;
+                        }}
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
@@ -440,15 +464,9 @@ export function ScoreDialog({
                         disabled={locked && row[0] === "" && row[1] === ""}
                         aria-label={`${t.score.game(i + 1)} ${side === 0 ? a.name : b.name}`}
                         value={row[side]}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "").slice(0, 2);
-                          setRows((current) =>
-                            current.map((r, k) =>
-                              k === i ? (side === 0 ? [value, r[1]] : [r[0], value]) : r,
-                            ),
-                          );
-                          setError(null);
-                        }}
+                        // 이미 적힌 칸에 들어오면 전체를 골라 두어, 새로 누르는 숫자로 바로 바뀝니다.
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => typePoint(i, side, e.target)}
                         className={`field py-2 text-center text-lg font-bold tabular-nums ${
                           badRow === i ? "border-accent-400 ring-2 ring-accent-100" : ""
                         }`}

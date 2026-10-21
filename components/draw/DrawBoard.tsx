@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useMemo, useState } from "react";
+import { Fragment, useId, useMemo, useState, type ReactNode } from "react";
 import { entryName } from "@/lib/draw/entries";
 import {
   eventContext,
@@ -24,7 +24,7 @@ import {
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEvent, DrawMatch } from "@/lib/types";
-import { CheckIcon, ChevronDownIcon, PencilIcon, PlusIcon, SearchIcon, TrophyIcon } from "@/components/icons";
+import { CheckIcon, ChevronDownIcon, InfoIcon, PencilIcon, PlusIcon, SearchIcon, TrophyIcon } from "@/components/icons";
 import { clockTime, eventName, formatLabel, matchLabel, pointsText, sideName, slotLabel } from "./labels";
 import { MatchSides, type MatchSide } from "./MatchSides";
 import { ScoreDialog } from "./ScoreDialog";
@@ -175,6 +175,40 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
 
 // ───────────────────────── 공통 조각 ─────────────────────────
 
+/**
+ * 설명 글을 접어 두는 '안내' 버튼. 화면이 글로 붐비지 않게 처음에는 닫혀 있고, 누르면 그 아래에 펼쳐집니다.
+ * title 을 주면 제목 옆에 버튼을 둡니다.
+ */
+function Guide({ t, title, children }: { t: T; title?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {title}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen(!open)}
+          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+            open
+              ? "border-brand-200 bg-brand-50 text-brand-700"
+              : "border-slate-200 bg-white text-slate-500 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
+          }`}
+        >
+          <InfoIcon className="size-3.5" />
+          {t.guide}
+          <ChevronDownIcon className={`size-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+      <div id={panelId} hidden={!open} className="mt-3 rounded-xl bg-brand-50/60 px-4 py-3 text-sm break-keep text-slate-600">
+        {children}
+      </div>
+    </>
+  );
+}
+
 /** 점수를 입력할 수 있다는 표시. 누를 곳임을 알 수 있게 버튼처럼 그립니다. */
 function ScoreChip({ t }: { t: T }) {
   return (
@@ -317,7 +351,6 @@ function EntryFinder({
   return (
     <section aria-labelledby="find-heading" className="card p-4 sm:p-5">
       <h2 id="find-heading" className="text-base font-black text-brand-950">{t.findTitle}</h2>
-      <p className="mt-1 text-sm break-keep text-slate-500">{t.findHint}</p>
       <div className="relative mt-3">
         <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400" />
         <input
@@ -486,7 +519,11 @@ function TablesView({
   return (
     <div className="space-y-8">
       <section aria-label={t.tablesTab}>
-        {hasGroups && <p className="mb-3 text-sm break-keep text-slate-500">{t.groupTableHint}</p>}
+        {hasGroups && (
+          <div className="mb-3">
+            <Guide t={t}>{t.groupTableHint}</Guide>
+          </div>
+        )}
         <ul className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {board.tables.map((slot) => (
             <TableCard
@@ -616,13 +653,14 @@ function TableCard({
 
 // ───────────────────────── 종목 (조별 예선 + 본선) ─────────────────────────
 
-/** 단계 제목. 처음 보는 사람도 알 수 있게 진행 방식을 한두 줄로 덧붙입니다. */
+/** 단계 제목. 처음 보는 사람을 위한 진행 방식 설명은 제목 옆 '안내' 버튼을 눌러야 펼쳐집니다. */
 function StageHeading({
   id,
   step,
   title,
   hint,
   action,
+  t,
 }: {
   id: string;
   /** 예선 → 본선처럼 단계가 둘 이상일 때의 차례 */
@@ -631,25 +669,30 @@ function StageHeading({
   hint: string;
   /** 점수 입력 안내 (점수를 입력할 수 있을 때만) */
   action?: string;
+  t: T;
 }) {
   return (
-    <>
-      <h2 id={id} className="flex items-center gap-2.5 text-xl font-black text-brand-950">
-        {step !== undefined && (
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm text-white tabular-nums">
-            {step}
-          </span>
-        )}
-        {title}
-      </h2>
-      <p className="mt-2 text-sm break-keep text-slate-600">{hint}</p>
+    <Guide
+      t={t}
+      title={
+        <h2 id={id} className="flex items-center gap-2.5 text-xl font-black text-brand-950">
+          {step !== undefined && (
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm text-white tabular-nums">
+              {step}
+            </span>
+          )}
+          {title}
+        </h2>
+      }
+    >
+      <p>{hint}</p>
       {action && (
-        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold break-keep text-brand-700">
+        <p className="mt-1.5 flex items-center gap-1.5 font-semibold text-brand-700">
           <PencilIcon className="size-4 shrink-0" />
           {action}
         </p>
       )}
-    </>
+    </Guide>
   );
 }
 
@@ -715,8 +758,9 @@ function EventView({
           id={`${event.id}-groups`}
           step={staged ? 1 : undefined}
           title={staged ? t.groupStage : eventName(event, lang)}
-          hint={`${staged ? t.groupStageHint(event.advance) : t.leagueHint} ${t.rankingRule}`}
+          hint={`${staged ? t.groupStageHint(event.advance) : t.leagueHint} ${t.rankingRule} ${t.provisional}`}
           action={canScore ? t.tapTeamToScore : undefined}
+          t={t}
         />
         <div className="mt-4 grid items-start gap-5 lg:grid-cols-2">
           {event.groups.map((_, group) => (
@@ -743,6 +787,7 @@ function EventView({
             title={t.knockout}
             hint={t.knockoutHint}
             action={canScore ? t.tapToScore : undefined}
+            t={t}
           />
           <Bracket lang={lang} event={event} context={context} board={board} canScore={canScore} onOpen={onOpen} />
         </section>
@@ -906,9 +951,6 @@ function GroupCard({
           })}
         </tbody>
       </table>
-      {!complete && rows.some((row) => row.played > 0) && (
-        <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">{t.provisional}</p>
-      )}
     </article>
   );
 }

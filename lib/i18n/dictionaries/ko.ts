@@ -148,11 +148,12 @@ export const ko = {
     findPlaceholder: "이름을 입력하세요",
     findEmpty: "그 이름의 참가자가 없습니다.",
     findClear: "지우기",
-    findHint: "이름을 적으면 내 경기와 경기할 테이블이 나옵니다.",
     /** 경기를 눌러 점수를 입력할 수 있다는 안내 (점수 입력을 할 수 있을 때만) */
     tapToScore: "경기가 끝나면 그 경기를 눌러 점수를 입력해 주세요.",
     /** 조별 예선의 같은 안내. 순위표에서 팀을 누르면 그 팀의 경기만 펼쳐집니다. */
     tapTeamToScore: "경기가 끝나면 순위표에서 우리 팀을 눌러 그 경기의 점수를 입력해 주세요.",
+    /** 설명 글을 접어 둔 버튼. 누르면 진행 방식과 점수 입력 안내가 펼쳐집니다. */
+    guide: "안내",
     viewsLabel: "대진표 보기 선택",
     tablesTab: "테이블 현황",
     table: (n: number) => `${n}번 테이블`,
@@ -194,6 +195,7 @@ export const ko = {
     record: "승패",
     games: "세트 승패",
     winLoss: (wins: number, losses: number) => `${wins}승 ${losses}패`,
+    /** 조별 예선 안내에서 순위 기준 뒤에 붙습니다. */
     provisional: "조 경기가 끝나면 순위가 확정됩니다.",
     advances: "본선 진출",
     withdrawn: "불참",
