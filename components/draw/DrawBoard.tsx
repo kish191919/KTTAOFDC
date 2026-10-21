@@ -773,52 +773,42 @@ function GroupCard({
   const table = board.groupTable(event, group);
   const complete = context.groupComplete(group);
   const advancing = event.groups.length > 1;
-  const [open, setOpen] = useState(false);
   /** 순위표에서 눌러 경기를 펼친 팀 */
   const [selected, setSelected] = useState<string | null>(null);
   const panelId = useId();
-  // 조 편성 순서. 테이블을 쓰는 팀은 순위가 바뀌어도 자리가 흔들리지 않게 이 순서로 적습니다.
+  // 조 편성 순서. 펼친 팀의 경기를 상대의 이 순서로 적어, 순위가 바뀌어도 줄이 흔들리지 않게 합니다.
   const seats = event.groups[group];
   const seat = (id: string) => (seats.includes(id) ? seats.indexOf(id) : seats.length);
-  const members = seats.flatMap((id) => context.entryById.get(id) ?? []);
-  // 경기 목록도 조 편성 순서로: 앞 팀의 경기부터, 앞 팀이 같으면 상대 순서대로 (1-2, 1-3, 1-4, 2-3, …)
-  // 줄마다 앞 순서 팀을 왼쪽에 둡니다.
-  const matches = context
-    .groupMatches(group)
-    .map((match) => {
-      const [first, second] = [...(context.pairOf(match) ?? [])].sort((x, y) => seat(x) - seat(y));
-      return { match, first, second };
-    })
-    .sort((x, y) => seat(x.first) - seat(y.first) || seat(x.second) - seat(y.second));
+  const matches = context.groupMatches(group);
+  /** 그 팀의 경기만, 상대의 조 편성 순서로 */
+  const teamMatches = (id: string) =>
+    matches
+      .flatMap((match) => {
+        const pair = context.pairOf(match);
+        return pair?.includes(id) ? [{ match, other: pair[0] === id ? pair[1] : pair[0] }] : [];
+      })
+      .sort((x, y) => seat(x.other) - seat(y.other));
   // 조 테이블에서 경기 중인지. 다른 테이블로 옮겨 치는 경기는 그 줄에 테이블 번호로 따로 적습니다.
-  const playing = matches.some(
-    ({ match }) => context.stateOf(match) === "playing" && board.tableOf(match) === table,
-  );
-  /** 경기 목록의 한 줄. first 를 왼쪽에 둡니다. */
-  const matchRow = (match: DrawMatch, first: string) => {
-    const at = board.tableOf(match);
-    return (
-      <li key={match.id} className="col-span-4 grid grid-cols-subgrid">
-        <GroupMatchRow
-          event={event}
-          match={match}
-          context={context}
-          t={t}
-          onOpen={onOpen}
-          first={first}
-          // 조 테이블에서 치면 테이블 번호는 위에 있으니, 다른 테이블로 옮겨 칠 때만 적습니다.
-          table={at !== table ? at : undefined}
-          scorable={canScore}
-        />
-      </li>
-    );
-  };
+  const playing = matches.some((match) => context.stateOf(match) === "playing" && board.tableOf(match) === table);
   // 줄마다 칸 너비를 같게 하려고 목록 전체를 한 격자로 두고 줄은 subgrid 로 그 칸을 나눠 씁니다.
   const listGrid = "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-x-2 divide-y divide-slate-100 sm:gap-x-3";
 
   return (
     <article className="card overflow-hidden">
-      <h3 className="bg-brand-50 px-4 py-2.5 font-black text-brand-900">{t.group(groupLetter(group))}</h3>
+      {/* 조 이름과 이 조가 쓰는 테이블. 그 테이블에서 경기 중이면 빨간 점이 깜박입니다. */}
+      <div className="flex items-center justify-between gap-3 bg-brand-50 px-4 py-2.5">
+        <h3 className="font-black text-brand-900">{t.group(groupLetter(group))}</h3>
+        {table && (
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-bold ${
+              playing ? "text-accent-700" : "text-brand-700"
+            }`}
+          >
+            {playing && <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />}
+            {t.table(table)}
+          </span>
+        )}
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-xs text-slate-500">
@@ -889,9 +879,24 @@ function GroupCard({
                     {/* 휴대폰에서는 이름 칸이 좁아 안쪽 여백 없이 카드 너비를 다 씁니다. */}
                     <td colSpan={5} className="p-0 sm:px-3 sm:pb-3">
                       <ul className={`${listGrid} overflow-hidden border-y border-brand-100 bg-white sm:rounded-lg sm:border`}>
-                        {matches
-                          .filter(({ first, second }) => first === row.entry || second === row.entry)
-                          .map(({ match }) => matchRow(match, row.entry))}
+                        {teamMatches(row.entry).map(({ match }) => {
+                          const at = board.tableOf(match);
+                          return (
+                            <li key={match.id} className="col-span-4 grid grid-cols-subgrid">
+                              <GroupMatchRow
+                                event={event}
+                                match={match}
+                                context={context}
+                                t={t}
+                                onOpen={onOpen}
+                                team={row.entry}
+                                // 조 테이블은 제목 줄에 있으니, 다른 테이블로 옮겨 칠 때만 적습니다.
+                                table={at !== table ? at : undefined}
+                                scorable={canScore}
+                              />
+                            </li>
+                          );
+                        })}
                       </ul>
                     </td>
                   </tr>
@@ -904,59 +909,21 @@ function GroupCard({
       {!complete && rows.some((row) => row.played > 0) && (
         <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-400">{t.provisional}</p>
       )}
-      {/* 조 테이블과 그 테이블을 쓰는 팀. 누르면 조 안의 경기가 한 줄씩 펼쳐집니다. */}
-      <div className="border-t border-slate-200 bg-slate-50/40">
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          aria-controls={panelId}
-          className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-brand-50/60"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-              <span className="text-sm font-black text-brand-800">{table ? t.table(table) : t.groupMatchesTitle}</span>
-              {playing && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-700">
-                  <span className="size-1.5 animate-pulse rounded-full bg-accent-500" />
-                  {t.state.playing}
-                </span>
-              )}
-            </span>
-            {table && (
-              <span className="mt-2 flex flex-wrap gap-1.5">
-                {members.map((entry) => (
-                  <span
-                    key={entry.id}
-                    className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-semibold break-keep text-slate-600"
-                  >
-                    {entryName(entry)}
-                  </span>
-                ))}
-              </span>
-            )}
-          </span>
-          <span className="flex shrink-0 items-center gap-1 pt-0.5 text-xs font-bold text-brand-700">
-            {open ? t.hideMatches : t.showMatches}
-            <ChevronDownIcon className={`size-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-          </span>
-        </button>
-        <ul id={panelId} hidden={!open} className={`${listGrid} border-t border-slate-200 bg-white`}>
-          {matches.map(({ match, first }) => matchRow(match, first))}
-        </ul>
-      </div>
     </article>
   );
 }
 
-/** 조 경기 한 줄 "김수미 · 이도임  3 vs 1  정경리 · Hanna Kim  종료". 누르면 점수 입력 창이 열립니다. */
+/**
+ * 순위표에서 펼친 팀의 경기 한 줄 "김홍렬 · 구옥남  3 vs 0  김맥스 · 임용석  종료". 누르면 점수 입력 창이 열립니다.
+ * 펼친 팀을 늘 굵게 왼쪽에 두고, 이겼으면 초록 · 졌으면 옅은 빨강으로 칠합니다. 상대는 승패와 상관없이 보통 굵기입니다.
+ */
 function GroupMatchRow({
   event,
   match,
   context,
   t,
   onOpen,
-  first,
+  team,
   table,
   scorable,
 }: {
@@ -965,8 +932,8 @@ function GroupMatchRow({
   context: EventContext;
   t: T;
   onOpen: (event: DrawEvent, match: DrawMatch) => void;
-  /** 왼쪽에 둘 참가자. b 쪽이면 좌우를 바꿔 그립니다. (점수 입력 창은 원래 순서 그대로입니다) */
-  first?: string;
+  /** 펼친 팀. b 쪽이면 좌우를 바꿔 그립니다. (점수 입력 창은 원래 순서 그대로입니다) */
+  team: string;
   /** 조 테이블이 아닌 곳에서 경기 중일 때 그 테이블 */
   table?: number;
   scorable: boolean;
@@ -978,10 +945,8 @@ function GroupMatchRow({
     score: match.walkover ? (match.walkover === side ? "W" : "–") : match.sets?.[i],
     won: winner === side,
   }));
-  const [a, b] = first && context.pairOf(match)?.[1] === first ? [sides[1], sides[0]] : sides;
-  const nameStyle = (won: boolean) =>
-    won ? "font-black text-brand-950" : winner ? "text-slate-500" : "font-semibold text-slate-800";
-  const scoreStyle = (won: boolean) => (won ? "text-brand-800" : winner ? "text-slate-400" : "text-slate-700");
+  const [a, b] = context.pairOf(match)?.[1] === team ? [sides[1], sides[0]] : sides;
+  const teamStyle = a.won ? "text-emerald-600" : winner ? "text-accent-400" : "text-brand-950";
   const clickable = state !== "pending" && state !== "bye";
 
   return (
@@ -991,13 +956,13 @@ function GroupMatchRow({
       disabled={!clickable}
       className="col-span-4 grid grid-cols-subgrid items-center px-3 py-2.5 text-left sm:px-4 text-sm transition-colors enabled:hover:bg-brand-50/60 disabled:cursor-default"
     >
-      <span className={`break-keep ${nameStyle(a.won)}`}>{a.name}</span>
-      <span className="flex items-center gap-1.5 font-black tabular-nums">
-        <span className={`w-4 text-right ${scoreStyle(a.won)}`}>{a.score}</span>
+      <span className={`font-black break-keep ${teamStyle}`}>{a.name}</span>
+      <span className="flex items-center gap-1.5 font-black text-slate-700 tabular-nums">
+        <span className="w-4 text-right">{a.score}</span>
         <span className="text-[11px] text-slate-400">{t.versus}</span>
-        <span className={`w-4 ${scoreStyle(b.won)}`}>{b.score}</span>
+        <span className="w-4">{b.score}</span>
       </span>
-      <span className={`break-keep ${nameStyle(b.won)}`}>{b.name}</span>
+      <span className="break-keep text-slate-600">{b.name}</span>
       {/* 경기 중이면 상태만 적어 한 줄을 지킵니다. (점수 입력 표시까지 두면 두 줄이 됩니다) */}
       <span className="flex justify-end">
         <StateChip state={state} table={table} scorable={scorable && state !== "playing"} t={t} />
@@ -1006,7 +971,10 @@ function GroupMatchRow({
   );
 }
 
-/** 본선 대진표. 라운드를 왼쪽에서 오른쪽으로 놓고, 화면이 좁으면 옆으로 밀어서 봅니다. */
+/**
+ * 본선 대진표. 라운드를 왼쪽에서 오른쪽으로 놓고, 화면이 좁으면 옆으로 밀어서 봅니다.
+ * 멀리서도 잘 보이게 글자를 키우고, 넓은 화면에서는 라운드 칸이 화면 너비를 나눠 씁니다.
+ */
 function Bracket({
   lang,
   event,
@@ -1023,26 +991,29 @@ function Bracket({
   const t = getDictionary(lang).draw;
   const knockout = event.matches.filter((m) => m.stage === "knockout");
   const rounds = Math.max(...knockout.map((m) => m.round)) + 1;
-  const firstCount = knockout.filter((m) => m.round === 0).length;
-  const BOX = 92;
+  // 휴대폰에서 라운드 칸 하나의 너비 (px). 다음 라운드가 조금 비쳐 보여 옆으로 밀 수 있다는 걸 알 수 있습니다.
+  const COLUMN = 260;
+  const GAP = 20;
 
   return (
-    <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2">
-      <div className="flex gap-4" style={{ minWidth: rounds * 236 }}>
+    <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-2">
+      <div className="flex gap-5" style={{ minWidth: rounds * COLUMN + (rounds - 1) * GAP }}>
         {Array.from({ length: rounds }, (_, round) => {
           const matches = knockout.filter((m) => m.round === round);
           return (
-            <div key={round} className="w-[220px] shrink-0">
-              <p className="mb-2 text-center text-sm font-black text-brand-800">
+            <div key={round} className="flex max-w-[400px] min-w-0 flex-1 flex-col">
+              <p className="mb-3 text-center text-base font-black text-brand-800 lg:text-lg">
                 {t.round(roundSize(event, round))}
                 {/* 본선 방식을 따로 정한 종목은 라운드마다 경기 방식을 적습니다. */}
                 {event.knockoutBestOf && matches[0] && (
-                  <span className="block text-xs font-semibold text-slate-500">
+                  <span className="block text-xs font-semibold text-slate-500 lg:text-sm">
                     {t.bestOf(matchBestOf(event, matches[0]))}
                   </span>
                 )}
               </p>
-              <ol className="flex flex-col justify-around" style={{ height: firstCount * BOX }}>
+              {/* 라운드 칸은 높이가 같고 경기마다 같은 높이를 나눠 가져, 다음 라운드 경기가 앞 라운드 두 경기 사이에 옵니다.
+                  첫 라운드 경기 칸의 최소 높이가 대진표 전체 높이를 정합니다. */}
+              <ol className="flex flex-1 flex-col">
                 {matches.map((match) => {
                   const bye = isByeMatch(match);
                   const state = context.stateOf(match);
@@ -1050,12 +1021,12 @@ function Bracket({
                   const clickable = !bye && state !== "pending";
                   const table = state === "playing" ? board.tableOf(match) : undefined;
                   return (
-                    <li key={match.id}>
+                    <li key={match.id} className="flex min-h-36 flex-1 items-center lg:min-h-40">
                       <button
                         type="button"
                         disabled={!clickable}
                         onClick={() => onOpen(event, match)}
-                        className={`w-full overflow-hidden rounded-xl border text-left text-sm transition-colors enabled:hover:border-brand-300 disabled:cursor-default ${
+                        className={`w-full overflow-hidden rounded-xl border-2 text-left text-base transition-colors enabled:hover:border-brand-300 disabled:cursor-default lg:text-lg ${
                           state === "playing"
                             ? "border-accent-300 ring-2 ring-accent-100"
                             : bye
@@ -1069,7 +1040,7 @@ function Bracket({
                           return (
                             <span
                               key={side}
-                              className={`flex items-center gap-2 px-3 py-1.5 ${i === 1 ? "border-t border-slate-100" : ""}`}
+                              className={`flex items-center gap-3 px-4 py-2.5 lg:px-5 lg:py-3 ${i === 1 ? "border-t border-slate-100" : ""}`}
                             >
                               <span
                                 className={`min-w-0 flex-1 truncate ${
@@ -1085,14 +1056,14 @@ function Bracket({
                               >
                                 {name}
                               </span>
-                              <span className="w-4 text-right font-black text-brand-800 tabular-nums">
+                              <span className="w-6 text-right text-lg font-black text-brand-800 tabular-nums lg:text-xl">
                                 {match.walkover ? (match.walkover === side ? "W" : "") : (match.sets?.[i] ?? "")}
                               </span>
                             </span>
                           );
                         })}
                         {table && (
-                          <span className="block bg-accent-50 px-3 py-0.5 text-[11px] font-bold text-accent-700">
+                          <span className="block bg-accent-50 px-4 py-1 text-xs font-bold text-accent-700 lg:px-5 lg:text-sm">
                             {t.table(table)}
                           </span>
                         )}

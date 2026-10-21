@@ -180,11 +180,6 @@ export const ko = {
     rankingRule: "순위는 승점(승 2 · 패 1 · 기권패 0)으로 정하고, 승점이 같으면 서로 맞붙은 경기 결과로 정합니다.",
     knockout: "본선 토너먼트",
     knockoutHint: "지면 탈락하고, 이기면 다음 라운드에 오릅니다.",
-    /** 조 카드 아래 경기 목록을 펼치고 접는 버튼 */
-    showMatches: "경기 보기",
-    hideMatches: "접기",
-    /** 테이블이 없는 대회에서 조 카드 아래 경기 목록의 제목 (테이블이 있으면 테이블 번호를 씁니다) */
-    groupMatchesTitle: "조 경기",
     group: (letter: string) => `${letter}조`,
     groupRank: (letter: string, rank: number) => `${letter}조 ${rank}위`,
     /** size 는 그 라운드에 오른 인원 */
@@ -233,9 +228,9 @@ export const ko = {
       otherTables: "다른 빈 테이블",
       freeTables: "빈 테이블을 골라 시작",
       none: "지금 빈 테이블이 없습니다. 테이블이 비면 시작해 주세요.",
-      on: (table: string) => `${table}에서 경기 중`,
+      /** 경기 중인 경기의 제목 옆 테이블 표시를 누르면 열리는 칸 */
       moveTo: "다른 테이블로 옮기기",
-      leave: "테이블에서 내리기",
+      moveNone: "지금 옮길 수 있는 빈 테이블이 없습니다.",
       hint: "시작을 누르면 모두의 화면에 경기 중으로 보입니다. 누르지 않고 점수만 넣어도 됩니다.",
       playerBusy: "선수가 다른 경기 중이라 아직 시작할 수 없습니다.",
       notArrived: "도착 확인 전인 팀이 있어 아직 시작할 수 없습니다.",

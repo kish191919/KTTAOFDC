@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
+import { ChevronDownIcon } from "@/components/icons";
 import { setDrawTableAction, submitDrawScoreAction } from "@/lib/actions";
 import {
   gamesToWin,
@@ -100,6 +101,9 @@ export function ScoreDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [tableError, setTableError] = useState<string | null>(null);
+  /** 제목의 테이블 표시를 눌러 옮길 테이블을 고르는 중인지 */
+  const [moving, setMoving] = useState(false);
+  const moveId = useId();
 
   const a = sideName(match, "a", context, t);
   const b = sideName(match, "b", context, t);
@@ -177,8 +181,20 @@ export function ScoreDialog({
     }
   }
 
-  // 테이블에 올리기(시작)·옮기기·내리기. table 이 null 이면 내립니다.
-  function place(table: number | null) {
+  // 경기 중인 테이블 (시작을 누르지 않고 점수만 넣은 예선 경기는 그 조의 테이블)
+  const shownTable = state === "playing" ? board.tableOf(match) : undefined;
+  const showTables = canEdit && state !== "done" && draw.tables > 0;
+  const choices = showTables ? tableChoices(draw, board, event, match, admin, contexts) : null;
+  // 경기 중인 경기는 제목의 테이블 표시를 눌러 다른 빈 테이블로 옮깁니다. (조 테이블로 돌아가기 포함)
+  const moveChoices =
+    shownTable && choices
+      ? [...(choices.home ? [choices.home.table] : []), ...choices.free].filter((n) => n !== shownTable)
+      : null;
+  // 조 테이블에 올리면 대기로 돌아갈 경기 (시작만 누르고 점수가 없는 경기)
+  const replaced = choices?.home && choices.home.table !== shownTable ? choices.home.replaces : undefined;
+
+  // 테이블에 올리기(시작)·옮기기. 시작하면 창을 닫고, 옮기면 적던 점수가 남도록 창을 그대로 둡니다.
+  function place(table: number) {
     setTableError(null);
     startTransition(async () => {
       try {
@@ -186,7 +202,7 @@ export function ScoreDialog({
           event: event.id,
           match: match.id,
           table,
-          occupant: table === null ? "" : occupantKey(board.tables[table - 1]),
+          occupant: occupantKey(board.tables[table - 1]),
         });
         if ("error" in result) {
           setTableError(t.errors[result.error]);
@@ -194,17 +210,26 @@ export function ScoreDialog({
           return;
         }
         onSaved(result.draw);
-        onClose();
+        if (shownTable) setMoving(false);
+        else onClose();
       } catch {
         setTableError(t.errors.network);
       }
     });
   }
 
-  // 경기 중인 테이블 (시작을 누르지 않고 점수만 넣은 예선 경기는 그 조의 테이블)
-  const shownTable = state === "playing" ? board.tableOf(match) : undefined;
-  const showTables = canEdit && state !== "done" && draw.tables > 0;
-  const choices = showTables ? tableChoices(draw, board, event, match, admin, contexts) : null;
+  const replacedNote = replaced && (
+    <p className="mt-2 text-xs break-keep text-slate-500">
+      {t.start.replaces(matchup(replaced.match, contexts[draw.events.indexOf(replaced.event)], t))}
+    </p>
+  );
+  const tableErrorNote = tableError && (
+    <p role="alert" className="mt-2 text-sm font-semibold break-keep text-accent-700">
+      {tableError}
+    </p>
+  );
+  const tableBadge =
+    "ml-2 rounded-full bg-accent-50 px-2.5 py-0.5 align-middle text-xs font-bold text-accent-700 ring-1 ring-accent-200";
   const tableButton = (table: number) => (
     <button
       key={table}
@@ -271,16 +296,49 @@ export function ScoreDialog({
       title={
         <>
           {matchLabel(event, match, t)}
-          {shownTable && (
-            <span className="ml-2 rounded-full bg-accent-50 px-2.5 py-0.5 align-middle text-xs font-bold text-accent-700 ring-1 ring-accent-200">
-              {t.table(shownTable)}
-            </span>
-          )}
+          {shownTable &&
+            (moveChoices ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMoving((open) => !open);
+                  setTableError(null);
+                }}
+                aria-expanded={moving}
+                aria-controls={moveId}
+                className={`${tableBadge} inline-flex items-center gap-0.5 pr-1.5 transition-colors hover:bg-accent-100`}
+              >
+                {t.table(shownTable)}
+                <ChevronDownIcon className={`size-3.5 transition-transform ${moving ? "rotate-180" : ""}`} />
+              </button>
+            ) : (
+              <span className={tableBadge}>{t.table(shownTable)}</span>
+            ))}
         </>
       }
       closeLabel={t.score.close}
       onClose={onClose}
     >
+      {/* 테이블 옮기기: 제목의 테이블 표시를 누르면 열립니다. */}
+      {moving && moveChoices && (
+        <section
+          id={moveId}
+          aria-label={t.start.moveTo}
+          className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5"
+        >
+          {moveChoices.length > 0 ? (
+            <>
+              <p className="text-xs font-bold text-slate-500">{t.start.moveTo}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">{moveChoices.map(tableButton)}</div>
+              {replacedNote}
+            </>
+          ) : (
+            <p className="text-sm break-keep text-slate-600">{t.start.moveNone}</p>
+          )}
+          {tableErrorNote}
+        </section>
+      )}
+
       {/* 점수판: 두 참가자와 지금(또는 입력 중인) 게임 수. 이기는 쪽 상자가 바로 파랗게 바뀝니다.
           게임 세트로 적을 때는 게임 수 자리가 입력 칸이 됩니다. */}
       <div className="mt-4">
@@ -307,17 +365,11 @@ export function ScoreDialog({
         <p className="mt-2 text-sm text-slate-500">{pointsText(match)}</p>
       )}
 
-      {/* 테이블: 이 경기를 어느 테이블에서 치는지. 시작을 누르면 모두의 화면에 경기 중으로 보입니다. */}
-      {choices && (
+      {/* 테이블: 아직 테이블에 없는 경기를 어느 테이블에서 칠지. 시작을 누르면 모두의 화면에 경기 중으로 보입니다.
+          테이블에 있는 경기는 제목의 테이블 표시로 옮깁니다. */}
+      {choices && !shownTable && (
         <section aria-label={t.start.title} className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
-          {match.table ? (
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-bold text-accent-700">{t.start.on(t.table(match.table))}</span>
-              <button type="button" disabled={pending} onClick={() => place(null)} className="btn btn-ghost btn-sm">
-                {t.start.leave}
-              </button>
-            </div>
-          ) : choices.home ? (
+          {choices.home ? (
             <>
               <button
                 type="button"
@@ -327,13 +379,7 @@ export function ScoreDialog({
               >
                 {t.start.at(t.table(choices.home.table))}
               </button>
-              {choices.home.replaces && (
-                <p className="mt-2 text-xs break-keep text-slate-500">
-                  {t.start.replaces(
-                    matchup(choices.home.replaces.match, contexts[draw.events.indexOf(choices.home.replaces.event)], t),
-                  )}
-                </p>
-              )}
+              {replacedNote}
             </>
           ) : (
             choices.free.length === 0 && (
@@ -342,22 +388,18 @@ export function ScoreDialog({
               </p>
             )
           )}
-          {choices.free.length > 0 && (!match.table || admin) && (
-            <div className={match.table || choices.home ? "mt-3" : ""}>
+          {choices.free.length > 0 && (
+            <div className={choices.home ? "mt-3" : ""}>
               <p className="text-xs font-bold text-slate-500">
-                {match.table ? t.start.moveTo : choices.home ? t.start.otherTables : t.start.freeTables}
+                {choices.home ? t.start.otherTables : t.start.freeTables}
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">{choices.free.map(tableButton)}</div>
             </div>
           )}
-          {!match.table && (choices.home || choices.free.length > 0) && (
+          {(choices.home || choices.free.length > 0) && (
             <p className="mt-2 text-xs break-keep text-slate-500">{t.start.hint}</p>
           )}
-          {tableError && (
-            <p role="alert" className="mt-2 text-sm font-semibold break-keep text-accent-700">
-              {tableError}
-            </p>
-          )}
+          {tableErrorNote}
         </section>
       )}
 
