@@ -76,7 +76,7 @@ function progressOf(event: DrawEvent) {
 }
 
 /**
- * 관리자 화면의 대진표 관리. 왼쪽 메뉴(휴대폰은 위쪽 탭)에서 경기 진행, 종목, 선수 명단, 대회장 설정 가운데
+ * 관리자 화면의 대진표 관리. 왼쪽 메뉴(휴대폰은 위쪽 탭)에서 선수 명단, 대회장 설정, 종목, 경기 진행 가운데
  * 한 화면을 골라 봅니다. 종목 화면은 참가 팀 → 조 편성 → 대진 확정 단계로 나뉩니다.
  */
 export function DrawManager({ tournamentId, initial, renderedAt, publicHref, checkInHref }: Props) {
@@ -175,13 +175,19 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
             ref={menu}
             className="relative flex gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-col lg:gap-0.5 lg:overflow-visible"
           >
+            <MenuHeading>대회 준비</MenuHeading>
             <MenuItem
-              active={view === "play"}
-              onClick={() => go("play")}
-              label="경기 진행"
-              live={live.length > 0}
-              count={live.length > 0 ? `${played.done}/${played.total}` : undefined}
-              meta={live.length > 0 ? `${live.length}개 종목 경기 중` : "대진을 확정하면 열립니다"}
+              active={view === "roster"}
+              onClick={() => go("roster")}
+              label="선수 명단"
+              count={roster.length}
+              meta={checkIn ? `도착 ${arrived}명 · 아직 ${roster.length - arrived}명` : "체크인 안 씀"}
+            />
+            <MenuItem
+              active={view === "venue"}
+              onClick={() => go("venue")}
+              label="대회장 설정"
+              meta={`테이블 ${draw.tables}개 · 점수 입력 ${payload.scoring ? "열림" : "닫힘"}`}
             />
 
             <MenuHeading>종목</MenuHeading>
@@ -211,19 +217,15 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
               icon={<PlusIcon className="size-4 shrink-0" />}
             />
 
-            <MenuHeading>대회 준비</MenuHeading>
+            {/* 경기 진행이 '종목 추가' 밑에 붙어 종목의 하나처럼 보이지 않도록 선으로 나눕니다. */}
+            <li aria-hidden className="mx-3 my-4 hidden border-t border-slate-200 lg:block" />
             <MenuItem
-              active={view === "roster"}
-              onClick={() => go("roster")}
-              label="선수 명단"
-              count={roster.length}
-              meta={checkIn ? `도착 ${arrived}명 · 아직 ${roster.length - arrived}명` : "체크인 안 씀"}
-            />
-            <MenuItem
-              active={view === "venue"}
-              onClick={() => go("venue")}
-              label="대회장 설정"
-              meta={`테이블 ${draw.tables}개 · 점수 입력 ${payload.scoring ? "열림" : "닫힘"}`}
+              active={view === "play"}
+              onClick={() => go("play")}
+              label="경기 진행"
+              live={live.length > 0}
+              count={live.length > 0 ? `${played.done}/${played.total}` : undefined}
+              meta={live.length > 0 ? `${live.length}개 종목 경기 중` : "대진을 확정하면 열립니다"}
             />
           </ul>
         </nav>
@@ -284,7 +286,7 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
 
 function MenuHeading({ children }: { children: ReactNode }) {
   return (
-    <li aria-hidden className="hidden px-3 pt-5 pb-1 text-xs font-bold tracking-wide text-slate-400 lg:block">
+    <li aria-hidden className="hidden px-3 pt-5 pb-1 text-xs font-bold tracking-wide text-slate-400 first:pt-0 lg:block">
       {children}
     </li>
   );
