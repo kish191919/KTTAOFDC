@@ -28,6 +28,7 @@ export const nav = [
   { href: "/", label: { ko: "홈", en: "Home" } },
   { href: "/about", label: { ko: "협회 소개", en: "About" } },
   { href: "/tournaments", label: { ko: "대회 정보", en: "Tournaments" } },
+  { href: "/games", label: { ko: "번개 게임", en: "Games" } },
   { href: "/gallery", label: { ko: "갤러리", en: "Gallery" } },
   { href: "/community", label: { ko: "커뮤니티", en: "Community" } },
 ] as const;

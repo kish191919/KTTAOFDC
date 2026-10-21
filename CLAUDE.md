@@ -16,10 +16,11 @@
   - 테이블은 항목 하나가 한 줄이고 `data` 칸에 `lib/types.ts` 모양 그대로 넣습니다. 입력 칸을 더할 때 테이블은 고치지 않습니다.
 - 저장·삭제는 `lib/actions.ts` 의 서버 액션이 하고, 파일은 `app/api/admin/upload` 가 내준 일회용 주소로 브라우저가 Supabase 에 바로 올립니다 (Vercel 은 4.5MB 가 넘는 요청을 받지 못합니다). 둘 다 관리자 로그인(`lib/auth.ts`)을 확인합니다.
   - 예외: 실시간 대진표의 점수 입력(`submitDrawScoreAction`)은 누구나 씁니다. 대신 입력값 검사·동시 입력 확인·잠금은 `lib/draw/play.ts` 의 `applyScore` 가 맡습니다.
+  - 예외: 번개 게임(`/games`, `createGameAction`·`gameAction`)은 로그인 없이 누구나 만들고 기록합니다. 이름·참가자 고치기·마감·삭제는 만든 휴대폰에 남긴 열쇠(`lib/store/games.ts` 의 `ownsGame`)나 관리자만 하고, 검사는 `lib/games/play.ts` 의 `applyGameOp` 가 맡습니다. 리그전 순위는 `lib/draw/play.ts` 의 계산을 그대로 씁니다.
 - 대진표 계산(조 편성, 순위, 본선 진출, 테이블 배정, 체크인·대진 확정)은 `lib/draw/` 의 순수 함수로 서버와 브라우저가 함께 씁니다. 저장은 `lib/store/draws.ts` 의 `changeDraw` 로만 합니다.
   - 대진표는 대회 날 실제로 쓰는 운영 데이터입니다. `Draw` 모양을 바꿀 때는 이미 저장된 대진표도 읽히게 합니다. (예: 명단이 없던 대진표는 `rosterOf` 가 팀 이름으로 명단을 만듭니다)
 - 색상은 `app/globals.css` 의 `brand`(로고 파랑) · `accent`(로고 빨강) · `navy` 토큰만 사용합니다.
-  (예외: 대진표에서 펼친 팀이 이긴 경기는 사용자 요청으로 초록 `emerald` 를 씁니다)
+  (예외: 대진표에서 펼친 팀이 이긴 경기는 사용자 요청으로 초록 `emerald` 를 씁니다. 번개 게임 순위표에서 펼친 줄도 같은 모양입니다)
 - 수정 후 확인: `npx tsc --noEmit && npx eslint . && npm run build`
   (빌드가 Supabase 를 읽으므로 `.env.local` 에 `SUPABASE_URL`·`SUPABASE_SECRET_KEY` 가 있어야 합니다.
   페이지 파일을 옮기거나 더했다면 먼저 `npx next typegen`. `npm run dev` 가 켜져 있는 동안 옮겼다면 dev 서버를 다시 시작해야 `.next/dev/types` 의 예전 경로가 지워집니다)

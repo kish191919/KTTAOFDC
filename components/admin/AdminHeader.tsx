@@ -7,6 +7,7 @@ const tabs = [
   { href: "/admin/hero", label: "메인 화면" },
   { href: "/admin/tournaments", label: "대회 정보" },
   { href: "/admin/draws", label: "대진표" },
+  { href: "/admin/games", label: "번개 게임" },
   { href: "/admin/albums", label: "갤러리 앨범" },
   { href: "/admin/news", label: "탁구 소식" },
 ] as const;
@@ -34,7 +35,7 @@ export function AdminHeader({ current }: Props) {
         </form>
       </div>
 
-      {/* 탭 여섯 개가 좁은 휴대폰 화면에서도 넘치지 않도록 모자라면 줄을 바꿉니다. */}
+      {/* 탭이 좁은 휴대폰 화면에서도 넘치지 않도록 모자라면 줄을 바꿉니다. */}
       <nav aria-label="관리 메뉴" className="mt-6 flex flex-wrap gap-2">
         {tabs.map((tab) => {
           const active = tab.href === current;

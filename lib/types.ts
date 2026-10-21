@@ -267,3 +267,69 @@ export type Draw = {
   version: number;
   updatedAt: string;
 };
+
+// ───────────────────────── 번개 게임 ─────────────────────────
+// 대회와 상관없이 누구나 만들어 쓰는 작은 경기 기록입니다. 게임 하나가 games 테이블의 한 줄입니다.
+// 리그전은 모두와 한 번씩 경기해 순위를 내고, 자유 기록은 정해진 대진 없이 친 경기를 그때그때 적습니다.
+// 계산은 lib/games/ 에서 합니다.
+
+/** 게임에 나온 선수 한 명 */
+export type GamePlayer = {
+  id: string;
+  /** 게임 안에서 겹치지 않는 이름 */
+  name: string;
+};
+
+/** 경기 한 판. 양쪽은 선수 id 이고, 단식은 한 명 · 복식은 두 명입니다. */
+export type GameMatch = {
+  id: string;
+  a: string[];
+  b: string[];
+  /** 이긴 세트 수 [a, b]. 경기 중이면 지금까지의 수입니다. */
+  sets?: [number, number];
+  /** 세트별 점수 [a, b]. 점수를 적었을 때만 있습니다. */
+  points?: [number, number][];
+  /** 한쪽이 기권해 경기 없이 이긴 쪽 */
+  walkover?: "a" | "b";
+  /** 경기 중인 테이블 번호 (1부터) */
+  table?: number;
+  /** 자유 기록에서 경기를 적은 때 */
+  createdAt?: string;
+  finishedAt?: string;
+};
+
+export type Game = {
+  /** 공유 주소에 쓰는 짧은 글 (/games/k7m2qx) */
+  id: string;
+  title: string;
+  /** league: 리그전, free: 자유 기록 */
+  format: "league" | "free";
+  /** 리그전의 복식 여부. 자유 기록은 경기마다 단식·복식을 고릅니다. */
+  doubles: boolean;
+  /** 몇 세트 경기인지 (3 · 5 · 7). 과반을 먼저 이기면 이깁니다. */
+  bestOf: number;
+  /** 쓰는 테이블 수. 0 이면 테이블 없이 기록만 합니다. */
+  tables: number;
+  players: GamePlayer[];
+  /** 리그전의 참가자. 단식은 선수 한 명, 복식은 두 명의 id 이고 이 순서가 리그 순서입니다. 자유 기록은 비어 있습니다. */
+  teams: string[][];
+  matches: GameMatch[];
+  /** 선수 이름을 비교용 글(personKey)로 바꾼 목록. 이름으로 게임을 찾을 때 씁니다. (lib/store/games.ts) */
+  keys: string[];
+  /** 만든 사람 열쇠의 해시. 브라우저로는 보내지 않습니다. */
+  ownerKeyHash: string;
+  /** 만든 사람이 기록을 마감했는지. 마감하지 않아도 마지막 기록 뒤 며칠이 지나면 저절로 닫힙니다. (lib/games/play.ts 의 isGameOpen) */
+  closed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** 저장할 때마다 1씩 늘어납니다. 동시에 고친 내용이 서로 덮어쓰지 않게 확인합니다. */
+  version: number;
+};
+
+/** 번개 게임에 한 번이라도 나온 이름. 다음 게임에서 찾아 바로 넣을 수 있게 모아 둡니다. (game_people 테이블) */
+export type GamePerson = {
+  /** 비교용 이름 (띄어쓰기·대소문자 무시, lib/draw/roster.ts 의 personKey) */
+  id: string;
+  name: string;
+  lastUsedAt: string;
+};

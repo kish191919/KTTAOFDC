@@ -51,12 +51,17 @@ export function isValidDate(date: string): boolean {
 
 /** 협회 시간대(미 동부) 기준 오늘 날짜 (YYYY-MM-DD) */
 export function today(): string {
+  return dateOf(Date.now());
+}
+
+/** 어느 시각(ISO 글 또는 밀리초)이 협회 시간대(미 동부)로 며칠인지 (YYYY-MM-DD) */
+export function dateOf(value: string | number): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: site.timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
+  }).format(new Date(value));
 }
 
 export function daysBetween(from: string, to: string): number {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   createSession,
@@ -20,8 +21,30 @@ import {
   type ScoreRequest,
   type TableRequest,
 } from "@/lib/draw/play";
+import {
+  applyGameOp,
+  buildGame,
+  cleanGameName,
+  isGameOpen,
+  publicGame,
+  type GameError,
+  type GameOp,
+  type GamePayload,
+  type NewGameInput,
+} from "@/lib/games/play";
 import { changeDraw, createDraw } from "@/lib/store/draws";
 import { isUploadUrl, mediaTypeOf, removeUploads } from "@/lib/store/files";
+import {
+  changeGame,
+  createGame,
+  deleteGame,
+  forgetPerson,
+  getGame,
+  hashOwnerKey,
+  newOwnerKey,
+  ownsGame,
+  rememberPeople,
+} from "@/lib/store/games";
 import {
   addHeroMedia,
   deleteHeroMedia,
@@ -452,6 +475,100 @@ export async function setDrawTableAction(
   if (!result) return { error: "notFound" };
   if ("busy" in result) return { error: "busy" };
   return result;
+}
+
+// ───────────────────────── 번개 게임 ─────────────────────────
+// 대회와 상관없이 누구나 만들고 기록합니다. 게임 이름·참가자를 고치거나 마감·삭제하는 일은
+// 만든 사람(만든 휴대폰에 남긴 열쇠)이나 관리자만 합니다. (lib/games/play.ts 의 applyGameOp)
+
+// 한 곳에서 짧은 시간에 게임을 너무 많이 만들지 못하게 합니다. (서버를 다시 켜면 초기화)
+const GAMES_PER_HOUR = 30;
+const HOUR_MS = 60 * 60 * 1000;
+const gameCreations = new Map<string, number[]>();
+
+async function clientAddress(): Promise<string> {
+  const forwarded = (await headers()).get("x-forwarded-for") ?? "";
+  return forwarded.split(",")[0].trim() || "unknown";
+}
+
+/** 게임에 쓴 이름을 모아 둡니다. 모으지 못해도 게임은 이미 저장되었으므로 오류를 내지 않습니다. */
+async function rememberGameNames(names: unknown[], now: string): Promise<void> {
+  try {
+    await rememberPeople(names.map(cleanGameName).filter(Boolean), now);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+export type NewGameResult = { id: string; key: string } | { error: GameError };
+
+/** 새 번개 게임을 만듭니다. 누구나 씁니다. 돌려준 열쇠는 브라우저가 그 게임의 관리용으로 기억해 둡니다. */
+export async function createGameAction(input: NewGameInput): Promise<NewGameResult> {
+  const address = await clientAddress();
+  const started = Date.now();
+  const recent = (gameCreations.get(address) ?? []).filter((at) => started - at < HOUR_MS);
+  if (recent.length >= GAMES_PER_HOUR) return { error: "tooFast" };
+
+  const key = newOwnerKey();
+  const now = new Date(started).toISOString();
+  const result = await createGame((id) =>
+    buildGame(input, { id, ownerKeyHash: hashOwnerKey(key), now }),
+  );
+  if (!("game" in result)) return result;
+  gameCreations.set(address, [...recent, started]);
+  await rememberGameNames(result.game.players.map((p) => p.name), now);
+  return { id: result.game.id, key };
+}
+
+export type GameActionResult = GamePayload | { error: GameError };
+
+/**
+ * 번개 게임의 기록과 관리. 점수·경기 기록은 누구나, 관리 조작은 만든 사람 열쇠(key)가 맞거나 관리자일 때만 합니다.
+ * 바뀐 게임을 돌려주므로 화면이 기다리지 않고 따라옵니다.
+ */
+export async function gameAction(id: string, op: GameOp, key?: string): Promise<GameActionResult> {
+  if (typeof id !== "string") return { error: "notFound" };
+  const admin = await isAdmin();
+  const now = new Date().toISOString();
+  const day = today();
+  const result = await changeGame(id, (game) =>
+    applyGameOp(game, op, { owner: admin || ownsGame(game, key), now, today: day }),
+  );
+  if (!result) return { error: "notFound" };
+  if ("busy" in result) return { error: "busy" };
+  if ("error" in result) return result;
+
+  // 경기·참가자로 적은 이름은 다음 게임에서 찾기 쉽게 '최근에 쓴 이름'으로 올립니다.
+  const used =
+    op.op === "record"
+      ? [...op.a, ...op.b]
+      : op.op === "addEntries"
+        ? op.entries.flat()
+        : op.op === "renamePlayer"
+          ? [op.name]
+          : [];
+  if (used.length > 0) await rememberGameNames(used, now);
+  return { game: publicGame(result.game), open: isGameOpen(result.game, day) };
+}
+
+/** 번개 게임을 지웁니다. 만든 사람이나 관리자만 합니다. */
+export async function deleteGameAction(id: string, key?: string): Promise<{ error?: GameError }> {
+  if (typeof id !== "string") return { error: "notFound" };
+  const game = await getGame(id);
+  if (!game) return { error: "notFound" };
+  if (!(await isAdmin()) && !ownsGame(game, key)) return { error: "owner" };
+  await deleteGame(id);
+  return {};
+}
+
+/** 모아 둔 이름 하나를 지웁니다. (관리자) 그 이름이 나온 게임 기록은 그대로입니다. */
+export async function forgetGamePersonAction(id: string): Promise<FormState> {
+  const blocked = await writeBlocker();
+  if (blocked) return { error: blocked };
+  if (typeof id !== "string" || !(await forgetPerson(id))) {
+    return { error: "이름을 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
+  }
+  return {};
 }
 
 // ───────────────────────── 갤러리 ─────────────────────────

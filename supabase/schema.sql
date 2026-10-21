@@ -32,6 +32,15 @@ alter table public.draws enable row level security;
 revoke all on table public.draws from anon, authenticated;
 grant select, insert, update, delete on table public.draws to service_role;
 
+-- 번개 게임. 게임 하나가 한 줄이고 id 는 공유 주소의 짧은 글입니다. (lib/types.ts 의 Game)
+-- game_people 은 게임에 쓴 이름을 한 사람씩 모아 둔 것으로, id 는 띄어쓰기·대소문자를 뺀 이름입니다. (GamePerson)
+create table if not exists public.games (id text primary key, data jsonb not null);
+create table if not exists public.game_people (id text primary key, data jsonb not null);
+alter table public.games enable row level security;
+alter table public.game_people enable row level security;
+revoke all on table public.games, public.game_people from anon, authenticated;
+grant select, insert, update, delete on table public.games, public.game_people to service_role;
+
 -- 사진·동영상·첨부 파일. 주소를 아는 사람은 누구나 볼 수 있는 공개 버킷이고,
 -- 올리기·지우기는 홈페이지 서버만 할 수 있습니다. 파일 하나는 50MB 까지 받습니다.
 insert into storage.buckets (id, name, public, file_size_limit)

@@ -4,7 +4,14 @@ import { database } from "./supabase";
 // 글 내용을 담는 Supabase 테이블을 읽고 쓰는 공통 함수입니다.
 // 항목 하나가 한 줄이고, data 칸에 lib/types.ts 의 모양 그대로 들어갑니다. (supabase/schema.sql)
 
-export type Table = "tournaments" | "albums" | "news_posts" | "hero_media" | "draws";
+export type Table =
+  | "tournaments"
+  | "albums"
+  | "news_posts"
+  | "hero_media"
+  | "draws"
+  | "games"
+  | "game_people";
 
 type Item = { id: string };
 
@@ -19,6 +26,27 @@ export function fail(table: Table, error: { message: string }): never {
 export async function readAll<T>(table: Table, orderBy?: string): Promise<T[]> {
   const query = database().from(table).select("data");
   const { data, error } = await (orderBy ? query.order(orderBy) : query);
+  if (error) fail(table, error);
+  return data.map((row) => row.data as T);
+}
+
+/** data 칸의 field 값이 큰 것부터 limit 개. (최근에 만든 항목부터 읽을 때) */
+export async function readLatest<T>(table: Table, field: string, limit: number): Promise<T[]> {
+  const { data, error } = await database()
+    .from(table)
+    .select("data")
+    .order(`data->>${field}`, { ascending: false })
+    .limit(limit);
+  if (error) fail(table, error);
+  return data.map((row) => row.data as T);
+}
+
+/** data 칸의 field(글 목록)에 value 가 들어 있는 항목 */
+export async function readContaining<T>(table: Table, field: string, value: string): Promise<T[]> {
+  const { data, error } = await database()
+    .from(table)
+    .select("data")
+    .contains(`data->${field}`, JSON.stringify([value]));
   if (error) fail(table, error);
   return data.map((row) => row.data as T);
 }
@@ -44,6 +72,15 @@ export async function insertItem<T extends Item>(
   if (!error) return true;
   if (error.code === DUPLICATE) return false;
   fail(table, error);
+}
+
+/** 여러 항목을 한 번에 넣습니다. 같은 id 가 이미 있으면 새 내용으로 바꿉니다. */
+export async function upsertItems<T extends Item>(table: Table, items: T[]): Promise<void> {
+  if (items.length === 0) return;
+  const { error } = await database()
+    .from(table)
+    .upsert(items.map((item) => ({ id: item.id, data: item })));
+  if (error) fail(table, error);
 }
 
 /** 그 id 의 내용을 통째로 바꿉니다. 없는 id 면 false */
