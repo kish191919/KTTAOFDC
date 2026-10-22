@@ -53,6 +53,9 @@ const KNOCKOUT_FROM = [16, 8, 4, 2];
 
 export type DrawOp =
   | { op: "settings"; tables: number; scoringOpen: boolean; checkIn?: boolean }
+  /** 대진표 마감과 마감 풀기. 마감한 동안에는 마감 풀기 말고는 아무것도 바꿀 수 없습니다. */
+  | { op: "close" }
+  | { op: "reopen" }
   | ({ op: "addEvent" } & EventSettings)
   | ({ op: "updateEvent"; event: string } & EventSettings)
   | { op: "removeEvent"; event: string }
@@ -174,8 +177,28 @@ function teamFromPlayers(event: DrawEvent, players: DrawPlayer[], roster: DrawPl
   };
 }
 
-export function applyAdminOp(draw: Draw, input: unknown, now: string): OpResult {
+/** closed: 지금 마감된 대진표인지 (lib/draw/play.ts 의 isDrawClosed. 대회 날짜가 있어야 알 수 있어서 따로 받습니다) */
+export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = false): OpResult {
   const op = (input ?? {}) as Record<string, unknown> & { op?: unknown };
+  if (op.op === "reopen") {
+    if (!closed) return { error: "마감하지 않은 대진표입니다." };
+    const next = cloneDraw(draw);
+    delete next.closedAt;
+    next.reopenedAt = now;
+    return { draw: next };
+  }
+  if (closed) {
+    return {
+      error: op.op === "close" ? "이미 마감한 대진표입니다." : "마감한 대진표입니다. 고치려면 맨 위의 '마감 풀기'를 눌러 주세요.",
+    };
+  }
+  if (op.op === "close") {
+    const next = cloneDraw(draw);
+    next.closedAt = now;
+    delete next.reopenedAt;
+    return { draw: next };
+  }
+
   const next = cloneDraw(draw);
   // 명단은 처음 고칠 때 팀 이름들로 만들어 저장합니다.
   next.players = rosterOf(next);

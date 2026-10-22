@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createDrawAction } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
 import { formatSchedule, today } from "@/lib/dates";
-import { canVisitorsScore } from "@/lib/draw/play";
+import { drawPayload } from "@/lib/draw/view";
 import { getDraw } from "@/lib/store/draws";
 import { getTournament } from "@/lib/store/tournaments";
 import { DrawManager } from "@/components/admin/DrawManager";
@@ -44,7 +44,7 @@ export default async function DrawAdminPage({ params }: Props) {
       {draw ? (
         <DrawManager
           tournamentId={id}
-          initial={{ draw, scoring: canVisitorsScore(draw, tournament, today()) }}
+          initial={drawPayload(draw, tournament, today())}
           renderedAt={new Date().toISOString()}
           publicHref={`/tournaments/${id}/bracket`}
           checkInHref={`/admin/tournaments/${id}/checkin`}

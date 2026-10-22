@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
 import { today } from "@/lib/dates";
-import { canVisitorsScore } from "@/lib/draw/play";
+import { drawPayload } from "@/lib/draw/view";
 import { localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizeTournament } from "@/lib/i18n/localize";
@@ -17,7 +17,7 @@ import { ArrowLeftIcon } from "@/components/icons";
 type Props = { params: Promise<{ lang: string; id: string }> };
 
 // 경기 결과가 계속 바뀌므로 미리 만들어 두지 않고 열 때마다 새로 그립니다.
-// 그 뒤로는 화면이 5초마다 app/api/draws/[id] 에서 새 결과를 받아 옵니다.
+// 그 뒤로는 마감 전까지 화면이 5초마다 app/api/draws/[id] 에서 새 결과를 받아 옵니다.
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -70,7 +70,7 @@ export default async function BracketPage({ params }: Props) {
         <LiveDraw
           tournamentId={id}
           lang={lang}
-          initial={{ draw, scoring: canVisitorsScore(draw, stored, today()) }}
+          initial={drawPayload(draw, stored, today())}
           renderedAt={new Date().toISOString()}
         />
       ) : (

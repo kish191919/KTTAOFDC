@@ -261,6 +261,10 @@ export type Draw = {
   /** 선수 명단. 비어 있으면 종목의 팀 이름들로 만듭니다. (lib/draw/roster.ts) */
   players?: DrawPlayer[];
   events: DrawEvent[];
+  /** 관리자가 대진표를 마감한 때. 마감하면 관리자도 고칠 수 없습니다. (lib/draw/play.ts 의 isDrawClosed) */
+  closedAt?: string;
+  /** 관리자가 마감을 푼 때. 저절로 마감하는 날이 이 날의 다음 날 뒤로 미뤄집니다. */
+  reopenedAt?: string;
   /** 최근 점수 입력 기록 (새 것이 앞) */
   log: DrawLog[];
   /** 저장할 때마다 1씩 늘어납니다. 동시에 고친 내용이 서로 덮어쓰지 않게 확인합니다. */

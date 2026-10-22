@@ -1,4 +1,4 @@
-import { addDays } from "@/lib/dates";
+import { addDays, dateOf, endDateOf } from "@/lib/dates";
 import type { Draw, DrawEntry, DrawEvent, DrawMatch, DrawSlot, Tournament } from "@/lib/types";
 import { personKey, presence } from "./roster";
 
@@ -935,4 +935,31 @@ export function canVisitorsScore(
   today: string,
 ): boolean {
   return draw.scoringOpen && today <= addDays(tournament.endDate ?? tournament.startDate, 1);
+}
+
+/** 부전승을 뺀 모든 경기의 승패가 정해진 종목 */
+export function isEventFinished(event: DrawEvent): boolean {
+  const context = eventContext(event);
+  return event.matches.every((match) => {
+    const state = context.stateOf(match);
+    return state === "done" || state === "bye";
+  });
+}
+
+/**
+ * 대진표가 마감됐는지. 마감하면 관리자도 고칠 수 없고, 화면은 새로 받아 오지 않습니다.
+ * 관리자가 마감했거나, 경기를 시작한 종목이 모두 끝나고 대회 다음 날이 지나면 마감입니다. (준비 중인 종목은 따지지 않습니다)
+ * 관리자가 마감을 풀었으면 푼 날의 다음 날까지는 열어 둡니다.
+ */
+export function isDrawClosed(
+  draw: Draw,
+  tournament: Pick<Tournament, "startDate" | "endDate">,
+  today: string,
+): boolean {
+  if (draw.closedAt) return true;
+  const live = draw.events.filter((event) => event.status === "live");
+  if (live.length === 0 || !live.every(isEventFinished)) return false;
+  const lastDay = endDateOf(tournament);
+  const reopened = draw.reopenedAt ? dateOf(draw.reopenedAt) : "";
+  return today > addDays(reopened > lastDay ? reopened : lastDay, 1);
 }

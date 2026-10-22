@@ -11,6 +11,7 @@ import {
   scheduleLines,
   today,
 } from "@/lib/dates";
+import { isDrawClosed } from "@/lib/draw/play";
 import { localePath } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import { localizeTournament } from "@/lib/i18n/localize";
@@ -104,6 +105,8 @@ export default async function TournamentPage({ params }: Props) {
   const hasLiveDraw = Boolean(draw?.events.some((event) => event.status === "live"));
   const tournament = localizeTournament(stored, lang);
   const now = today();
+  // 마감한 대진표는 결과를 보러 가는 안내로 바꿉니다. (이 페이지는 한 시간마다 새로 만들므로 저절로 마감한 것은 늦어도 한 시간 뒤에 바뀝니다)
+  const drawClosed = Boolean(draw && isDrawClosed(draw, stored, now));
   const registration = registrationLabel(tournament, now, lang);
   const mapUrl = googleMapsUrl(tournament);
   // 포스터나 첨부 파일이 있으면 요강 전문은 그 내용을 다시 적은 것입니다.
@@ -160,16 +163,18 @@ export default async function TournamentPage({ params }: Props) {
               href={localePath(lang, `/tournaments/${tournament.id}/bracket`)}
               className="group block rounded-2xl bg-navy-900 p-6 text-white shadow-sm transition-shadow hover:shadow-md"
             >
-              <span className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-accent-300 uppercase">
-                <span className="size-2 animate-pulse rounded-full bg-accent-400" />
-                {d.eyebrow}
-              </span>
-              <span className="mt-2 block text-xl font-black">{d.openTitle}</span>
+              {!drawClosed && (
+                <span className="mb-2 inline-flex items-center gap-2 text-xs font-bold tracking-[0.18em] text-accent-300 uppercase">
+                  <span className="size-2 animate-pulse rounded-full bg-accent-400" />
+                  {d.eyebrow}
+                </span>
+              )}
+              <span className="block text-xl font-black">{drawClosed ? d.resultTitle : d.openTitle}</span>
               <span className="mt-1 block text-sm leading-relaxed break-keep text-brand-100">
-                {d.openDescription}
+                {drawClosed ? d.resultDescription : d.openDescription}
               </span>
               <span className="btn btn-accent btn-sm mt-4">
-                {d.openLink}
+                {drawClosed ? d.resultLink : d.openLink}
                 <ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
               </span>
             </Link>

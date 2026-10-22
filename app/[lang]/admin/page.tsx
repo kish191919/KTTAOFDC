@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth";
 import { statusLabel, statusOf, today } from "@/lib/dates";
 import { usesCheckIn } from "@/lib/draw/roster";
+import { isDrawClosed } from "@/lib/draw/play";
 import { drawStage, drawStageLabel } from "@/lib/draw/summary";
 import { listAlbums } from "@/lib/store/albums";
 import { listDraws } from "@/lib/store/draws";
@@ -99,7 +100,7 @@ export default async function AdminPage() {
             !next
               ? "대회를 등록하면 그 대회의 대진표를 만들 수 있습니다."
               : nextDraw
-                ? `대진표 ${drawStageLabel[drawStage(nextDraw)]} · 종목 ${nextDraw.events.length}개`
+                ? `대진표 ${drawStageLabel[drawStage(nextDraw, isDrawClosed(nextDraw, next, now))]} · 종목 ${nextDraw.events.length}개`
                 : "아직 대진표를 만들지 않았습니다."
           }
         >

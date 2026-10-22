@@ -1,5 +1,5 @@
-import type { Draw, DrawMatch } from "@/lib/types";
-import { winnerOf, type EventContext, type TableBoard } from "./play";
+import type { Draw, DrawMatch, Tournament } from "@/lib/types";
+import { canVisitorsScore, isDrawClosed, winnerOf, type EventContext, type TableBoard } from "./play";
 
 export { roundSize } from "./play";
 
@@ -10,7 +10,18 @@ export type DrawPayload = {
   draw: Draw;
   /** 방문자가 지금 점수를 입력할 수 있는지 */
   scoring: boolean;
+  /** 마감한 대진표. 아무도 고칠 수 없고, 화면은 새로 받아 오지 않습니다. */
+  closed: boolean;
 };
+
+export function drawPayload(
+  draw: Draw,
+  tournament: Pick<Tournament, "startDate" | "endDate">,
+  today: string,
+): DrawPayload {
+  const closed = isDrawClosed(draw, tournament, today);
+  return { draw, scoring: !closed && canVisitorsScore(draw, tournament, today), closed };
+}
 
 export const groupLetter = (group: number) => String.fromCharCode(65 + group);
 

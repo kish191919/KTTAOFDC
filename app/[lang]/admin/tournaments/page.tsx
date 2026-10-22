@@ -2,6 +2,7 @@ import Link from "next/link";
 import { deleteTournamentAction, setTournamentHiddenAction } from "@/lib/actions";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateRange, statusLabel, statusOf, today, yearOf } from "@/lib/dates";
+import { isDrawClosed } from "@/lib/draw/play";
 import { drawStage, drawStageLabel } from "@/lib/draw/summary";
 import { listDraws } from "@/lib/store/draws";
 import { listTournaments } from "@/lib/store/tournaments";
@@ -52,7 +53,7 @@ export default async function AdminTournamentsPage({ searchParams }: Props) {
         !past || draw
           ? {
               href: `/admin/tournaments/${tournament.id}/draw`,
-              stage: draw && drawStageLabel[drawStage(draw)],
+              stage: draw && drawStageLabel[drawStage(draw, isDrawClosed(draw, tournament, now))],
             }
           : undefined,
       deleteMessage: `'${tournament.title}' 대회를 삭제할까요?\n포스터와 첨부 파일도 함께 지워지며 되돌릴 수 없습니다.`,

@@ -140,10 +140,15 @@ export const ko = {
     openTitle: "실시간 대진표",
     openDescription: "조 편성과 경기 순서, 결과를 실시간으로 보고 점수를 입력할 수 있습니다.",
     openLink: "실시간 대진표 보기",
+    /** 마감한 대진표로 가는 안내 */
+    resultTitle: "대진표 결과",
+    resultDescription: "조 편성과 경기 결과를 볼 수 있습니다.",
+    resultLink: "대진표 결과 보기",
     preparing:
       "대진표를 준비하고 있습니다. 경기가 시작되면 이곳에 조 편성과 경기 순서가 나옵니다.",
     updated: (time: string) => `${time} 기준 · 5초마다 자동으로 새로 고칩니다`,
     reconnecting: "연결이 잠시 끊겼습니다. 다시 연결하는 중입니다…",
+    closedNotice: "대진표가 마감되었습니다. 최종 결과입니다.",
     findTitle: "내 경기 찾기",
     /** 휴대폰에서는 제목 없이 검색 칸만 보이므로 무엇을 하는 칸인지 여기에 적습니다. */
     findPlaceholder: "이름으로 내 경기 찾기",

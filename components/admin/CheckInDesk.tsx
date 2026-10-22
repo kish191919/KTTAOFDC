@@ -23,8 +23,9 @@ type Filter = "all" | "waiting" | "arrived";
  * 다른 데스크에서 누른 것도 5초마다 받아 와 맞춥니다.
  */
 export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
-  const { payload, online, checkedAt, setDraw } = useLiveDraw(tournamentId, initial);
+  const { payload, online, checkedAt, setPayload } = useLiveDraw(tournamentId, initial);
   const draw = payload.draw;
+  const closed = payload.closed;
   const roster = rosterOf(draw);
   const isPresent = presence(draw);
   const [query, setQuery] = useState("");
@@ -42,7 +43,7 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
         setError(result.error);
         return false;
       }
-      setDraw(result.draw);
+      setPayload(result);
       return true;
     } catch {
       setError("저장하지 못했습니다. 인터넷 연결을 확인하고 다시 눌러 주세요.");
@@ -66,13 +67,19 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
 
   return (
     <div className="space-y-5">
-      <p className={`text-sm ${online ? "text-slate-500" : "font-bold text-accent-600"}`}>
-        <span suppressHydrationWarning>
-          {online
-            ? `${clockTime(checkedAt ?? renderedAt, "ko", true)} 기준 · 다른 데스크에서 누른 것도 5초마다 맞춰집니다`
-            : "연결이 끊겼습니다. 다시 연결하는 중입니다…"}
-        </span>
-      </p>
+      {closed ? (
+        <p className="rounded-xl bg-accent-50 px-4 py-3 text-sm font-semibold break-keep text-accent-700">
+          마감한 대진표입니다. 도착 표시를 바꿀 수 없습니다. 고치려면 대진표 관리에서 ‘마감 풀기’를 눌러 주세요.
+        </p>
+      ) : (
+        <p className={`text-sm ${online ? "text-slate-500" : "font-bold text-accent-600"}`}>
+          <span suppressHydrationWarning>
+            {online
+              ? `${clockTime(checkedAt ?? renderedAt, "ko", true)} 기준 · 다른 데스크에서 누른 것도 5초마다 맞춰집니다`
+              : "연결이 끊겼습니다. 다시 연결하는 중입니다…"}
+          </span>
+        </p>
+      )}
 
       <section className="card p-5">
         <p className="text-3xl font-black text-brand-950 tabular-nums">
@@ -146,7 +153,7 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
             <li key={player.id}>
               <button
                 type="button"
-                disabled={pending === player.id}
+                disabled={closed || pending === player.id}
                 onClick={() => toggle(player)}
                 className={`flex w-full items-center gap-4 rounded-2xl border-2 px-4 py-3 text-left transition-colors disabled:opacity-60 ${
                   player.checkedInAt
@@ -205,7 +212,7 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
             className="field"
           />
         </label>
-        <button type="submit" disabled={pending === "new"} className="btn btn-ghost btn-sm mb-1">
+        <button type="submit" disabled={closed || pending === "new"} className="btn btn-ghost btn-sm mb-1">
           <PlusIcon className="size-4" />
           올리기
         </button>

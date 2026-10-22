@@ -56,6 +56,8 @@ type Props = {
   scoring: boolean;
   /** 관리자 화면에서 쓰면 입력 기록 탭과 관리자 기능이 더해집니다. */
   admin?: boolean;
+  /** 마감한 대진표. 관리자도 점수를 입력하거나 경기를 시작할 수 없고 결과만 봅니다. */
+  closed?: boolean;
   onDraw: (draw: Draw) => void;
   onRefresh: () => void;
 };
@@ -66,7 +68,16 @@ type Opened = { event: string; match: string; flip: boolean };
 const STUCK_BOTTOM = 144;
 
 /** 실시간 대진표 본 화면: 내 경기 찾기, 테이블 현황, 종목별 조 편성과 본선 대진표 */
-export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = false, onDraw, onRefresh }: Props) {
+export function DrawBoard({
+  tournamentId,
+  lang,
+  draw: saved,
+  scoring,
+  admin = false,
+  closed = false,
+  onDraw,
+  onRefresh,
+}: Props) {
   const t = getDictionary(lang).draw;
   // 조 테이블을 아직 정하지 않은 대진표는 저장할 때와 똑같이 채워서 그립니다.
   const draw = useMemo(() => withGroupTables(saved), [saved]);
@@ -93,7 +104,7 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
     );
   }
 
-  const canScore = scoring || admin;
+  const canScore = !closed && (scoring || admin);
   const open: OpenMatch = (event, match, flip = false) => setOpened({ event: event.id, match: match.id, flip });
   const openedEvent = opened && draw.events.find((e) => e.id === opened.event);
   const openedMatch = openedEvent?.matches.find((m) => m.id === opened?.match);
@@ -197,7 +208,7 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
             contextOf={contextOf}
             // 조 테이블은 지금 시작할 수 없는 경기만 남았어도 버튼을 둡니다. 고르기 창에서 까닭을 보여 줍니다.
             canStart={(table) =>
-              (scoring || admin) &&
+              canScore &&
               (board.tables[table - 1].groups.length > 0 || startableAt(draw, board, contexts, table, admin).length > 0)
             }
             onOpen={open}
@@ -214,8 +225,9 @@ export function DrawBoard({ tournamentId, lang, draw: saved, scoring, admin = fa
           event={openedEvent}
           match={openedMatch}
           context={contextOf(openedEvent)}
-          scoring={scoring}
-          admin={admin}
+          // 마감한 대진표는 관리자에게도 읽기 전용 창으로 엽니다.
+          scoring={canScore}
+          admin={admin && !closed}
           draw={draw}
           board={board}
           contexts={contexts}

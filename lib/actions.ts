@@ -16,11 +16,13 @@ import {
   applyScore,
   applyTable,
   canVisitorsScore,
+  isDrawClosed,
   type ScoreError,
   type ScoreInput,
   type ScoreRequest,
   type TableRequest,
 } from "@/lib/draw/play";
+import { drawPayload, type DrawPayload } from "@/lib/draw/view";
 import {
   applyGameOp,
   buildGame,
@@ -384,29 +386,35 @@ export async function createDrawAction(tournamentId: string): Promise<void> {
   redirect(`/admin/tournaments/${encodeURIComponent(tournamentId)}/draw`);
 }
 
-export type DrawActionResult = { draw: Draw } | { error: string };
+export type DrawActionResult = DrawPayload | { error: string };
 
-/** 관리자 화면의 대진표 조작. 바뀐 대진표를 돌려주므로 화면이 기다리지 않고 따라옵니다. */
+/**
+ * 관리자 화면의 대진표 조작. 바뀐 대진표와 점수 입력·마감 상태를 돌려주므로 화면이 기다리지 않고 따라옵니다.
+ * 마감한 대진표는 마감 풀기 말고는 거절합니다.
+ */
 export async function drawAdminAction(tournamentId: string, op: DrawOp): Promise<DrawActionResult> {
   const blocked = await writeBlocker();
   if (blocked) return { error: blocked };
   if (typeof tournamentId !== "string") return { error: DRAW_NOT_FOUND };
+  const tournament = await getTournament(tournamentId, { includeHidden: true });
+  if (!tournament) return { error: DRAW_NOT_FOUND };
 
   const result = await changeDraw(tournamentId, (draw) =>
-    applyAdminOp(draw, op, new Date().toISOString()),
+    applyAdminOp(draw, op, new Date().toISOString(), isDrawClosed(draw, tournament, today())),
   );
   if (!result) return { error: DRAW_NOT_FOUND };
   if ("busy" in result) return { error: "다른 곳에서 동시에 저장하고 있습니다. 한 번 더 눌러 주세요." };
-  // 경기를 시작하거나 되돌리면 대회 상세 페이지의 '실시간 대진표' 안내가 바뀝니다.
-  if ("draw" in result && ["start", "reset", "removeEvent"].includes(op?.op)) revalidateSite();
-  return result;
+  if ("error" in result) return result;
+  // 경기를 시작하거나 되돌리거나 마감하면 대회 상세 페이지의 대진표 안내가 바뀝니다.
+  if (["start", "reset", "removeEvent", "close", "reopen"].includes(op?.op)) revalidateSite();
+  return drawPayload(result.draw, tournament, today());
 }
 
 export type ScoreActionResult = { draw: Draw } | { error: ScoreError; blockedBy?: string };
 
 /**
  * 실시간 대진표의 점수 입력. 관리자 로그인 없이 누구나 씁니다.
- * 관리자로 로그인한 상태면 방문자 입력을 막아 둔 때에도 입력하고, 결과를 지울 수 있습니다.
+ * 관리자로 로그인한 상태면 방문자 입력을 막아 둔 때에도 입력하고, 결과를 지울 수 있습니다. 마감한 대진표는 관리자도 막습니다.
  */
 export async function submitDrawScoreAction(
   tournamentId: string,
@@ -428,7 +436,7 @@ export async function submitDrawScoreAction(
 
   const now = new Date().toISOString();
   const result = await changeDraw(tournamentId, (draw) => {
-    if (!admin && !canVisitorsScore(draw, tournament, today())) {
+    if (isDrawClosed(draw, tournament, today()) || (!admin && !canVisitorsScore(draw, tournament, today()))) {
       return { error: "closed" as const };
     }
     return applyScore(
@@ -445,6 +453,7 @@ export async function submitDrawScoreAction(
 /**
  * 실시간 대진표에서 경기를 테이블에 올리거나(시작) 내립니다. 점수 입력처럼 누구나 씁니다.
  * 관리자로 로그인한 상태면 방문자 입력을 막아 둔 때에도, 다른 조의 테이블이나 경기 중인 테이블에도 올릴 수 있습니다.
+ * 마감한 대진표는 관리자도 막습니다.
  */
 export async function setDrawTableAction(
   tournamentId: string,
@@ -467,7 +476,7 @@ export async function setDrawTableAction(
 
   const now = new Date().toISOString();
   const result = await changeDraw(tournamentId, (draw) => {
-    if (!admin && !canVisitorsScore(draw, tournament, today())) {
+    if (isDrawClosed(draw, tournament, today()) || (!admin && !canVisitorsScore(draw, tournament, today()))) {
       return { error: "closed" as const };
     }
     return applyTable(draw, { event, match, table, occupant }, { admin, now });

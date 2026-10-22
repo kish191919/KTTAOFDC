@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { drawAdminAction } from "@/lib/actions";
+import { dateOf, formatDate } from "@/lib/dates";
 import type { DrawOp, EventSettings } from "@/lib/draw/admin";
 import { entriesToText, entryName, parseEntries } from "@/lib/draw/entries";
 import { eventContext, groupCapacity, winnerOf, withGroupTables } from "@/lib/draw/play";
@@ -81,8 +82,9 @@ function progressOf(event: DrawEvent) {
  * 한 화면을 골라 봅니다. 종목 화면은 참가 팀 → 조 편성 → 대진 확정 단계로 나뉩니다.
  */
 export function DrawManager({ tournamentId, initial, renderedAt, publicHref, checkInHref }: Props) {
-  const { payload, online, checkedAt, refresh, setDraw } = useLiveDraw(tournamentId, initial);
+  const { payload, online, checkedAt, refresh, setDraw, setPayload } = useLiveDraw(tournamentId, initial);
   const draw = payload.draw;
+  const closed = payload.closed;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ error: boolean; text: string } | null>(null);
   const searchParams = useSearchParams();
@@ -114,7 +116,7 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
         setMessage({ error: true, text: result.error });
         return null;
       }
-      setDraw(result.draw);
+      setPayload(result);
       if (notice) setMessage({ error: false, text: notice });
       return result.draw;
     } catch {
@@ -144,14 +146,19 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
 
   return (
     <div className="space-y-6">
+      {closed && <ClosedBanner draw={draw} busy={busy} run={run} />}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className={`text-sm ${online ? "text-slate-500" : "font-bold text-accent-600"}`}>
-          <span suppressHydrationWarning>
-            {online
-              ? `${clockTime(checkedAt ?? renderedAt, "ko", true)} 기준 · 5초마다 새로 고칩니다`
-              : "연결이 끊겼습니다. 다시 연결하는 중입니다…"}
-          </span>
-        </p>
+        {closed ? (
+          <p className="text-sm text-slate-500">마감한 대진표는 더 새로 고치지 않습니다.</p>
+        ) : (
+          <p className={`text-sm ${online ? "text-slate-500" : "font-bold text-accent-600"}`}>
+            <span suppressHydrationWarning>
+              {online
+                ? `${clockTime(checkedAt ?? renderedAt, "ko", true)} 기준 · 5초마다 새로 고칩니다`
+                : "연결이 끊겼습니다. 다시 연결하는 중입니다…"}
+            </span>
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {checkIn && (
             <a href={checkInHref} className="btn btn-brand btn-sm">
@@ -202,10 +209,10 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
                   active={view === event.id}
                   onClick={() => go(event.id)}
                   label={event.name}
-                  live={event.status === "live"}
+                  live={event.status === "live" && !closed}
                   meta={
                     event.status === "live"
-                      ? `경기 중 · ${done}/${total} 끝남`
+                      ? `${closed ? "마감" : "경기 중"} · ${done}/${total} 끝남`
                       : `준비 중 · ${playing}${unit}${event.groups.length > 0 ? ` · ${event.groups.length}개 조` : ""}`
                   }
                 />
@@ -224,9 +231,15 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
               active={view === "play"}
               onClick={() => go("play")}
               label="경기 진행"
-              live={live.length > 0}
+              live={live.length > 0 && !closed}
               count={live.length > 0 ? `${played.done}/${played.total}` : undefined}
-              meta={live.length > 0 ? `${live.length}개 종목 경기 중` : "대진을 확정하면 열립니다"}
+              meta={
+                closed
+                  ? "마감"
+                  : live.length > 0
+                    ? `${live.length}개 종목 경기 중`
+                    : "대진을 확정하면 열립니다"
+              }
             />
           </ul>
         </nav>
@@ -238,6 +251,9 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
               tournamentId={tournamentId}
               draw={draw}
               scoring={payload.scoring}
+              closed={closed}
+              busy={busy}
+              run={run}
               onDraw={setDraw}
               onRefresh={refresh}
               go={go}
@@ -380,6 +396,9 @@ function PlayPanel({
   tournamentId,
   draw,
   scoring,
+  closed,
+  busy,
+  run,
   onDraw,
   onRefresh,
   go,
@@ -387,6 +406,9 @@ function PlayPanel({
   tournamentId: string;
   draw: Draw;
   scoring: boolean;
+  closed: boolean;
+  busy: boolean;
+  run: Run;
   onDraw: (draw: Draw) => void;
   onRefresh: () => void;
   go: Go;
@@ -414,18 +436,75 @@ function PlayPanel({
     <div className="space-y-5">
       <PanelHeader
         title="경기 진행"
-        description="방문자 화면과 같습니다. 경기를 누르면 점수를 고치거나, 테이블을 옮기거나, 결과를 지울 수 있습니다."
-      />
+        description={
+          closed
+            ? "마감한 대진표입니다. 결과만 볼 수 있습니다."
+            : "방문자 화면과 같습니다. 경기를 누르면 점수를 고치거나, 테이블을 옮기거나, 결과를 지울 수 있습니다."
+        }
+      >
+        {!closed && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm(CLOSE_CONFIRM)) void run({ op: "close" }, "대진표를 마감했습니다.");
+            }}
+            className="btn btn-outline btn-sm"
+          >
+            <CheckIcon className="size-4" />
+            대진표 마감
+          </button>
+        )}
+      </PanelHeader>
       <DrawBoard
         tournamentId={tournamentId}
         lang="ko"
         draw={draw}
         scoring={scoring}
         admin
+        closed={closed}
         onDraw={onDraw}
         onRefresh={onRefresh}
       />
     </div>
+  );
+}
+
+// ───────────────────────── 마감 ─────────────────────────
+
+const CLOSE_CONFIRM =
+  "대진표를 마감할까요?\n마감하면 관리자도 점수와 대진을 고칠 수 없고, 방문자 화면은 더 새로 고치지 않습니다.\n필요하면 '마감 풀기'로 다시 열 수 있습니다.";
+
+/** 마감한 대진표의 맨 위 안내와 마감 풀기 단추 */
+function ClosedBanner({ draw, busy, run }: { draw: Draw; busy: boolean; run: Run }) {
+  return (
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-navy-900 px-5 py-4 text-white">
+      <div className="min-w-0">
+        <p className="font-black">마감한 대진표입니다</p>
+        <p className="mt-0.5 text-sm break-keep text-brand-100">
+          {draw.closedAt
+            ? `${formatDate(dateOf(draw.closedAt), false)} ${clockTime(draw.closedAt, "ko")}에 관리자가 마감했습니다.`
+            : "모든 경기가 끝나고 대회 다음 날이 지나 저절로 마감했습니다."}{" "}
+          점수·대진·명단을 고칠 수 없고, 방문자 화면은 결과만 보여 줍니다.
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          if (
+            window.confirm(
+              "마감을 풀까요?\n푼 날의 다음 날까지 열려 있고, 그 뒤에도 경기가 모두 끝나 있으면 다시 저절로 마감합니다.",
+            )
+          ) {
+            void run({ op: "reopen" }, "마감을 풀었습니다.");
+          }
+        }}
+        className="btn btn-accent btn-sm"
+      >
+        마감 풀기
+      </button>
+    </section>
   );
 }
 

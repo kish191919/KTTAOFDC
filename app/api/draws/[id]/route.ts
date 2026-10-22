@@ -1,11 +1,10 @@
 import { isAdmin } from "@/lib/auth";
 import { today } from "@/lib/dates";
-import { canVisitorsScore } from "@/lib/draw/play";
+import { drawPayload } from "@/lib/draw/view";
 import { getDraw } from "@/lib/store/draws";
-import type { DrawPayload } from "@/lib/draw/view";
 import { getTournament } from "@/lib/store/tournaments";
 
-// 실시간 대진표 화면이 5초마다 새 결과를 받아 가는 주소입니다.
+// 실시간 대진표 화면이 마감 전까지 5초마다 새 결과를 받아 가는 주소입니다.
 // 공개된 대회는 Vercel 이 같은 응답을 2초 동안 여러 사람에게 나눠 주므로,
 // 대회장에서 많은 사람이 화면을 열어 두어도 Supabase 는 2초에 한 번 정도만 읽습니다.
 // 숨긴 대회는 관리자에게만 보여 주고 나눠 주지 않습니다.
@@ -22,8 +21,7 @@ export async function GET(_request: Request, context: RouteContext<"/api/draws/[
   if (!draw || !tournament) return notFound();
   if (tournament.hidden && !(await isAdmin())) return notFound();
 
-  const payload: DrawPayload = { draw, scoring: canVisitorsScore(draw, tournament, today()) };
-  return Response.json(payload, {
+  return Response.json(drawPayload(draw, tournament, today()), {
     headers: tournament.hidden
       ? { "Cache-Control": "private, no-store" }
       : {

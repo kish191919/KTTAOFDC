@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { today } from "@/lib/dates";
-import { canVisitorsScore } from "@/lib/draw/play";
+import { drawPayload } from "@/lib/draw/view";
 import { getDraw } from "@/lib/store/draws";
 import { getTournament } from "@/lib/store/tournaments";
 import { CheckInDesk } from "@/components/admin/CheckInDesk";
@@ -34,7 +34,7 @@ export default async function CheckInPage({ params }: Props) {
       {draw ? (
         <CheckInDesk
           tournamentId={id}
-          initial={{ draw, scoring: canVisitorsScore(draw, tournament, today()) }}
+          initial={drawPayload(draw, tournament, today())}
           renderedAt={new Date().toISOString()}
         />
       ) : (

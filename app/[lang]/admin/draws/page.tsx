@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { formatDateRange, statusLabel, statusOf, today } from "@/lib/dates";
 import { usesCheckIn } from "@/lib/draw/roster";
+import { isDrawClosed } from "@/lib/draw/play";
 import { drawStage, drawStageLabel } from "@/lib/draw/summary";
 import { listDraws } from "@/lib/store/draws";
 import { listTournaments } from "@/lib/store/tournaments";
@@ -40,7 +41,7 @@ function DrawRow({ tournament, draw, now }: RowProps) {
         <p className="mt-1 truncate font-bold text-slate-900">{tournament.title}</p>
         <p className="mt-1 text-sm text-slate-500">
           {draw
-            ? `대진표 ${drawStageLabel[drawStage(draw)]} · 종목 ${draw.events.length}개`
+            ? `대진표 ${drawStageLabel[drawStage(draw, isDrawClosed(draw, tournament, now))]} · 종목 ${draw.events.length}개`
             : "아직 대진표를 만들지 않았습니다."}
         </p>
       </div>

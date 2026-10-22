@@ -15,22 +15,27 @@ type Props = {
   renderedAt: string;
 };
 
-/** 방문자용 실시간 대진표. 5초마다 새 결과를 받아 와 다시 그립니다. */
+/** 방문자용 실시간 대진표. 마감 전까지 5초마다 새 결과를 받아 와 다시 그립니다. */
 export function LiveDraw({ tournamentId, lang, initial, renderedAt }: Props) {
   const t = getDictionary(lang).draw;
   const { payload, online, checkedAt, refresh, setDraw } = useLiveDraw(tournamentId, initial);
   return (
     <div className="space-y-4">
-      <p aria-live="polite" className={`text-xs ${online ? "text-slate-400" : "font-bold text-accent-600"}`}>
-        <span suppressHydrationWarning>
-          {online ? t.updated(clockTime(checkedAt ?? renderedAt, lang, true)) : t.reconnecting}
-        </span>
-      </p>
+      {payload.closed ? (
+        <p className="text-xs font-semibold text-slate-500">{t.closedNotice}</p>
+      ) : (
+        <p aria-live="polite" className={`text-xs ${online ? "text-slate-400" : "font-bold text-accent-600"}`}>
+          <span suppressHydrationWarning>
+            {online ? t.updated(clockTime(checkedAt ?? renderedAt, lang, true)) : t.reconnecting}
+          </span>
+        </p>
+      )}
       <DrawBoard
         tournamentId={tournamentId}
         lang={lang}
         draw={payload.draw}
         scoring={payload.scoring}
+        closed={payload.closed}
         onDraw={setDraw}
         onRefresh={refresh}
       />
