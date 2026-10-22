@@ -29,6 +29,7 @@ import {
   ExternalLinkIcon,
   PencilIcon,
   PlusIcon,
+  PrinterIcon,
   SearchIcon,
   TrashIcon,
 } from "@/components/icons";
@@ -41,6 +42,8 @@ type Props = {
   publicHref: string;
   /** 접수 데스크용 체크인 화면 주소 */
   checkInHref: string;
+  /** 경기 기록지 인쇄 화면 주소 */
+  printHref: string;
 };
 
 /** 대진표를 바꾸고, 잘 되면 바뀐 대진표를 돌려줍니다. */
@@ -81,7 +84,7 @@ function progressOf(event: DrawEvent) {
  * 관리자 화면의 대진표 관리. 왼쪽 메뉴(휴대폰은 위쪽 탭)에서 선수 명단, 대회장 설정, 종목, 경기 진행 가운데
  * 한 화면을 골라 봅니다. 종목 화면은 참가 팀 → 조 편성 → 대진 확정 단계로 나뉩니다.
  */
-export function DrawManager({ tournamentId, initial, renderedAt, publicHref, checkInHref }: Props) {
+export function DrawManager({ tournamentId, initial, renderedAt, publicHref, checkInHref, printHref }: Props) {
   const { payload, online, checkedAt, refresh, setDraw, setPayload } = useLiveDraw(tournamentId, initial);
   const draw = payload.draw;
   const closed = payload.closed;
@@ -257,11 +260,20 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
               onDraw={setDraw}
               onRefresh={refresh}
               go={go}
+              printHref={printHref}
             />
           </div>
           {draw.events.map((event) => (
             <div key={event.id} hidden={view !== event.id}>
-              <EventPanel draw={draw} event={event} busy={busy} run={run} go={go} checkInHref={checkInHref} />
+              <EventPanel
+                draw={draw}
+                event={event}
+                busy={busy}
+                run={run}
+                go={go}
+                checkInHref={checkInHref}
+                printHref={printHref}
+              />
             </div>
           ))}
           <div hidden={view !== "new"}>
@@ -402,6 +414,7 @@ function PlayPanel({
   onDraw,
   onRefresh,
   go,
+  printHref,
 }: {
   tournamentId: string;
   draw: Draw;
@@ -412,6 +425,7 @@ function PlayPanel({
   onDraw: (draw: Draw) => void;
   onRefresh: () => void;
   go: Go;
+  printHref: string;
 }) {
   if (!draw.events.some((event) => event.status === "live")) {
     const first = draw.events[0];
@@ -442,6 +456,10 @@ function PlayPanel({
             : "방문자 화면과 같습니다. 경기를 누르면 점수를 고치거나, 테이블을 옮기거나, 결과를 지울 수 있습니다."
         }
       >
+        <a href={printHref} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+          <PrinterIcon className="size-4" />
+          기록지 인쇄
+        </a>
         {!closed && (
           <button
             type="button"
@@ -1177,6 +1195,7 @@ function EventPanel({
   run,
   go,
   checkInHref,
+  printHref,
 }: {
   draw: Draw;
   event: DrawEvent;
@@ -1184,8 +1203,11 @@ function EventPanel({
   run: Run;
   go: Go;
   checkInHref: string;
+  printHref: string;
 }) {
   const live = event.status === "live";
+  const printEvent = `${printHref}?event=${encodeURIComponent(event.id)}`;
+  const hasKnockout = event.matches.some((m) => m.stage === "knockout" && !isByeMatch(m));
   const unit = event.doubles ? "팀" : "명";
   const checkIn = usesCheckIn(draw);
   // 처음 열 때는 아직 끝나지 않은 첫 단계를 보여 줍니다.
@@ -1349,6 +1371,31 @@ function EventPanel({
           )}
 
           <section className="card p-5 sm:p-6">
+            <h3 className="font-black text-brand-950">경기 기록지</h3>
+            <p className="mt-1 text-sm break-keep text-slate-500">
+              조별 기록지는 조마다 한 장씩 나와 조 테이블에 두고 씁니다. 조별 테이블을 바꿨다면 다시 뽑아 주세요.
+              {hasKnockout && " 본선 기록지는 한 장에 네 경기씩 나오고, 큰 대회에서 본선 점수를 종이에도 남길 때 씁니다."}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a href={printEvent} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+                <PrinterIcon className="size-4" />
+                조별 기록지
+              </a>
+              {hasKnockout && (
+                <a
+                  href={`${printEvent}&stage=knockout`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm"
+                >
+                  <PrinterIcon className="size-4" />
+                  본선 기록지
+                </a>
+              )}
+            </div>
+          </section>
+
+          <section className="card p-5 sm:p-6">
             <LiveTeams draw={draw} event={event} busy={busy} run={run} />
           </section>
 
@@ -1417,7 +1464,9 @@ function EventPanel({
 
           <section className="card p-5 sm:p-6">
             {step === "teams" && <TeamsEditor draw={draw} event={event} busy={busy} run={run} go={go} />}
-            {step === "groups" && <GroupsEditor draw={draw} event={event} busy={busy} run={run} />}
+            {step === "groups" && (
+              <GroupsEditor draw={draw} event={event} busy={busy} run={run} printHref={printEvent} />
+            )}
             {step === "start" && (
               <ConfirmPanel draw={draw} event={event} busy={busy} run={run} checkInHref={checkInHref} />
             )}
@@ -1664,7 +1713,20 @@ function EntriesEditor({ event, busy, run }: { event: DrawEvent; busy: boolean; 
   );
 }
 
-function GroupsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; busy: boolean; run: Run }) {
+function GroupsEditor({
+  draw,
+  event,
+  busy,
+  run,
+  printHref,
+}: {
+  draw: Draw;
+  event: DrawEvent;
+  busy: boolean;
+  run: Run;
+  /** 이 종목의 조별 기록지 인쇄 화면 주소 */
+  printHref: string;
+}) {
   const entries = new Map(event.entries.map((e) => [e.id, e]));
   const hasGroups = event.groups.length > 0;
   const placed = new Set(event.groups.flat());
@@ -1679,19 +1741,32 @@ function GroupsEditor({ draw, event, busy, run }: { draw: Draw; event: DrawEvent
             레이팅이 높은 순서로 A조부터 지그재그로 나누고, 같은 소속은 되도록 다른 조에 넣습니다. 레이팅이 없으면 목록 순서를 따릅니다.
             대회 전에 미리 만들어 두면, 대진을 확정할 때 도착하지 않은 팀만 빠집니다.
           </p>
+          {hasGroups && (
+            <p className="mt-1 text-sm break-keep text-slate-500">
+              기록지를 미리 뽑아 둘 수도 있습니다. 확정 전에 뽑은 기록지에는 &apos;예정&apos;이 찍히고 테이블 칸이 비어 있습니다.
+            </p>
+          )}
         </div>
-        <button
-          type="button"
-          disabled={busy || event.entries.length < 2}
-          onClick={() => {
-            if (!hasGroups || window.confirm("지금 조 편성을 지우고 다시 만들까요?")) {
-              void run({ op: "autoGroups", event: event.id }, "조 편성을 만들었습니다.");
-            }
-          }}
-          className={`btn btn-sm ${hasGroups ? "btn-ghost" : "btn-brand"}`}
-        >
-          {hasGroups ? "조 편성 다시 만들기" : "조 편성 만들기"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {hasGroups && (
+            <a href={printHref} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
+              <PrinterIcon className="size-4" />
+              기록지 인쇄
+            </a>
+          )}
+          <button
+            type="button"
+            disabled={busy || event.entries.length < 2}
+            onClick={() => {
+              if (!hasGroups || window.confirm("지금 조 편성을 지우고 다시 만들까요?")) {
+                void run({ op: "autoGroups", event: event.id }, "조 편성을 만들었습니다.");
+              }
+            }}
+            className={`btn btn-sm ${hasGroups ? "btn-ghost" : "btn-brand"}`}
+          >
+            {hasGroups ? "조 편성 다시 만들기" : "조 편성 만들기"}
+          </button>
+        </div>
       </div>
 
       {!hasGroups && event.entries.length < 2 && (

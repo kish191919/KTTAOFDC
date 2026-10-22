@@ -23,6 +23,7 @@ export function NamePicker({
   onPick,
   first = [],
   people,
+  recent = RECENT,
   hint = true,
   autoFocus = false,
   placeholder,
@@ -36,6 +37,8 @@ export function NamePicker({
   first?: string[];
   /** 서버가 함께 보낸 저장된 이름 목록. 없으면 처음 열 때 받아 옵니다. */
   people?: string[];
+  /** 이름을 적지 않았을 때 보여 주는 최근 이름 수. 0 이면 적기 시작해야 이름이 나옵니다. ('나'도 숨깁니다) */
+  recent?: number;
   /** 입력 칸 아래 쓰는 법 안내 */
   hint?: boolean;
   autoFocus?: boolean;
@@ -55,11 +58,11 @@ export function NamePicker({
   for (const name of [...first, ...stored]) {
     if (!isTaken(name) && !pool.some((x) => sameName(x, name))) pool.push(name);
   }
-  const showMe = me && !isTaken(me) && !query ? me : null;
+  const showMe = me && recent > 0 && !isTaken(me) && !query ? me : null;
   const shown = searchNames(
     pool.filter((name) => !showMe || !sameName(name, showMe)),
     query,
-    query ? FOUND : RECENT,
+    query ? FOUND : recent,
   );
   const typed = query.replace(/\s+/g, " ").trim();
   const exact = typed ? pool.find((name) => sameName(name, typed)) : undefined;

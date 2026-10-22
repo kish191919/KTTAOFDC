@@ -13,6 +13,7 @@ const recordPath = (lang: Locale, name: string) =>
 
 /**
  * 친선 경기 홈의 이름 찾기. 전에 쓴 이름을 몇 글자나 초성으로 찾아 누르면 그 사람이 나온 게임과 성적을 보여 줍니다.
+ * 이름이 많아져도 화면이 차지 않도록 비어 있을 때는 이름을 늘어놓지 않고, 적기 시작하면 맞는 이름만 보여 줍니다.
  * 이 휴대폰에 내 이름을 저장해 두었으면 '내 기록' 버튼으로 바로 갑니다.
  */
 export function GameFinder({ lang, people, current }: { lang: Locale; people: string[]; current: string }) {
@@ -40,6 +41,7 @@ export function GameFinder({ lang, people, current }: { lang: Locale; people: st
           taken={[]}
           people={people}
           onPick={(names) => go(names[0])}
+          recent={0}
           hint={false}
           placeholder={t.findPlaceholder}
           newLabel={t.searchFor}
