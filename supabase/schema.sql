@@ -42,7 +42,8 @@ revoke all on table public.games, public.game_people from anon, authenticated;
 grant select, insert, update, delete on table public.games, public.game_people to service_role;
 
 -- 사진·동영상·첨부 파일. 주소를 아는 사람은 누구나 볼 수 있는 공개 버킷이고,
--- 올리기·지우기는 홈페이지 서버만 할 수 있습니다. 파일 하나는 50MB 까지 받습니다.
+-- 올리기·지우기는 홈페이지 서버만 할 수 있습니다. 파일 하나는 300MB 까지 받습니다.
+-- (프로젝트 전체 한도인 Storage → Settings 의 Upload file size limit 도 300MB 이상이어야 합니다)
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('uploads', 'uploads', true, 52428800)
-on conflict (id) do nothing;
+values ('uploads', 'uploads', true, 314572800)
+on conflict (id) do update set file_size_limit = excluded.file_size_limit;

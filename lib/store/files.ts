@@ -12,8 +12,10 @@ export type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
 export type UploadKind = "image" | "document" | "video";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
-/** 홈 화면에서 자동으로 재생되거나 앨범에서 바로 재생되는 동영상이라 50MB 까지만 받습니다. 버킷에도 같은 한도를 걸어 두었습니다. */
-export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+/** 앨범 동영상은 방문자가 누를 때만 받으므로 휴대폰으로 찍은 큰 파일도 300MB 까지 받습니다. 버킷에도 같은 한도를 걸어 두었습니다. */
+export const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
+/** 메인 화면 동영상은 모든 방문자에게 자동으로 재생되므로 50MB 까지만 받습니다. */
+export const MAX_HERO_VIDEO_BYTES = 50 * 1024 * 1024;
 
 /** 파일 이름이 겹치지 않아 내용이 바뀔 일이 없으므로 브라우저가 1년 동안 다시 받지 않게 합니다. (초) */
 const CACHE_SECONDS = "31536000";
@@ -112,10 +114,9 @@ function planUpload(
     throw new UploadError("동영상은 메인 화면과 갤러리에만 올릴 수 있습니다.");
   }
   if (!(size > 0)) throw new UploadError("빈 파일입니다.");
-  if (size > rule.maxBytes) {
-    throw new UploadError(
-      `파일이 너무 큽니다. (최대 ${rule.maxBytes / 1024 / 1024}MB)`,
-    );
+  const maxBytes = kind === "video" && folder === "hero" ? MAX_HERO_VIDEO_BYTES : rule.maxBytes;
+  if (size > maxBytes) {
+    throw new UploadError(`파일이 너무 큽니다. (최대 ${maxBytes / 1024 / 1024}MB)`);
   }
   const ext = path.extname(filename).toLowerCase();
   const contentType = rule.types[ext];
@@ -138,7 +139,7 @@ export type UploadTicket = {
 /**
  * 관리자 브라우저가 Supabase 로 파일을 바로 보낼 수 있는 일회용 주소를 발급합니다.
  * 배포된 서버(Vercel)는 4.5MB 가 넘는 요청을 받지 못하므로 파일은 서버를 거치지 않습니다.
- * size 는 브라우저가 알려 준 값이고, 실제 크기는 버킷의 한도(50MB)가 막습니다.
+ * size 는 브라우저가 알려 준 값이고, 실제 크기는 버킷의 한도(300MB)가 막습니다.
  */
 export async function createUpload(
   folder: UploadFolder,

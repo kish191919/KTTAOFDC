@@ -8,8 +8,10 @@ export type UploadFolder = "tournaments" | "gallery" | "hero" | "news";
 const MAX_DIMENSION = 1600;
 /** 이보다 작고 크기도 작은 이미지는 다시 압축하지 않고 그대로 올립니다. */
 const KEEP_ORIGINAL_BYTES = 800 * 1024;
-/** 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
-export const MAX_VIDEO_MB = 50;
+/** 앨범 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
+export const MAX_VIDEO_MB = 300;
+/** 메인 화면 동영상 한 개의 최대 크기(MB). 서버(lib/store/files.ts)의 한도와 같게 둡니다. */
+export const MAX_HERO_VIDEO_MB = 50;
 /** 동영상 대표 화면의 긴 변 최대 길이(px) */
 const POSTER_DIMENSION = 960;
 /** 대표 화면을 잡으려고 동영상을 읽는 데 기다리는 시간(ms) */
@@ -124,17 +126,17 @@ export async function uploadDocument(
   return { url, name, size };
 }
 
-function checkVideoSize(file: File) {
-  if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+function checkVideoSize(file: File, maxMb: number) {
+  if (file.size > maxMb * 1024 * 1024) {
     throw new Error(
-      `${file.name}: 동영상이 너무 큽니다. ${MAX_VIDEO_MB}MB 이하로 줄여서 올려 주세요.`,
+      `${file.name}: 동영상이 너무 큽니다. ${maxMb}MB 이하로 줄여서 올려 주세요.`,
     );
   }
 }
 
 /** 메인 화면에 쓸 동영상을 그대로 올립니다. (브라우저에서는 동영상을 줄일 수 없습니다) */
 export async function uploadVideo(file: File): Promise<{ src: string }> {
-  checkVideoSize(file);
+  checkVideoSize(file, MAX_HERO_VIDEO_MB);
   const { url } = await send(file, file.name, "hero", "video");
   return { src: url };
 }
@@ -193,7 +195,7 @@ function capturePoster(file: File): Promise<Poster | null> {
  * 대표 화면을 만들지 못하면 동영상만 올립니다.
  */
 export async function uploadAlbumVideo(file: File): Promise<VideoRef> {
-  checkVideoSize(file);
+  checkVideoSize(file, MAX_VIDEO_MB);
   const poster = await capturePoster(file);
   const { url: src } = await send(file, file.name, "gallery", "video");
   if (!poster) return { src };

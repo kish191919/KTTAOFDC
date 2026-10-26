@@ -18,7 +18,7 @@ import {
   TrashIcon,
   UploadIcon,
 } from "@/components/icons";
-import { MAX_VIDEO_MB, uploadImage, uploadVideo } from "./upload";
+import { MAX_HERO_VIDEO_MB, uploadImage, uploadVideo } from "./upload";
 
 /** 화면 가득 보여 주는 이미지라서 다른 사진(1600px)보다 크게 남겨 둡니다. */
 const HERO_IMAGE_MAX_DIMENSION = 2400;
@@ -93,7 +93,7 @@ export function HeroManager({ items, max }: Props) {
         <div>
           <h2 className="text-lg font-black text-brand-950">새 동영상·이미지 올리기</h2>
           <p className="mt-1 text-sm leading-relaxed break-keep text-slate-500">
-            동영상은 MP4·WEBM (최대 {MAX_VIDEO_MB}MB), 이미지는 JPG·PNG·WEBP·GIF 를 올릴 수
+            동영상은 MP4·WEBM (최대 {MAX_HERO_VIDEO_MB}MB), 이미지는 JPG·PNG·WEBP·GIF 를 올릴 수
             있습니다. 가로로 긴 화면(16:9)에 맞춰 보여 줍니다.
           </p>
         </div>
