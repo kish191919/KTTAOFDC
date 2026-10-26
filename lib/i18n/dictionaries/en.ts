@@ -483,6 +483,9 @@ export const en: Dictionary = {
     photoEnlarge: (title, n) => `Enlarge photo ${n} of ${title}`,
     videosTitle: "Videos",
     videoPlay: (title, n) => `Play video ${n} of ${title}`,
+    videoDownloadButton: "Download",
+    videoDownload: (title, n) => `Download video ${n} of ${title}`,
+    videoFileName: (title, n) => `${title} video ${String(n).padStart(2, "0")}`,
   },
 
   community: {
@@ -530,6 +533,7 @@ export const en: Dictionary = {
     videoAlt: (label, n) => `${label} — video ${n}`,
     previousVideo: "Previous video",
     nextVideo: "Next video",
+    download: "Download",
   },
 
   hero: {

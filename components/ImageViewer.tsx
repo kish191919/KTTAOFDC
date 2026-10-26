@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n/config";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { ImageRef } from "@/lib/types";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, DownloadIcon } from "@/components/icons";
 
 /** 크게 보고 있는 이미지의 순서(닫혀 있으면 null)와 열기·닫기·넘기기 함수 */
 export function useLightbox(count: number) {
@@ -18,8 +18,11 @@ export function useLightbox(count: number) {
   return { current, open: setCurrent, close, step };
 }
 
-/** 크게 보여 줄 항목 한 개. 동영상이면 src 가 동영상 주소이고 poster 는 재생하기 전에 보여 주는 화면입니다. */
-export type ViewerItem = ImageRef & { type?: "video"; poster?: string };
+/**
+ * 크게 보여 줄 항목 한 개. 동영상이면 src 가 동영상 주소이고 poster 는 재생하기 전에 보여 주는 화면입니다.
+ * download 를 주면 위쪽에 그 주소로 내려받는 버튼을 보여 줍니다.
+ */
+export type ViewerItem = ImageRef & { type?: "video"; poster?: string; download?: string };
 
 type LightboxProps = {
   images: ViewerItem[];
@@ -107,6 +110,18 @@ export function Lightbox({ images, label, lang, current, onStep, onClose }: Ligh
       >
         <CloseIcon className="size-6" />
       </button>
+
+      {item.download && (
+        <a
+          href={item.download}
+          // 바깥을 누른 것으로 보고 창이 닫히지 않게 합니다.
+          onClick={(event) => event.stopPropagation()}
+          className="absolute top-3 right-16 inline-flex items-center gap-1.5 rounded-full bg-white/10 py-2.5 pr-4 pl-3 text-sm font-semibold text-white transition-colors hover:bg-white/25"
+        >
+          <DownloadIcon className="size-6" />
+          {t.download}
+        </a>
+      )}
 
       {count > 1 && (
         <>

@@ -517,6 +517,10 @@ export const ko = {
     photoEnlarge: (title: string, n: number) => `${title} 사진 ${n} 크게 보기`,
     videosTitle: "동영상",
     videoPlay: (title: string, n: number) => `${title} 동영상 ${n} 재생`,
+    videoDownloadButton: "내려받기",
+    videoDownload: (title: string, n: number) => `${title} 동영상 ${n} 내려받기`,
+    /** 내려받는 동영상의 파일 이름 (확장자 제외). 예: "가을 친선 탁구대회 동영상 02" */
+    videoFileName: (title: string, n: number) => `${title} 동영상 ${String(n).padStart(2, "0")}`,
   },
 
   community: {
@@ -565,6 +569,7 @@ export const ko = {
     videoAlt: (label: string, n: number) => `${label} 동영상 ${n}`,
     previousVideo: "이전 동영상",
     nextVideo: "다음 동영상",
+    download: "내려받기",
   },
 
   hero: {

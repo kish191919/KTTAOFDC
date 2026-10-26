@@ -1,4 +1,4 @@
-// 방문자의 브라우저에서 사진을 내려받는 함수들입니다.
+// 방문자의 브라우저에서 사진·동영상을 내려받는 함수들입니다.
 
 export type DownloadFile = {
   src: string;
@@ -17,6 +17,19 @@ function safeName(name: string): string {
 
 function extensionOf(src: string): string {
   return /\.([a-z0-9]+)$/i.exec(src.split(/[?#]/)[0])?.[1].toLowerCase() ?? "jpg";
+}
+
+const filenameOf = (file: DownloadFile) => `${safeName(file.name)}.${extensionOf(file.src)}`;
+
+/**
+ * 누르면 파일을 바로 저장하는 주소. 버킷(Supabase)은 주소에 download 를 붙이면
+ * 저장할 파일이라고 알려 주므로, 브라우저가 재생 화면을 열지 않고 내려받기 폴더에 저장합니다.
+ * 파일을 메모리에 담지 않으므로 큰 동영상(최대 300MB)도 휴대폰에서 받을 수 있습니다.
+ * (버킷은 다른 주소라서 <a download> 만으로는 저장되지 않습니다)
+ */
+export function downloadUrl(file: DownloadFile): string {
+  const join = file.src.includes("?") ? "&" : "?";
+  return `${file.src}${join}download=${encodeURIComponent(filenameOf(file))}`;
 }
 
 async function fetchBlob(src: string): Promise<Blob> {
@@ -46,8 +59,6 @@ export async function downloadPhotos(
   zipName: string,
   onProgress: (done: number) => void,
 ): Promise<number> {
-  const filenameOf = (file: DownloadFile) => `${safeName(file.name)}.${extensionOf(file.src)}`;
-
   if (files.length === 1) {
     saveBlob(await fetchBlob(files[0].src), filenameOf(files[0]));
     onProgress(1);

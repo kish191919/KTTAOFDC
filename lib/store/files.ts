@@ -14,8 +14,11 @@ export type UploadKind = "image" | "document" | "video";
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 /** 앨범 동영상은 방문자가 누를 때만 받으므로 휴대폰으로 찍은 큰 파일도 300MB 까지 받습니다. 버킷에도 같은 한도를 걸어 두었습니다. */
 export const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
-/** 메인 화면 동영상은 모든 방문자에게 자동으로 재생되므로 50MB 까지만 받습니다. */
-export const MAX_HERO_VIDEO_BYTES = 50 * 1024 * 1024;
+/**
+ * 메인 화면 동영상 한도. 모든 방문자에게 자동으로 재생되어 재생한 만큼 내려받으므로 따로 둡니다.
+ * 지금은 앨범과 같은 300MB 입니다.
+ */
+export const MAX_HERO_VIDEO_BYTES = 300 * 1024 * 1024;
 
 /** 파일 이름이 겹치지 않아 내용이 바뀔 일이 없으므로 브라우저가 1년 동안 다시 받지 않게 합니다. (초) */
 const CACHE_SECONDS = "31536000";
