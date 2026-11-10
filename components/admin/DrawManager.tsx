@@ -1465,7 +1465,7 @@ function EventPanel({
           <section className="card p-5 sm:p-6">
             {step === "teams" && <TeamsEditor draw={draw} event={event} busy={busy} run={run} go={go} />}
             {step === "groups" && (
-              <GroupsEditor draw={draw} event={event} busy={busy} run={run} printHref={printEvent} />
+              <GroupsEditor draw={draw} event={event} busy={busy} run={run} />
             )}
             {step === "start" && (
               <ConfirmPanel draw={draw} event={event} busy={busy} run={run} checkInHref={checkInHref} />
@@ -1718,14 +1718,11 @@ function GroupsEditor({
   event,
   busy,
   run,
-  printHref,
 }: {
   draw: Draw;
   event: DrawEvent;
   busy: boolean;
   run: Run;
-  /** 이 종목의 조별 기록지 인쇄 화면 주소 */
-  printHref: string;
 }) {
   const entries = new Map(event.entries.map((e) => [e.id, e]));
   const hasGroups = event.groups.length > 0;
@@ -1743,17 +1740,11 @@ function GroupsEditor({
           </p>
           {hasGroups && (
             <p className="mt-1 text-sm break-keep text-slate-500">
-              기록지를 미리 뽑아 둘 수도 있습니다. 확정 전에 뽑은 기록지에는 &apos;예정&apos;이 찍히고 테이블 칸이 비어 있습니다.
+              경기 기록지는 대진을 확정한 뒤에 뽑을 수 있습니다. 확정할 때 도착하지 않은 팀이 빠지기 때문입니다.
             </p>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {hasGroups && (
-            <a href={printHref} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
-              <PrinterIcon className="size-4" />
-              기록지 인쇄
-            </a>
-          )}
           <button
             type="button"
             disabled={busy || event.entries.length < 2}

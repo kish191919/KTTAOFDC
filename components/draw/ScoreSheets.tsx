@@ -1,6 +1,5 @@
 import { Fragment, type ReactNode } from "react";
 import { eventContext, matchBestOf, type EventContext } from "@/lib/draw/play";
-import { buildMatches } from "@/lib/draw/setup";
 import { groupLetter, isByeMatch } from "@/lib/draw/view";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { DrawEntry, DrawEvent, DrawMatch, DrawSlot } from "@/lib/types";
@@ -246,7 +245,7 @@ const entryOf = (slot: DrawSlot) => ("entry" in slot ? slot.entry : "");
 
 /**
  * 한 종목의 조별 기록지. 조마다 머리, 조 순위표(팀끼리 맞붙는 표), 경기 순서대로의 점수 칸이 들어갑니다.
- * 대진을 확정하기 전(조 편성 단계)에 뽑으면 '예정'을 찍고 테이블 칸을 비워 둡니다.
+ * 대진을 확정한 종목만 뽑습니다 (확정 때 도착하지 않은 팀이 빠지므로 그 전 편성은 종이와 대진표가 달라집니다).
  */
 export function GroupSheets({
   event,
@@ -258,9 +257,7 @@ export function GroupSheets({
   tablesOf: (group: number) => number[];
   info: SheetInfo;
 }) {
-  const planned = event.status !== "live";
-  // 확정 전에는 경기가 아직 없어서, 확정할 때와 같은 방법으로 조 경기를 만들어 봅니다.
-  const matches = (planned ? buildMatches(event) : event.matches).filter((m) => m.stage === "group");
+  const matches = event.matches.filter((m) => m.stage === "group");
   const entries = new Map(event.entries.map((e) => [e.id, e]));
   const unit = event.doubles ? "팀" : "명";
   const side = event.doubles ? "팀" : "선수";
@@ -269,7 +266,7 @@ export function GroupSheets({
   return event.groups.flatMap((members, group) => {
     const games = matches.filter((m) => m.group === group);
     const { row, pages, memo } = planGroupSheet(members.length, games.length);
-    const tables = planned ? [] : tablesOf(group);
+    const tables = tablesOf(group);
     const vsWidth = members.length <= 4 ? "0.62in" : members.length <= 6 ? "0.52in" : "0.44in";
     // 3팀 조는 경기가 하나씩 이어지고, 4팀 이상은 같은 차례의 경기를 함께 칠 수 있습니다.
     const rounds = members.length >= 4;
@@ -288,11 +285,6 @@ export function GroupSheets({
               <span className="shrink-0 rounded-[0.05in] bg-navy-900 px-[0.09in] text-[16pt] text-white">
                 {groupLetter(group)}조
               </span>
-              {planned && (
-                <span className="shrink-0 rounded-[0.05in] border-[1.5pt] border-accent-600 px-[0.07in] text-[12pt] text-accent-600">
-                  예정
-                </span>
-              )}
               {pages.length > 1 && (
                 <span className="shrink-0 text-[9pt] font-medium text-slate-500">
                   {page + 1}/{pages.length}쪽
@@ -302,11 +294,6 @@ export function GroupSheets({
             <p className="mt-[0.04in] truncate text-[9.5pt] font-medium">
               {t.bestOf(event.bestOf)} · {members.length}
               {unit} · {games.length}경기
-              {planned && (
-                <span className="ml-[0.12in] text-[8pt] font-bold text-accent-700">
-                  대진 확정 전 편성입니다. 오지 않은 {side}은 줄을 그어 주세요.
-                </span>
-              )}
             </p>
           </div>
           <TableBox tables={tables} />

@@ -60,10 +60,11 @@ export default async function DrawPrintPage({ params, searchParams }: Props) {
     printedAt: `${formatDate(dateOf(now), false)} ${clockTime(now, "ko")}`,
   };
 
-  // 지금 뽑을 수 없는 종목과 그 까닭
+  // 지금 뽑을 수 없는 종목과 그 까닭.
+  // 확정할 때 도착하지 않은 팀이 빠지므로, 그 전에 뽑은 종이는 대진표와 달라집니다. 그래서 확정한 종목만 뽑습니다.
   const reasonOf = (event: DrawEvent): string | null => {
-    if (stage === "group") return event.groups.length > 0 ? null : "아직 조 편성이 없습니다.";
-    if (event.status !== "live") return "대진을 확정하면 본선 기록지를 뽑을 수 있습니다.";
+    if (event.status !== "live") return "대진을 확정한 뒤에 기록지를 뽑을 수 있습니다.";
+    if (stage === "group") return null;
     if (!event.matches.some((m) => m.stage === "knockout" && !isByeMatch(m))) {
       return "본선 없이 조별 리그로 끝나는 종목입니다.";
     }
@@ -71,7 +72,6 @@ export default async function DrawPrintPage({ params, searchParams }: Props) {
   };
   const printable = chosen.filter((event) => !reasonOf(event));
   const skipped = chosen.filter((event) => reasonOf(event));
-  const planned = stage === "group" && printable.some((event) => event.status !== "live");
 
   const hrefOf = (event: string | undefined, next: Stage) => {
     const search = new URLSearchParams();
@@ -129,12 +129,6 @@ export default async function DrawPrintPage({ params, searchParams }: Props) {
               <li>한 장에 네 경기씩 나옵니다. 점선을 따라 잘라 경기하는 테이블에 가져다 둡니다.</li>
               <li>아직 정해지지 않은 자리는 &apos;A조 1위&apos;처럼 적혀 나옵니다. 예선이 끝난 뒤 뽑으면 팀 이름이 들어갑니다.</li>
             </>
-          )}
-          {planned && (
-            <li>
-              대진을 확정하기 전인 종목은 &apos;예정&apos;이 찍히고 테이블 칸이 비어 있습니다. 확정한 뒤 다시 뽑으면 테이블
-              번호가 들어갑니다.
-            </li>
           )}
           <li>QR 코드는 휴대폰으로 점수를 입력하는 대진표 화면으로 연결됩니다.</li>
           <li>
