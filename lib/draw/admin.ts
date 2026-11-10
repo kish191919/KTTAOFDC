@@ -10,6 +10,7 @@ import {
   matchBestOf,
   roundSize,
   settle,
+  tablesUsedByOthers,
   winnerOf,
 } from "./play";
 import {
@@ -24,7 +25,9 @@ import {
   teamRating,
   usesCheckIn,
 } from "./roster";
+import { addLateEntry } from "./late";
 import { buildMatches, makeGroups, seeded } from "./setup";
+import { recordPrinted, sheetsOf, STALE_PRINT, type PrintedRequest } from "./sheets";
 
 // 관리자 화면에서 하는 대진표 조작. 관리자 화면은 한국어만 있으므로 안내 문구도 한국어로 돌려줍니다.
 
@@ -75,15 +78,78 @@ export type DrawOp =
   | { op: "autoGroups"; event: string }
   /** group 이 조 수와 같으면 새 조를 만들어 옮깁니다. */
   | { op: "moveEntry"; event: string; entry: string; group: number }
-  /** 대진 확정. waiting 은 아직 도착하지 않았지만 조에 남겨 기다릴 팀입니다. 나머지 미도착 팀은 빠집니다. */
-  | { op: "start"; event: string; waiting?: string[] }
+  /**
+   * 대진 확정. waiting 은 아직 도착하지 않았지만 조에 남겨 기다릴 팀입니다. 나머지 미도착 팀은 빠집니다.
+   * expect 는 확인 창에 보여 준 조 편성과 빠지는 팀입니다. 그 사이 체크인이 바뀌어 계획이 달라졌으면 거절합니다.
+   */
+  | { op: "start"; event: string; waiting?: string[]; expect?: StartExpect }
   | { op: "reset"; event: string }
+  /**
+   * 대진 확정 때 빠진 팀을 늦게 와서 아직 경기를 시작하지 않은 조에 넣습니다. (lib/draw/late.ts)
+   * 그 조의 경기만 새로 만들고 다른 조·본선·점수는 그대로입니다.
+   */
+  | { op: "lateEntry"; event: string; entry: string; group: number }
   /** 경기 중 불참 처리(value = true)와 취소 */
   | { op: "forfeit"; event: string; entry: string; value: boolean }
   /** 경기 중인 종목에서 조 하나가 쓰는 테이블을 바꿉니다. (경기를 테이블에 올리는 것은 play.ts 의 applyTable) */
   | { op: "groupTable"; event: string; group: number; table: number }
   /** 4팀 이상인 조가 조 테이블 말고 함께 쓰는 테이블을 바꿉니다. 빈 배열이면 조 테이블만 씁니다. */
-  | { op: "extraTables"; event: string; group: number; tables: number[] };
+  | { op: "extraTables"; event: string; group: number; tables: number[] }
+  /** 기록지를 뽑았다고 적어 둡니다. 종이에 찍힌 내용이 지금 대진표와 다르면 STALE_PRINT 로 거절합니다. at 은 종이에 찍힌 출력 시각입니다. */
+  | { op: "printed"; sheets: PrintedRequest[]; at?: string }
+  /**
+   * 대진표와 달라진 기록지를 정리했다고 적어 둡니다. 없어진 조·경기의 종이는 치운 것으로 보고 기록을 지우고,
+   * 아직 있는 기록지는 종이에 손으로 고쳐 적은 것으로 보고 지금 내용으로 바꿉니다 (출력 시각은 그대로).
+   */
+  | { op: "sheetsFixed"; event: string; keys: string[] };
+
+/** 확인 창에 보여 준 확정 계획 (lib/draw/roster.ts 의 planStart 결과) */
+export type StartExpect = { groups: string[][]; excluded: string[] };
+
+/** 확정 버튼을 누르는 사이 체크인이 바뀐 경우 */
+export const PLAN_CHANGED =
+  "확정을 누르는 사이 체크인이 바뀌어 조 편성이 달라졌습니다. 바뀐 내용을 확인하고 다시 눌러 주세요.";
+
+const MAX_PRINTED = 400;
+/** 종이에 찍힌 출력 시각으로 받아들이는 범위. 컴퓨터 시계가 조금 틀려도 되게 둡니다. */
+const PRINT_CLOCK_SKEW = 10 * 60 * 1000;
+
+const isStringList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((v) => typeof v === "string");
+
+/** 인쇄 페이지가 보낸 기록지 목록. 모양이 맞지 않으면 null */
+function readPrinted(value: unknown): PrintedRequest[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_PRINTED) return null;
+  const sheets: PrintedRequest[] = [];
+  for (const item of value as Record<string, unknown>[]) {
+    const content = (item?.content ?? {}) as Record<string, unknown>;
+    if (
+      typeof item?.event !== "string" ||
+      typeof item.key !== "string" ||
+      !isStringList(content.sides) ||
+      !Array.isArray(content.tables) ||
+      !content.tables.every((n) => typeof n === "number") ||
+      typeof content.bestOf !== "number"
+    ) {
+      return null;
+    }
+    sheets.push({
+      event: item.event,
+      key: item.key,
+      content: { sides: content.sides, tables: content.tables as number[], bestOf: content.bestOf },
+    });
+  }
+  return sheets;
+}
+
+/** 종이에 찍은 출력 시각. 없거나 서버 시각과 너무 다르면 지금 시각입니다. */
+function printTime(value: unknown, now: string): string {
+  const at = typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(at) && Math.abs(at - Date.parse(now)) <= PRINT_CLOCK_SKEW ? new Date(at).toISOString() : now;
+}
+
+const sameGroups = (x: string[][], y: unknown) =>
+  Array.isArray(y) && x.length === y.length && x.every((members, i) => JSON.stringify(members) === JSON.stringify(y[i]));
 
 export type OpResult = { draw: Draw } | { error: string };
 
@@ -177,6 +243,23 @@ function teamFromPlayers(event: DrawEvent, players: DrawPlayer[], roster: DrawPl
   };
 }
 
+/**
+ * '조 편성으로 되돌리기' 전에 쓰던 조별 테이블을 다시 확정한 종목에 그대로 씁니다. (draw 를 그 자리에서 고칩니다)
+ * 조 수가 같을 때만 쓰고, 그 사이 다른 종목의 조가 가져간 테이블은 다시 정합니다.
+ * 인원이 바뀐 조는 함께 쓸 수 있는 테이블 수가 달라지므로 함께 쓰는 테이블만 다시 정합니다. (fillGroupTables 가 채움)
+ */
+function keepLastTables(draw: Draw, event: DrawEvent) {
+  const last = event.lastTables;
+  delete event.lastTables;
+  if (!last || last.main.length !== event.groups.length) return;
+  const taken = tablesUsedByOthers(draw, event);
+  event.groupTables = last.main.map((n) => (taken.has(n) ? 0 : n));
+  event.extraTables = event.groups.map((members, group) => {
+    const extra = last.extra[group];
+    return extra && members.length === last.sizes[group] && !extra.some((n) => taken.has(n)) ? extra : null;
+  });
+}
+
 /** closed: 지금 마감된 대진표인지 (lib/draw/play.ts 의 isDrawClosed. 대회 날짜가 있어야 알 수 있어서 따로 받습니다) */
 export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = false): OpResult {
   const op = (input ?? {}) as Record<string, unknown> & { op?: unknown };
@@ -252,6 +335,15 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       return { draw: next };
     }
 
+    case "printed": {
+      const sheets = readPrinted(op.sheets);
+      if (!sheets) return { error: "인쇄한 기록지를 읽지 못했습니다." };
+      // 인쇄 페이지와 같은 조 테이블로 비교합니다. (테이블을 아직 저장하지 않은 대진표는 여기서 채워 저장합니다)
+      fillGroupTables(next);
+      if (!recordPrinted(next, sheets, printTime(op.at, now))) return { error: STALE_PRINT };
+      return { draw: next };
+    }
+
     case "checkInAll": {
       if (typeof op.value !== "boolean") return { error: "체크인 정보를 읽지 못했습니다." };
       // 이미 도착한 선수는 처음 도착한 시각을 그대로 둡니다.
@@ -281,6 +373,18 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       if (op.op === "removePlayer") {
         if (inTeams.length > 0) {
           return { error: `${player.name} 님은 ${inTeams.map((e) => e.name).join(", ")} 팀에 들어 있습니다. 팀에서 먼저 빼 주세요.` };
+        }
+        // 대진 확정 때 빠진 팀에 든 선수는 명단에서 지워도 팀 이름으로 명단에 다시 생기므로 지우지 않습니다.
+        // ('조 편성으로 되돌리기'를 하면 그 팀이 다시 참가 팀이 됩니다)
+        const excludedIn = next.events.filter((event) =>
+          event.entries.some(
+            (entry) => entry.absent === "excluded" && entry.players.some((p) => personKey(p) === personKey(player.name)),
+          ),
+        );
+        if (excludedIn.length > 0) {
+          return {
+            error: `${player.name} 님은 ${excludedIn.map((e) => e.name).join(", ")} 에서 대진 확정 때 빠진 팀에 들어 있어 지울 수 없습니다.`,
+          };
         }
         next.players = roster.filter((p) => p !== player);
         return { draw: next };
@@ -466,6 +570,18 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       const waiting = new Set((op.waiting ?? []).filter((id): id is string => typeof id === "string"));
       const plan = planStart(event, presence(next), waiting);
       if ("error" in plan) return plan;
+      if (op.expect !== undefined) {
+        const expect = op.expect as Record<string, unknown> | null;
+        const excluded = [...plan.excluded].sort();
+        if (
+          !expect ||
+          !sameGroups(plan.groups, expect.groups) ||
+          !isStringList(expect.excluded) ||
+          JSON.stringify([...expect.excluded].sort()) !== JSON.stringify(excluded)
+        ) {
+          return { error: PLAN_CHANGED };
+        }
+      }
       if (plan.groups.length > 1 && plan.groups.some((g) => g.length < event.advance)) {
         return { error: "본선 진출 인원보다 적은 조가 있습니다." };
       }
@@ -480,12 +596,22 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       event.startedAt = now;
       if (checkIn) event.checkIn = true;
       else delete event.checkIn;
+      keepLastTables(next, event);
       settle(next, now);
       return { draw: next };
     }
 
     case "reset": {
       if (!live) return { draw: next };
+      // 다시 확정할 때 같은 테이블을 쓰도록 남겨 둡니다. (조 인원은 확정 전 편성으로 돌리기 전, 경기하던 조의 인원입니다)
+      // 뽑아 둔 기록지 기록(printed)도 남겨, 다시 확정한 뒤 어느 종이를 그대로 써도 되는지 알려 줍니다.
+      if (event.groupTables?.length) {
+        event.lastTables = {
+          sizes: event.groups.map((members) => members.length),
+          main: event.groupTables,
+          extra: event.extraTables ?? [],
+        };
+      }
       event.status = "setup";
       event.matches = [];
       if (event.draft) event.groups = event.draft;
@@ -496,6 +622,17 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       delete event.extraTables;
       for (const entry of event.entries) delete entry.absent;
       next.log = next.log.filter((item) => item.event !== event.id);
+      settle(next, now);
+      return { draw: next };
+    }
+
+    case "lateEntry": {
+      if (!live) return { error: "경기를 시작한 종목이 아닙니다." };
+      if (typeof op.entry !== "string") return { error: "팀을 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
+      if (!isInt(op.group, 0, event.groups.length - 1)) return { error: "조를 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
+      const added = addLateEntry(event, op.entry, op.group, next.log);
+      if ("error" in added) return added;
+      next.log = added.log;
       settle(next, now);
       return { draw: next };
     }
@@ -538,6 +675,23 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       return { draw: next };
     }
 
+    case "sheetsFixed": {
+      if (!live) return { error: "경기를 시작한 종목이 아닙니다." };
+      if (!isStringList(op.keys)) return { error: "기록지를 찾을 수 없습니다." };
+      if (!event.printed) return { draw: next };
+      fillGroupTables(next);
+      const current = new Map(sheetsOf(next, event.id).map((sheet) => [sheet.key, sheet.content]));
+      for (const key of op.keys) {
+        const printed = event.printed[key];
+        if (!printed) continue;
+        const content = current.get(key);
+        if (content) event.printed[key] = { ...content, at: printed.at };
+        else delete event.printed[key];
+      }
+      if (Object.keys(event.printed).length === 0) delete event.printed;
+      return { draw: next };
+    }
+
     case "groupTable": {
       if (!live) return { error: "경기를 시작한 종목이 아닙니다." };
       if (!isInt(op.group, 0, event.groups.length - 1)) return { error: "조를 찾을 수 없습니다. 화면을 새로 고쳐 주세요." };
@@ -545,7 +699,7 @@ export function applyAdminOp(draw: Draw, input: unknown, now: string, closed = f
       fillGroupTables(next);
       event.groupTables![op.group] = op.table;
       // 함께 쓰던 테이블을 조 테이블로 고르면 함께 쓰는 테이블에서는 뺍니다.
-      event.extraTables![op.group] = event.extraTables![op.group].filter((n) => n !== op.table);
+      event.extraTables![op.group] = (event.extraTables![op.group] ?? []).filter((n) => n !== op.table);
       settle(next, now);
       return { draw: next };
     }

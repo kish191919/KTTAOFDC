@@ -130,6 +130,7 @@ export type Album = {
 
 // ───────────────────────── 대진표 ─────────────────────────
 // 대회 하나에 Draw 하나가 있고, 그 안에 종목(DrawEvent)이 여럿 들어갑니다.
+// 대회 날 실제로 쓰는 운영 데이터라, 칸을 더할 때는 이미 저장된 대진표도 읽히도록 선택 칸으로 둡니다.
 // 종목은 예선 조별 리그 → 본선 토너먼트로 진행합니다. 계산은 lib/draw/ 에서 합니다.
 
 /** 대회에 신청한 선수 한 명. 대회 날 접수 데스크에서 도착을 확인합니다. */
@@ -224,8 +225,9 @@ export type DrawEvent = {
   /**
    * 조마다 조 테이블 말고 함께 쓰는 테이블 (0번 칸이 A조). 4팀 조는 두 경기를 동시에 칠 수 있어 남는 테이블을 하나 더 씁니다.
    * 비어 있으면(이 칸이 생기기 전의 대진표 포함) fillGroupTables 가 남는 테이블로 채웁니다. 빈 배열은 더 쓰지 않는 조입니다.
+   * null 인 칸은 그 조만 아직 정하지 않은 것입니다 (다시 확정할 때 인원이 바뀐 조). fillGroupTables 가 채웁니다.
    */
-  extraTables?: number[][];
+  extraTables?: (number[] | null)[];
   /** setup: 참가자 등록·조 편성 중, live: 경기 진행 중 */
   status: "setup" | "live";
   matches: DrawMatch[];
@@ -234,6 +236,34 @@ export type DrawEvent = {
   checkIn?: boolean;
   /** 확정하기 전의 조 편성. '조 편성으로 되돌리기'를 하면 이것으로 돌아갑니다. */
   draft?: string[][];
+  /**
+   * '조 편성으로 되돌리기' 전에 쓰던 조별 테이블. 다시 확정할 때 조 수가 같으면 이 번호를 그대로 써서,
+   * 이미 뽑아 둔 기록지의 테이블 번호가 바뀌지 않게 합니다. sizes 는 그때의 조 인원입니다.
+   */
+  lastTables?: { sizes: number[]; main: number[]; extra: (number[] | null)[] };
+  /**
+   * 뽑은 기록지에 찍힌 내용. 열쇠는 조 기록지 "g0"(A조) 또는 본선 경기 id 입니다.
+   * 그 뒤 대진표가 바뀌면 어느 종이를 다시 뽑아야 하는지 알려 줍니다. (lib/draw/sheets.ts)
+   */
+  printed?: Record<string, PrintedSheet>;
+};
+
+/** 기록지 한 장에 찍히는 내용 가운데 대진표와 맞아야 하는 것 */
+export type SheetContent = {
+  /**
+   * 팀 이름 "홍길동 / 김철수". 조 기록지는 조 편성 순서(종이의 ①②③④)이고, 본선은 두 자리입니다.
+   * 본선에서 아직 정해지지 않은 자리는 "#" 로 시작하는 자리 표시입니다. (화면에 보여 주지 않고 비교에만 씁니다)
+   */
+  sides: string[];
+  /** 종이에 찍힌 테이블 번호. 비어 있으면 손으로 적는 칸입니다. */
+  tables: number[];
+  /** 세트 칸 수 (3 · 5 · 7) */
+  bestOf: number;
+};
+
+export type PrintedSheet = SheetContent & {
+  /** 뽑은 때. 종이 아래의 '출력' 시각과 같습니다. */
+  at: string;
 };
 
 /** 점수 입력 기록 한 줄 */

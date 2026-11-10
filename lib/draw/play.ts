@@ -432,21 +432,50 @@ const isTable = (draw: Pick<Draw, "tables">, n: unknown): n is number =>
 export const groupCapacity = (size: number) => Math.max(1, Math.floor(size / 2));
 
 /**
+ * 예선 조가 쓰는 테이블. 조 테이블이 앞이고, 함께 쓰는 테이블이 뒤에 옵니다.
+ * 화면(테이블 현황·조 카드)과 인쇄한 기록지, 인쇄 기록 확인이 모두 이 함수를 써서 같은 번호를 보여 줍니다.
+ */
+export function groupTablesOf(draw: Pick<Draw, "tables">, event: DrawEvent, group: number): number[] {
+  return [
+    ...new Set(
+      [event.groupTables?.[group], ...(event.extraTables?.[group] ?? [])].filter((n): n is number =>
+        isTable(draw, n),
+      ),
+    ),
+  ];
+}
+
+/** 다른 종목에서 경기가 남은 조가 쓰는 테이블. 다시 확정할 때 예전 테이블을 그대로 써도 되는지 볼 때 씁니다. */
+export function tablesUsedByOthers(draw: Draw, except: DrawEvent): Set<number> {
+  const used = new Set<number>();
+  for (const event of draw.events) {
+    if (event === except || event.id === except.id || event.status !== "live") continue;
+    const context = eventContext(event);
+    event.groups.forEach((_, group) => {
+      if (!context.groupComplete(group)) groupTablesOf(draw, event, group).forEach((n) => used.add(n));
+    });
+  }
+  return used;
+}
+
+/**
  * 조 테이블을 새로 정해야 하는 종목: 경기 중인데 조 테이블이 없거나, 조 수와 맞지 않거나, 없는 테이블을 가리킵니다.
- * 함께 쓰는 테이블이 아직 없거나(예전 대진표), 없는 테이블·조 테이블과 같은 번호를 가리켜도 다시 정합니다.
+ * 함께 쓰는 테이블이 아직 없거나(예전 대진표, 다시 확정하며 인원이 바뀐 조), 없는 테이블·조 테이블과 같은 번호를 가리켜도 다시 정합니다.
  */
 const needsGroupTables = (draw: Draw, event: DrawEvent) =>
   event.status === "live" &&
   (event.groupTables?.length !== event.groups.length ||
     event.groupTables.some((n) => !isTable(draw, n)) ||
     event.extraTables?.length !== event.groups.length ||
-    event.extraTables.some((list, group) => list.some((n) => !isTable(draw, n) || n === event.groupTables![group])));
+    event.extraTables.some(
+      (list, group) => !list || list.some((n) => !isTable(draw, n) || n === event.groupTables![group]),
+    ));
 
 /**
  * 조 테이블이 없거나 잘못된 조에 테이블을 정합니다. (draw 를 그 자리에서 고칩니다)
  * 경기가 남은 다른 조가 가장 적게 쓰는 테이블을 고르고, 같으면 번호가 낮은 테이블입니다.
  * 테이블이 조보다 적으면 두 조가 한 테이블을 나눠 씁니다. 그때는 다른 조가 함께 쓰는 테이블을 먼저 나눕니다.
- * 함께 쓰는 테이블을 아직 정하지 않은 종목은, 조 테이블을 다 나눈 뒤 아무 조도 쓰지 않는 테이블을
+ * 함께 쓰는 테이블을 아직 정하지 않은 종목(또는 null 인 조)은, 조 테이블을 다 나눈 뒤 아무 조도 쓰지 않는 테이블을
  * 남은 경기가 많은 조부터 하나씩 더 줍니다. 이미 정한 것(관리자가 '없음'으로 둔 것 포함)은 그대로 둡니다.
  * 조 테이블이 아예 없던 종목(빈 테이블에 다음 경기를 저절로 올리던 때 확정한 종목)은
  * 점수 없이 테이블에 올라 있던 경기를 내립니다. 그때는 아무도 시작을 누르지 않았기 때문입니다.
@@ -465,11 +494,13 @@ export function fillGroupTables(draw: Draw): void {
       const n = event.groupTables?.[group];
       return isTable(draw, n) ? n : undefined;
     });
-    const fresh = event.extraTables?.length !== event.groups.length;
+    const whole = event.extraTables?.length !== event.groups.length;
+    // 함께 쓰는 테이블을 새로 정할 조
+    const fresh = event.groups.map((_, group) => whole || !event.extraTables![group]);
     const extras = event.groups.map((_, group) =>
-      fresh
+      fresh[group]
         ? []
-        : [...new Set(event.extraTables![group].filter((n) => isTable(draw, n) && n !== mains[group]))],
+        : [...new Set(event.extraTables![group]!.filter((n) => isTable(draw, n) && n !== mains[group]))],
     );
     return { event, mains, extras, fresh };
   });
@@ -496,12 +527,11 @@ export function fillGroupTables(draw: Draw): void {
 
   // 함께 쓰는 테이블: 아무 조도 쓰지 않는 테이블을, 동시에 더 칠 수 있는 조에 남은 경기가 많은 조부터 줍니다.
   const wanting = plans
-    .filter((plan) => plan.fresh)
     .flatMap((plan) =>
       plan.event.groups.map((members, group) => ({
         plan,
         group,
-        want: open(plan.event, group) ? groupCapacity(members.length) - 1 : 0,
+        want: plan.fresh[group] && open(plan.event, group) ? groupCapacity(members.length) - 1 : 0,
         left: contexts
           .get(plan.event)!
           .groupMatches(group)
@@ -568,13 +598,7 @@ export function tableBoard(draw: Draw, contexts = draw.events.map(eventContext))
     groups: [],
     playing: [],
   }));
-  const groupTables = (event: DrawEvent, group: number) => [
-    ...new Set(
-      [event.groupTables?.[group], ...(event.extraTables?.[group] ?? [])].filter((n): n is number =>
-        isTable(draw, n),
-      ),
-    ),
-  ];
+  const groupTables = (event: DrawEvent, group: number) => groupTablesOf(draw, event, group);
   const where = new Map<DrawMatch, number>();
   const unplaced: { placed: Placed; homes: number[] }[] = [];
 
@@ -718,7 +742,20 @@ export type TableRequest = {
   table: number | null;
   /** 화면에서 본 그 테이블의 경기 (occupantKey). 그 사이 바뀌었으면 거절합니다. */
   occupant: string;
+  /** 화면에서 본 이 경기의 두 참가자 id. 그 사이 대진이 바뀌어 참가자가 달라졌으면 거절합니다. (samePair) */
+  pair?: [string, string];
 };
+
+/**
+ * 화면에서 본 두 참가자(seen)가 지금도 그 경기의 참가자인지. 보내지 않았으면(예전 화면) 확인하지 않습니다.
+ * 늦게 온 팀을 조에 넣거나 대진을 다시 확정하거나 예선 결과를 고쳐 경기의 참가자가 바뀌었는데,
+ * 바뀌기 전 화면을 열어 둔 휴대폰이 다른 대결에 점수를 넣거나 테이블에 올리지 못하게 합니다.
+ */
+export function samePair(context: EventContext, match: DrawMatch, seen: [string, string] | undefined): boolean {
+  if (!seen) return true;
+  const pair = context.pairOf(match);
+  return Boolean(pair && pair[0] === seen[0] && pair[1] === seen[1]);
+}
 
 /**
  * 경기를 테이블에 올리거나(시작) 내린 새 대진표. 누구나 씁니다.
@@ -740,6 +777,7 @@ export function applyTable(
   const context = contexts[next.events.indexOf(event)];
   const state = context.stateOf(match);
   if (state !== "ready" && state !== "playing") return { error: "notReady" };
+  if (!samePair(context, match, request.pair)) return { error: "pairChanged" };
 
   if (request.table === null) {
     leaveTable(match);
@@ -784,7 +822,9 @@ export type ScoreError =
   /** 점수가 들어간 경기나 다른 조가 쓰는 테이블입니다. */
   | "tableInUse"
   | "playerBusy"
-  | "notArrived";
+  | "notArrived"
+  /** 화면을 연 뒤 대진이 바뀌어 이 경기의 참가자가 달라졌습니다. (samePair) */
+  | "pairChanged";
 
 export type ScoreInput =
   | { kind: "points"; points: [number, number][] }
@@ -859,6 +899,8 @@ export type ScoreRequest = {
   /** 입력 화면을 열 때 본 결과 (resultKey). 그 사이 바뀌었으면 거절합니다. */
   previous: string;
   input: ScoreInput;
+  /** 입력 화면을 열 때 본 두 참가자 id. 그 사이 참가자가 바뀌었으면 거절합니다. (samePair) */
+  pair?: [string, string];
 };
 
 /**
@@ -879,6 +921,7 @@ export function applyScore(
   const before = eventContext(event);
   const state = before.stateOf(match);
   if (state === "pending" || state === "bye") return { error: "notReady" };
+  if (!samePair(before, match, request.pair)) return { error: "pairChanged" };
   if (request.input?.kind === "clear" && !admin) return { error: "sets" };
 
   const read = readScore(request.input, matchBestOf(event, match));

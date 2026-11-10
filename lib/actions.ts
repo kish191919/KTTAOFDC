@@ -386,7 +386,8 @@ export async function createDrawAction(tournamentId: string): Promise<void> {
   redirect(`/admin/tournaments/${encodeURIComponent(tournamentId)}/draw`);
 }
 
-export type DrawActionResult = DrawPayload | { error: string };
+/** 거절한 경우에도 그때 저장된 대진표(payload)를 함께 돌려주어, 화면이 5초를 기다리지 않고 바로 맞춰집니다. */
+export type DrawActionResult = DrawPayload | { error: string; payload?: DrawPayload };
 
 /**
  * 관리자 화면의 대진표 조작. 바뀐 대진표와 점수 입력·마감 상태를 돌려주므로 화면이 기다리지 않고 따라옵니다.
@@ -399,18 +400,31 @@ export async function drawAdminAction(tournamentId: string, op: DrawOp): Promise
   const tournament = await getTournament(tournamentId, { includeHidden: true });
   if (!tournament) return { error: DRAW_NOT_FOUND };
 
-  const result = await changeDraw(tournamentId, (draw) =>
-    applyAdminOp(draw, op, new Date().toISOString(), isDrawClosed(draw, tournament, today())),
-  );
+  // 거절할 때 돌려줄, 마지막으로 읽은 대진표
+  const seen: { draw?: Draw } = {};
+  const result = await changeDraw(tournamentId, (draw) => {
+    seen.draw = draw;
+    return applyAdminOp(draw, op, new Date().toISOString(), isDrawClosed(draw, tournament, today()));
+  });
   if (!result) return { error: DRAW_NOT_FOUND };
   if ("busy" in result) return { error: "다른 곳에서 동시에 저장하고 있습니다. 한 번 더 눌러 주세요." };
-  if ("error" in result) return result;
+  if ("error" in result) {
+    return seen.draw ? { error: result.error, payload: drawPayload(seen.draw, tournament, today()) } : result;
+  }
   // 경기를 시작하거나 되돌리거나 마감하면 대회 상세 페이지의 대진표 안내가 바뀝니다.
   if (["start", "reset", "removeEvent", "close", "reopen"].includes(op?.op)) revalidateSite();
   return drawPayload(result.draw, tournament, today());
 }
 
 export type ScoreActionResult = { draw: Draw } | { error: ScoreError; blockedBy?: string };
+
+/** 화면에서 본 두 참가자 id. 보내지 않았으면 undefined, 모양이 틀리면 null 입니다. */
+function readPair(value: unknown): [string, string] | undefined | null {
+  if (value === undefined || value === null) return undefined;
+  return Array.isArray(value) && value.length === 2 && value.every((id) => typeof id === "string")
+    ? [value[0], value[1]]
+    : null;
+}
 
 /**
  * 실시간 대진표의 점수 입력. 관리자 로그인 없이 누구나 씁니다.
@@ -421,11 +435,13 @@ export async function submitDrawScoreAction(
   request: ScoreRequest,
 ): Promise<ScoreActionResult> {
   const { event, match, previous, input } = (request ?? {}) as Record<string, unknown>;
+  const pair = readPair((request as Record<string, unknown> | null)?.pair);
   if (
     typeof tournamentId !== "string" ||
     typeof event !== "string" ||
     typeof match !== "string" ||
-    typeof previous !== "string"
+    typeof previous !== "string" ||
+    pair === null
   ) {
     return { error: "notFound" };
   }
@@ -441,7 +457,7 @@ export async function submitDrawScoreAction(
     }
     return applyScore(
       draw,
-      { event, match, previous, input: input as ScoreInput },
+      { event, match, previous, input: input as ScoreInput, ...(pair ? { pair } : {}) },
       { admin, now },
     );
   });
@@ -460,12 +476,14 @@ export async function setDrawTableAction(
   request: TableRequest,
 ): Promise<ScoreActionResult> {
   const { event, match, table, occupant } = (request ?? {}) as Record<string, unknown>;
+  const pair = readPair((request as Record<string, unknown> | null)?.pair);
   if (
     typeof tournamentId !== "string" ||
     typeof event !== "string" ||
     typeof match !== "string" ||
     typeof occupant !== "string" ||
-    (table !== null && typeof table !== "number")
+    (table !== null && typeof table !== "number") ||
+    pair === null
   ) {
     return { error: "notFound" };
   }
@@ -479,7 +497,7 @@ export async function setDrawTableAction(
     if (isDrawClosed(draw, tournament, today()) || (!admin && !canVisitorsScore(draw, tournament, today()))) {
       return { error: "closed" as const };
     }
-    return applyTable(draw, { event, match, table, occupant }, { admin, now });
+    return applyTable(draw, { event, match, table, occupant, ...(pair ? { pair } : {}) }, { admin, now });
   });
   if (!result) return { error: "notFound" };
   if ("busy" in result) return { error: "busy" };

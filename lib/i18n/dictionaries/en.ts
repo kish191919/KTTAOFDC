@@ -267,6 +267,7 @@ export const en: Dictionary = {
       tableInUse: "That table is in use. Please choose an open table.",
       playerBusy: "A player is still in another match. Please enter that score first.",
       notArrived: "A team has not checked in yet. Please let the desk know.",
+      pairChanged: "The draw just changed and this match now has different players. Please check the names and try again.",
       network: "Could not save. Please check your connection and try again.",
     },
     status: {

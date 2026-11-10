@@ -6,6 +6,7 @@ import { drawAdminAction } from "@/lib/actions";
 import { dateOf, formatDate } from "@/lib/dates";
 import type { DrawOp, EventSettings } from "@/lib/draw/admin";
 import { entriesToText, entryName, parseEntries } from "@/lib/draw/entries";
+import { lateEntryGroups, leagueMatches, MAX_LATE_GROUP, suggestedLateGroup } from "@/lib/draw/late";
 import { eventContext, groupCapacity, winnerOf, withGroupTables } from "@/lib/draw/play";
 import {
   arrivedPlayers,
@@ -16,11 +17,18 @@ import {
   teamOf,
   usesCheckIn,
 } from "@/lib/draw/roster";
+import {
+  describeChange,
+  groupSheetKey,
+  needsAttention,
+  printedChecks,
+  type SheetCheck,
+} from "@/lib/draw/sheets";
 import { groupLetter, isByeMatch, type DrawPayload } from "@/lib/draw/view";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { Draw, DrawEntry, DrawEvent, DrawPlayer } from "@/lib/types";
 import { DrawBoard } from "@/components/draw/DrawBoard";
-import { clockTime, formatLabel } from "@/components/draw/labels";
+import { clockTime, formatLabel, matchLabel, printedLabel } from "@/components/draw/labels";
 import { useLiveDraw } from "@/components/draw/useLiveDraw";
 import {
   ArrowRightIcon,
@@ -116,6 +124,8 @@ export function DrawManager({ tournamentId, initial, renderedAt, publicHref, che
     try {
       const result = await drawAdminAction(tournamentId, op);
       if ("error" in result) {
+        // 거절됐어도 그때의 대진표로 화면을 맞춥니다. (확정하는 사이 바뀐 체크인 등이 바로 보입니다)
+        if (result.payload) setPayload(result.payload);
         setMessage({ error: true, text: result.error });
         return null;
       }
@@ -474,6 +484,17 @@ function PlayPanel({
           </button>
         )}
       </PanelHeader>
+      {!closed && <ArrivedLateTeams draw={draw} go={go} />}
+      {!closed && (
+        <StaleSheets
+          draw={draw}
+          events={draw.events.filter((event) => event.status === "live")}
+          printHref={printHref}
+          busy={busy}
+          run={run}
+          showEvent
+        />
+      )}
       <DrawBoard
         tournamentId={tournamentId}
         lang="ko"
@@ -1364,6 +1385,8 @@ function EventPanel({
             </button>
           </section>
 
+          <StaleSheets draw={draw} events={[event]} printHref={printHref} busy={busy} run={run} />
+
           {draw.tables > 0 && (
             <section className="card p-5 sm:p-6">
               <GroupTablesEditor draw={draw} event={event} busy={busy} run={run} />
@@ -1373,9 +1396,11 @@ function EventPanel({
           <section className="card p-5 sm:p-6">
             <h3 className="font-black text-brand-950">경기 기록지</h3>
             <p className="mt-1 text-sm break-keep text-slate-500">
-              조별 기록지는 조마다 한 장씩 나와 조 테이블에 두고 씁니다. 조별 테이블을 바꿨다면 다시 뽑아 주세요.
+              조별 기록지는 조마다 한 장씩 나와 조 테이블에 두고 씁니다. 인쇄 화면의 인쇄 단추로 뽑으면 무엇을 뽑았는지 기록해 두고,
+              그 뒤 테이블·선수·경기 방식이 바뀌면 다시 뽑을 기록지를 알려 줍니다.
               {hasKnockout && " 본선 기록지는 한 장에 네 경기씩 나오고, 큰 대회에서 본선 점수를 종이에도 남길 때 씁니다."}
             </p>
+            <PrintStatus draw={draw} event={event} />
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={printEvent} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
                 <PrinterIcon className="size-4" />
@@ -1966,7 +1991,10 @@ function ConfirmPanel({
             "시작한 뒤에는 팀과 조 편성을 바꿀 수 없습니다.",
           ].filter(Boolean);
           if (window.confirm(lines.join("\n"))) {
-            void run({ op: "start", event: event.id, waiting }, `'${event.name}' 경기를 시작했습니다.`);
+            void run(
+              { op: "start", event: event.id, waiting, expect: { groups: plan.groups, excluded: plan.excluded } },
+              `'${event.name}' 경기를 시작했습니다.`,
+            );
           }
         }}
         className="btn btn-accent btn-sm mt-5"
@@ -1974,6 +2002,323 @@ function ConfirmPanel({
         {checkIn ? "대진 확정하고 경기 시작" : "경기 시작"}
       </button>
     </div>
+  );
+}
+
+// ───────────────────────── 늦게 온 팀 넣기 ─────────────────────────
+
+/**
+ * 대진 확정 때 빠진 팀. 늦게 왔으면 아직 경기를 시작하지 않은 조에 넣습니다. (lib/draw/late.ts)
+ * 그 조의 경기 목록만 새로 만들고, 다른 조·본선 대진·입력한 점수는 그대로입니다.
+ */
+function LateEntries({
+  draw,
+  event,
+  entries,
+  busy,
+  run,
+}: {
+  draw: Draw;
+  event: DrawEvent;
+  entries: DrawEntry[];
+  busy: boolean;
+  run: Run;
+}) {
+  const unit = event.doubles ? "팀" : "선수";
+  const groups = lateEntryGroups(event);
+  const openGroups = groups.filter((g) => !g.blocked);
+  return (
+    <div id={lateEntriesId(event)} className="scroll-mt-36 lg:scroll-mt-24">
+      <h4 className="text-sm font-bold text-slate-800">대진 확정 때 빠진 {unit}</h4>
+      <p className="mt-0.5 text-sm break-keep text-slate-500">
+        늦게 왔으면 아직 경기를 시작하지 않은 조에 넣을 수 있습니다. 그 조의 경기 목록만 새로 만들고, 다른 조와 본선 대진, 입력한 점수는
+        그대로입니다.
+        {openGroups.length === 0 &&
+          ` 지금은 모든 조가 경기를 시작해 넣을 수 없습니다. 꼭 넣어야 하면 '조 편성으로 되돌리기'를 해야 하고, 그러면 이 종목의 점수가 모두 지워집니다.`}
+      </p>
+      <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+        {entries.map((entry) => (
+          <LateEntryRow
+            key={entry.id}
+            draw={draw}
+            event={event}
+            entry={entry}
+            groups={groups}
+            busy={busy}
+            run={run}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LateEntryRow({
+  draw,
+  event,
+  entry,
+  groups,
+  busy,
+  run,
+}: {
+  draw: Draw;
+  event: DrawEvent;
+  entry: DrawEntry;
+  groups: ReturnType<typeof lateEntryGroups>;
+  busy: boolean;
+  run: Run;
+}) {
+  const unit = event.doubles ? "팀" : "명";
+  // 고르지 않았으면 넣을 수 있는 조 가운데 인원이 가장 적은 조를 권합니다. (다른 곳에서 조가 시작되면 권하는 조도 바뀝니다)
+  const [picked, setPicked] = useState<number | null>(null);
+  const suggested = suggestedLateGroup(event);
+  const group = picked !== null && groups[picked] && !groups[picked].blocked ? picked : suggested;
+  const arrived = presence(draw)(entry);
+  // 팀원이 그 사이 이 종목의 다른 팀에 들어갔으면 넣을 수 없습니다. (선수 바꾸기로 짝을 지어 준 경우)
+  const taken = entry.players.find((name) => teamOf(event, name));
+  const printed = group !== null && Boolean(event.printed?.[groupSheetKey(group)]);
+
+  const add = () => {
+    if (group === null) return;
+    const size = groups[group].size;
+    const letter = `${groupLetter(group)}조`;
+    const lines = [
+      `${entryName(entry)} ${unit === "명" ? "선수" : "팀"}을 ${letter}에 넣을까요?`,
+      `${letter}의 경기 목록을 새로 만듭니다 (${size}${unit} → ${size + 1}${unit}, ${leagueMatches(size)}경기 → ${leagueMatches(size + 1)}경기).`,
+      arrived ? "" : "아직 도착 확인 전이라, 도착할 때까지 이 팀의 경기는 시작할 수 없습니다.",
+      printed ? `${letter} 기록지를 이미 뽑았으니 넣은 뒤 다시 뽑아 주세요.` : "",
+    ].filter(Boolean);
+    if (!window.confirm(lines.join("\n"))) return;
+    void run(
+      { op: "lateEntry", event: event.id, entry: entry.id, group },
+      `${entryName(entry)}을 ${letter}에 넣었습니다.${printed ? ` ${letter} 기록지를 다시 뽑아 주세요.` : ""}`,
+    );
+  };
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+      {/* 휴대폰에서는 이름이 가려지지 않게 조 고르기 칸이 다음 줄로 내려갑니다. */}
+      <span className="min-w-44 flex-1 text-sm">
+        <TeamName draw={draw} entry={entry} />
+        {!arrived &&<span className="block text-xs text-slate-400">아직 도착 확인 전</span>}
+        {taken && <span className="block text-xs text-accent-700">{taken} 님이 이 종목의 다른 팀에 들어 있어 넣을 수 없습니다.</span>}
+      </span>
+      {!taken && group !== null && (
+        <span className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label={`${entryName(entry)} 넣을 조`}
+            value={group}
+            disabled={busy}
+            onChange={(e) => setPicked(Number(e.target.value))}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
+          >
+            {groups.map((g) => (
+              <option key={g.group} value={g.group} disabled={Boolean(g.blocked)}>
+                {groupLetter(g.group)}조 · {g.size}
+                {unit}
+                {g.blocked === "started" ? " · 경기 시작함" : g.blocked === "full" ? ` · ${MAX_LATE_GROUP}${unit}이라 꽉 참` : ""}
+              </option>
+            ))}
+          </select>
+          <button type="button" disabled={busy} onClick={add} className="btn btn-brand btn-sm">
+            조에 넣기
+          </button>
+        </span>
+      )}
+    </li>
+  );
+}
+
+/** 종목 화면의 '대진 확정 때 빠진 팀' 칸 (경기 진행 화면의 알림에서 바로 내려갑니다) */
+const lateEntriesId = (event: DrawEvent) => `late-${event.id}`;
+
+/** 확정 때 빠졌지만 지금은 모두 도착한 팀. 경기 진행 화면에서 놓치지 않게 알려 줍니다. */
+function ArrivedLateTeams({ draw, go }: { draw: Draw; go: Go }) {
+  const isPresent = presence(draw);
+  const items = draw.events.flatMap((event) =>
+    event.status === "live"
+      ? event.entries.filter((e) => e.absent === "excluded" && isPresent(e)).map((entry) => ({ event, entry }))
+      : [],
+  );
+  if (items.length === 0) return null;
+  const events = [...new Set(items.map(({ event }) => event))];
+  return (
+    <section className="rounded-2xl border border-brand-200 bg-brand-50/70 p-5 sm:p-6">
+      <h3 className="font-black text-brand-900">도착했지만 대진에 없는 팀이 있습니다</h3>
+      <p className="mt-1 text-sm break-keep text-slate-600">
+        대진 확정 때 빠진 뒤 도착한 팀입니다. 종목 화면의 &apos;참가 팀 관리&apos;에서 아직 경기를 시작하지 않은 조에 넣을 수 있습니다.
+      </p>
+      <ul className="mt-2 space-y-0.5 text-sm text-slate-700">
+        {items.map(({ event, entry }) => (
+          <li key={`${event.id}:${entry.id}`}>
+            <span className="font-semibold">{event.name}</span> · {entryName(entry)}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {events.map((event) => (
+          <button
+            key={event.id}
+            type="button"
+            onClick={() => {
+              go(event.id);
+              // 종목 화면이 보이고 나서 그 칸으로 내려갑니다.
+              window.setTimeout(() => document.getElementById(lateEntriesId(event))?.scrollIntoView({ block: "start" }), 50);
+            }}
+            className="btn btn-ghost btn-sm"
+          >
+            {event.name}에서 조에 넣기
+            <ArrowRightIcon className="size-4" />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ───────────────────────── 인쇄한 기록지 ─────────────────────────
+
+/** 기록지 이름 "A조" · "8강 1경기" */
+function sheetName(event: DrawEvent, check: SheetCheck): string {
+  if (check.group !== undefined) return `${groupLetter(check.group)}조`;
+  return check.match ? matchLabel(event, check.match, drawText) : "본선 기록지";
+}
+
+/** 바뀐 기록지만 다시 뽑는 인쇄 화면 주소 (조별 · 본선은 따로 뽑습니다) */
+function reprintLinks(printHref: string, event: DrawEvent, checks: SheetCheck[]) {
+  const changed = checks.filter((check) => check.state === "changed");
+  return (["group", "knockout"] as const).flatMap((stage) => {
+    const keys = changed.filter((check) => check.stage === stage).map((check) => check.key);
+    if (keys.length === 0) return [];
+    const search = new URLSearchParams({ event: event.id, ...(stage === "knockout" ? { stage } : {}), sheets: keys.join(",") });
+    return [{ stage, count: keys.length, href: `${printHref}?${search.toString()}` }];
+  });
+}
+
+/**
+ * 인쇄해 둔 기록지 가운데 지금 대진표와 다른 것. 테이블을 옮기거나 선수를 바꾸거나 대진을 다시 확정하면 생깁니다.
+ * 다시 뽑아 바꾸거나, 종이에 손으로 고쳐 적었으면 '고쳐 적었어요', 없어진 조의 종이는 치운 뒤 '치웠어요'를 누릅니다.
+ */
+function StaleSheets({
+  draw,
+  events,
+  printHref,
+  busy,
+  run,
+  showEvent = false,
+}: {
+  draw: Draw;
+  events: DrawEvent[];
+  printHref: string;
+  busy: boolean;
+  run: Run;
+  /** 종목 이름을 함께 적습니다 (여러 종목을 한꺼번에 보여 주는 경기 진행 화면) */
+  showEvent?: boolean;
+}) {
+  const items = events.flatMap((event) => {
+    const checks = printedChecks(draw, event.id).filter(needsAttention);
+    return checks.length > 0 ? [{ event, checks }] : [];
+  });
+  if (items.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-accent-200 bg-accent-50/60 p-5 sm:p-6">
+      <h3 className="font-black text-accent-700">인쇄한 기록지가 대진표와 다릅니다</h3>
+      <p className="mt-1 text-sm break-keep text-slate-600">
+        종이 아래의 &apos;출력&apos; 시각으로 어느 종이인지 찾아, 다시 뽑아 바꿔 주세요. 다시 뽑지 않고 종이에 손으로 고쳐 적었다면
+        &apos;고쳐 적었어요&apos;를 누릅니다.
+      </p>
+      {items.map(({ event, checks }) => (
+        <div key={event.id} className="mt-4">
+          {showEvent && <p className="mb-1.5 text-sm font-black text-slate-800">{event.name}</p>}
+          <ul className="divide-y divide-slate-100 rounded-xl bg-white ring-1 ring-accent-100">
+            {checks.map((check) => {
+              const gone = check.state === "gone";
+              const name = sheetName(event, check);
+              return (
+                <li key={check.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-sm">
+                  <span className="min-w-0 flex-1 break-keep">
+                    <strong className="text-slate-800">{name}</strong>{" "}
+                    <span className="text-slate-500">· {printedLabel(check.printed.at)} 출력</span>
+                    <span className="block font-semibold text-accent-700">
+                      {gone
+                        ? "대진을 다시 확정하며 없어진 기록지입니다. 종이를 치워 주세요."
+                        : check.changes.map(describeChange).join(" · ")}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(
+                        { op: "sheetsFixed", event: event.id, keys: [check.key] },
+                        gone ? `${name} 기록지를 치웠다고 적었습니다.` : `${name} 기록지를 고쳐 적었다고 적었습니다.`,
+                      )
+                    }
+                    className="btn btn-ghost btn-sm"
+                  >
+                    {gone ? "치웠어요" : "고쳐 적었어요"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {reprintLinks(printHref, event, checks).map((link) => (
+              <a
+                key={link.stage}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-accent btn-sm"
+              >
+                <PrinterIcon className="size-4" />
+                바뀐 {link.stage === "group" ? "조별" : "본선"} 기록지 {link.count}장 다시 뽑기
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/** 조마다 기록지를 뽑았는지와 그 종이가 지금도 맞는지 */
+function PrintStatus({ draw, event }: { draw: Draw; event: DrawEvent }) {
+  const checks = printedChecks(draw, event.id);
+  if (checks.length === 0) {
+    return <p className="mt-3 text-sm text-slate-500">아직 인쇄 단추로 뽑은 기록지가 없습니다.</p>;
+  }
+  const byKey = new Map(checks.map((check) => [check.key, check]));
+  const knockout = checks.filter((check) => check.stage === "knockout" && check.state !== "gone");
+  const tone = {
+    none: "bg-white text-slate-500 ring-1 ring-slate-200",
+    ok: "bg-brand-50 text-brand-800 ring-1 ring-brand-200",
+    done: "bg-slate-100 text-slate-500",
+    changed: "bg-accent-600 text-white",
+    gone: "bg-accent-600 text-white",
+  };
+  return (
+    <ul className="mt-3 flex flex-wrap gap-1.5 text-xs font-bold" aria-label="조별 기록지 인쇄 상태">
+      {event.groups.map((_, group) => {
+        const check = byKey.get(groupSheetKey(group));
+        const text = !check
+          ? "아직 안 뽑음"
+          : check.state === "changed"
+            ? "다시 뽑아야 함"
+            : `${clockTime(check.printed.at, "ko")} 출력${check.state === "done" ? " · 경기 끝" : ""}`;
+        return (
+          <li key={group} className={`rounded-full px-2.5 py-1 ${tone[check?.state ?? "none"]}`}>
+            {groupLetter(group)}조 · {text}
+          </li>
+        );
+      })}
+      {knockout.length > 0 && (
+        <li className={`rounded-full px-2.5 py-1 ${knockout.some(needsAttention) ? tone.changed : tone.ok}`}>
+          본선 {knockout.length}경기 뽑음{knockout.some(needsAttention) ? " · 다시 뽑아야 함" : ""}
+        </li>
+      )}
+    </ul>
   );
 }
 
@@ -2165,11 +2510,7 @@ function LiveTeams({ draw, event, busy, run }: { draw: Draw; event: DrawEvent; b
         </div>
       )}
 
-      {excluded.length > 0 && (
-        <p className="text-sm break-keep text-slate-500">
-          대진 확정 때 빠진 {unit}: {excluded.map(entryName).join(", ")}
-        </p>
-      )}
+      {excluded.length > 0 && <LateEntries draw={draw} event={event} entries={excluded} busy={busy} run={run} />}
 
       {active.length > 0 && (
         <label className="flex flex-wrap items-center gap-2 text-sm text-slate-600">

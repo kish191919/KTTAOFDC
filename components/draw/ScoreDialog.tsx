@@ -125,6 +125,9 @@ export function ScoreDialog({
   // 창을 열 때 본 결과. 그 사이 다른 사람이 바꿨으면 저장을 거절합니다.
   // 거절된 뒤에는 화면에 새로 보이는 결과를 기준으로 삼습니다.
   const [base, setBase] = useState<string | null>(() => resultKey(match));
+  // 창을 열 때 본 두 참가자. 그 사이 대진이 바뀌어 상대가 달라졌으면 저장을 거절합니다. (늦게 온 팀 넣기, 예선 결과 수정 등)
+  // 거절된 뒤에는 화면에 새로 보이는 참가자를 기준으로 삼습니다.
+  const [seen, setSeen] = useState<{ pair: [string, string] | null } | null>(() => ({ pair: context.pairOf(match) }));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [tableError, setTableError] = useState<string | null>(null);
@@ -183,16 +186,22 @@ export function ScoreDialog({
     setError(null);
     startTransition(async () => {
       try {
+        const pair = (seen ?? { pair: context.pairOf(match) }).pair;
         const result = await submitDrawScoreAction(tournamentId, {
           event: event.id,
           match: match.id,
           previous: base ?? resultKey(match),
           input,
+          ...(pair ? { pair } : {}),
         });
         if ("error" in result) {
           setError(t.errors[result.error]);
           if (result.error === "conflict") {
             setBase(null);
+            onConflict();
+          }
+          if (result.error === "pairChanged") {
+            setSeen(null);
             onConflict();
           }
           return;
@@ -239,15 +248,17 @@ export function ScoreDialog({
     setTableError(null);
     startTransition(async () => {
       try {
+        const pair = context.pairOf(match);
         const result = await setDrawTableAction(tournamentId, {
           event: event.id,
           match: match.id,
           table,
           occupant: table === null ? "" : occupantKey(board.tables[table - 1]),
+          ...(pair ? { pair } : {}),
         });
         if ("error" in result) {
           setTableError(t.errors[result.error]);
-          if (result.error === "tableTaken") onConflict();
+          if (result.error === "tableTaken" || result.error === "pairChanged") onConflict();
           return;
         }
         onSaved(result.draw);

@@ -73,7 +73,8 @@ export function TablePicker({
       groups.some(({ event, group }) => event === item.event && (item.match.group ?? 0) === group),
   );
 
-  function pick(eventId: string, matchId: string) {
+  /** pair 는 목록에 보인 두 참가자. 그 사이 대진이 바뀌었으면 서버가 거절합니다. */
+  function pick(eventId: string, matchId: string, pair?: [string, string]) {
     setError(null);
     startTransition(async () => {
       try {
@@ -82,10 +83,11 @@ export function TablePicker({
           match: matchId,
           table,
           occupant: occupantKey(board.tables[table - 1]),
+          ...(pair ? { pair } : {}),
         });
         if ("error" in result) {
           setError(t.errors[result.error]);
-          if (result.error === "tableTaken") onConflict();
+          if (result.error === "tableTaken" || result.error === "pairChanged") onConflict();
           return;
         }
         onSaved(result.draw);
@@ -108,7 +110,7 @@ export function TablePicker({
         <button
           type="button"
           disabled={pending || !usable}
-          onClick={() => pick(event.id, match.id)}
+          onClick={() => pick(event.id, match.id, context.pairOf(match) ?? undefined)}
           className="block w-full px-3.5 py-3 text-left transition-colors enabled:hover:bg-brand-50/60 disabled:cursor-default"
         >
           <span className="mb-1.5 block text-xs font-bold text-slate-400">
@@ -180,15 +182,17 @@ export function TableQuickPick({
     setError(null);
     startTransition(async () => {
       try {
+        const pair = contexts[draw.events.indexOf(event)]?.pairOf(match);
         const result = await setDrawTableAction(tournamentId, {
           event: event.id,
           match: match.id,
           table,
           occupant: occupantKey(board.tables[table - 1]),
+          ...(pair ? { pair } : {}),
         });
         if ("error" in result) {
           setError(t.errors[result.error]);
-          if (result.error === "tableTaken") onConflict();
+          if (result.error === "tableTaken" || result.error === "pairChanged") onConflict();
           return;
         }
         onSaved(result.draw);

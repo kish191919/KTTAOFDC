@@ -40,6 +40,8 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
     try {
       const result = await drawAdminAction(tournamentId, op);
       if ("error" in result) {
+        // 거절됐어도 그때의 대진표로 화면을 맞춥니다. (다른 데스크에서 먼저 바꾼 것 등)
+        if (result.payload) setPayload(result.payload);
         setError(result.error);
         return false;
       }
@@ -143,11 +145,16 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
       <ul className="space-y-2">
         {shown.map((player) => {
           const teams = draw.events.flatMap((event) => {
-            const entry = teamOf(event, player.name);
+            // 대진 확정 때 빠진 팀도 보여 주어, 늦게 온 선수를 대진표 관리에서 조에 넣도록 알립니다.
+            const entry =
+              teamOf(event, player.name) ??
+              event.entries.find(
+                (e) => e.absent === "excluded" && e.players.some((n) => personKey(n) === personKey(player.name)),
+              );
             if (!entry) return [];
             const partners = entry.players.filter((n) => personKey(n) !== personKey(player.name));
             const partnerHere = partners.map((n) => roster.find((p) => personKey(p.name) === personKey(n))?.checkedInAt);
-            return [{ event, entry, partners, partnerHere }];
+            return [{ event, entry, partners, partnerHere, excluded: entry.absent === "excluded" }];
           });
           return (
             <li key={player.id}>
@@ -174,10 +181,11 @@ export function CheckInDesk({ tournamentId, initial, renderedAt }: Props) {
                     {teams.length === 0
                       ? "들어 있는 팀 없음"
                       : teams
-                          .map(({ event, partners, partnerHere }) =>
-                            partners.length > 0
-                              ? `${event.name} · 짝 ${partners.map((n, i) => `${n}${partnerHere[i] ? " ✓" : ""}`).join(", ")}`
-                              : event.name,
+                          .map(
+                            ({ event, partners, partnerHere, excluded }) =>
+                              (partners.length > 0
+                                ? `${event.name} · 짝 ${partners.map((n, i) => `${n}${partnerHere[i] ? " ✓" : ""}`).join(", ")}`
+                                : event.name) + (excluded ? " · 대진에서 빠진 팀 (대진표 관리에서 조에 넣기)" : ""),
                           )
                           .join(" / ")}
                   </span>

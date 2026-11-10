@@ -1,3 +1,4 @@
+import { dateOf, formatDate } from "@/lib/dates";
 import { entryName } from "@/lib/draw/entries";
 import type { EventContext } from "@/lib/draw/play";
 import { groupLetter, isByeMatch, roundSize } from "@/lib/draw/view";
@@ -82,3 +83,6 @@ export function clockTime(value: string | number, lang: Locale, seconds = false)
     timeZone: site.timeZone,
   }).format(new Date(value));
 }
+
+/** 기록지의 출력 시각 "10월 24일 (토) 오후 1:05" (관리자 화면·종이는 한국어만 씁니다) */
+export const printedLabel = (at: string) => `${formatDate(dateOf(at), false)} ${clockTime(at, "ko")}`;

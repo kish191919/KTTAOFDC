@@ -1,13 +1,17 @@
 import { Fragment, type ReactNode } from "react";
-import { eventContext, matchBestOf, type EventContext } from "@/lib/draw/play";
-import { groupLetter, isByeMatch } from "@/lib/draw/view";
+import { eventContext, type EventContext } from "@/lib/draw/play";
+import type { SheetRef } from "@/lib/draw/sheets";
+import { groupLetter } from "@/lib/draw/view";
 import { getDictionary } from "@/lib/i18n/dictionaries";
 import type { DrawEntry, DrawEvent, DrawMatch, DrawSlot } from "@/lib/types";
 import { QrCode } from "@/components/QrCode";
 import { matchLabel, slotLabel } from "./labels";
+import { PrintedTime } from "./PrintStamp";
 
 // 인쇄용 경기 기록지 (app/[lang]/admin/tournaments/[id]/draw/print).
 // 조별 기록지는 조마다 한 장(경기가 많은 5팀 이상 조는 두 장), 본선 기록지는 한 장에 네 경기입니다.
+// 무엇을 찍을지(팀 순서 · 테이블 번호 · 세트 칸 수)는 lib/draw/sheets.ts 의 SheetRef 를 따릅니다.
+// 뽑은 기록도 같은 내용으로 남겨, 그 뒤 대진표가 바뀌면 관리자 화면이 다시 뽑을 종이를 알려 줍니다.
 // 용지는 Letter 세로·여백 0.5인치이고, 높이를 모두 인치로 정해 화면 미리보기와 종이가 같은 모양이 됩니다.
 
 const t = getDictionary("ko").draw;
@@ -18,7 +22,7 @@ export type SheetInfo = {
   tournament: string;
   /** QR 코드로 여는 점수 입력 화면 주소 */
   scoreUrl: string;
-  /** 뽑은 때 "10월 24일 (토) 오후 12:40" */
+  /** 페이지를 연 때 (ISO). 인쇄하면 인쇄한 때로 바뀌어 찍힙니다. (PrintedTime) */
   printedAt: string;
 };
 
@@ -227,7 +231,7 @@ function SheetFoot({ info, rules }: { info: SheetInfo; rules: string[] }) {
       <p className="shrink-0 text-right">
         <b className="text-navy-900">KTTA of DC</b>
         <br />
-        {info.printedAt} 출력
+        <PrintedTime initial={info.printedAt} /> 출력
       </p>
     </footer>
   );
@@ -249,12 +253,12 @@ const entryOf = (slot: DrawSlot) => ("entry" in slot ? slot.entry : "");
  */
 export function GroupSheets({
   event,
-  tablesOf,
+  sheets,
   info,
 }: {
   event: DrawEvent;
-  /** 조가 쓰는 테이블. 조 테이블이 앞이고, 함께 쓰는 테이블이 뒤에 옵니다. */
-  tablesOf: (group: number) => number[];
+  /** 뽑을 조 기록지 (lib/draw/sheets.ts 의 sheetsOf 가운데 조 기록지) */
+  sheets: SheetRef[];
   info: SheetInfo;
 }) {
   const matches = event.matches.filter((m) => m.stage === "group");
@@ -263,10 +267,12 @@ export function GroupSheets({
   const side = event.doubles ? "팀" : "선수";
   const cols = `0.7in minmax(0,1fr) repeat(${event.bestOf}, ${setWidth(event.bestOf)}in) 0.85in`;
 
-  return event.groups.flatMap((members, group) => {
+  return sheets.flatMap((sheet) => {
+    const group = sheet.group ?? 0;
+    const members = event.groups[group] ?? [];
     const games = matches.filter((m) => m.group === group);
     const { row, pages, memo } = planGroupSheet(members.length, games.length);
-    const tables = tablesOf(group);
+    const tables = sheet.content.tables;
     const vsWidth = members.length <= 4 ? "0.62in" : members.length <= 6 ? "0.52in" : "0.44in";
     // 3팀 조는 경기가 하나씩 이어지고, 4팀 이상은 같은 차례의 경기를 함께 칠 수 있습니다.
     const rounds = members.length >= 4;
@@ -423,16 +429,18 @@ const SLIPS_PER_PAGE = 4;
 /** 본선 경기 한 칸. 아직 정해지지 않은 자리는 'A조 1위'처럼 작게 적고, 이름 쓸 곳을 비워 둡니다. */
 function KnockoutSlip({
   event,
+  sheet,
   match,
   context,
   info,
 }: {
   event: DrawEvent;
+  sheet: SheetRef;
   match: DrawMatch;
   context: EventContext;
   info: SheetInfo;
 }) {
-  const bestOf = matchBestOf(event, match);
+  const { bestOf, tables } = sheet.content;
   const cols = `minmax(0,1fr) repeat(${bestOf}, ${setWidth(bestOf)}in) 0.85in`;
   const participants = context.participants(match);
   const side = (index: 0 | 1) => {
@@ -459,7 +467,7 @@ function KnockoutSlip({
           </div>
           <p className="mt-[0.02in] text-[9pt] font-medium">본선 · {t.bestOf(bestOf)}</p>
         </div>
-        <TableBox tables={match.table ? [match.table] : []} className="h-[0.6in]" />
+        <TableBox tables={tables} className="h-[0.6in]" />
         <ScoreQr url={info.scoreUrl} className="size-[0.6in]" />
       </header>
       <div className="mt-[0.08in]">
@@ -469,26 +477,24 @@ function KnockoutSlip({
       <div className="mt-[0.06in] flex items-center justify-between gap-[0.2in] text-[6.5pt] leading-none text-slate-500">
         <AppCheck />
         <span className="truncate">
-          기권한 경기는 {SET_COUNT_LABEL} 칸에 &apos;기권&apos;이라고 적습니다 · KTTA of DC · {info.printedAt} 출력
+          기권한 경기는 {SET_COUNT_LABEL} 칸에 &apos;기권&apos;이라고 적습니다 · KTTA of DC · <PrintedTime initial={info.printedAt} /> 출력
         </span>
       </div>
     </div>
   );
 }
 
-/** 한 종목의 본선 기록지. 부전승 경기는 빼고, 라운드 순서대로 한 장에 네 경기씩 넣습니다. */
-export function KnockoutSheets({ event, info }: { event: DrawEvent; info: SheetInfo }) {
+/** 한 종목의 본선 기록지. 부전승 경기는 빼고(sheetsOf), 라운드 순서대로 한 장에 네 경기씩 넣습니다. */
+export function KnockoutSheets({ event, sheets, info }: { event: DrawEvent; sheets: SheetRef[]; info: SheetInfo }) {
   const context = eventContext(event);
-  const matches = event.matches
-    .filter((m) => m.stage === "knockout" && !isByeMatch(m))
-    .sort((x, y) => x.round - y.round || (x.position ?? 0) - (y.position ?? 0));
-  const pages = Array.from({ length: Math.ceil(matches.length / SLIPS_PER_PAGE) }, (_, page) =>
-    matches.slice(page * SLIPS_PER_PAGE, (page + 1) * SLIPS_PER_PAGE),
+  const slips = sheets.flatMap((sheet) => (sheet.match ? [{ sheet, match: sheet.match }] : []));
+  const pages = Array.from({ length: Math.ceil(slips.length / SLIPS_PER_PAGE) }, (_, page) =>
+    slips.slice(page * SLIPS_PER_PAGE, (page + 1) * SLIPS_PER_PAGE),
   );
 
   return pages.map((list, page) => (
     <Page key={`${event.id}-k${page}`} className="gap-0">
-      {list.map((match, index) => (
+      {list.map(({ sheet, match }, index) => (
         <Fragment key={match.id}>
           {/* 자르는 선 */}
           {index > 0 && (
@@ -496,7 +502,7 @@ export function KnockoutSheets({ event, info }: { event: DrawEvent; info: SheetI
               <div className="w-full border-t-[0.75pt] border-dashed border-slate-400" />
             </div>
           )}
-          <KnockoutSlip event={event} match={match} context={context} info={info} />
+          <KnockoutSlip event={event} sheet={sheet} match={match} context={context} info={info} />
         </Fragment>
       ))}
     </Page>
