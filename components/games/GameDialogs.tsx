@@ -7,6 +7,7 @@ import { sameName } from "@/lib/games/names";
 import {
   freeTables,
   gameResultKey,
+  matchPairKey,
   matchState,
   sideName,
   type GameError,
@@ -103,18 +104,23 @@ export function GameScoreDialog(
   const [value, setValue] = useState(() => startResult(match, game.bestOf, flip));
   // 창을 열 때 본 결과. 그 사이 다른 사람이 바꿨으면 저장을 거절하고, 그 뒤로는 새로 보이는 결과를 기준으로 삼습니다.
   const [base, setBase] = useState<string | null>(() => gameResultKey(match));
+  // 창을 열 때 본 두 쪽. 그 사이 이 경기 id 가 다른 사람들의 경기가 되었으면 거절합니다. (지운 경기의 id 를 새 경기가 다시 쓰는 경우)
+  const [seen, setSeen] = useState<string | null>(() => matchPairKey(game, match));
   const { run, error, setError, pending } = useRun(props, (failed) => {
     if (failed === "conflict") {
       setBase(null);
+      setSeen(null);
       onConflict();
     }
   });
+  const previous = base ?? gameResultKey(match);
+  const pair = seen ?? matchPairKey(game, match);
 
   function save() {
     const input = readResult(value, flip);
     if (input === null) return setError(t.pickResult);
     if (input === "points") return setError(t.errors.points);
-    run({ op: "score", match: match.id, previous: base ?? gameResultKey(match), input });
+    run({ op: "score", match: match.id, previous, input, pair });
   }
 
   const tables = canEdit && game.tables > 0 && state !== "done" ? freeTables(game, match) : null;
@@ -183,7 +189,7 @@ export function GameScoreDialog(
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => run({ op: "table", match: match.id, table: null }, false)}
+                onClick={() => run({ op: "table", match: match.id, table: null, pair }, false)}
                 className="btn btn-ghost btn-sm"
               >
                 {t.leaveTable}
@@ -202,7 +208,7 @@ export function GameScoreDialog(
                     key={n}
                     type="button"
                     disabled={pending}
-                    onClick={() => run({ op: "table", match: match.id, table: n })}
+                    onClick={() => run({ op: "table", match: match.id, table: n, pair })}
                     className={tableButton}
                   >
                     {t.table(n)}
@@ -222,10 +228,10 @@ export function GameScoreDialog(
             onClick={() => {
               if (league) {
                 if (window.confirm(t.clearConfirm)) {
-                  run({ op: "score", match: match.id, previous: base ?? gameResultKey(match), input: { kind: "clear" } });
+                  run({ op: "score", match: match.id, previous, input: { kind: "clear" }, pair });
                 }
               } else if (window.confirm(t.removeConfirm)) {
-                run({ op: "removeMatch", match: match.id, previous: base ?? gameResultKey(match) });
+                run({ op: "removeMatch", match: match.id, previous, pair });
               }
             }}
             className="text-sm font-bold text-accent-700 hover:underline disabled:opacity-60"
@@ -451,7 +457,7 @@ export function StartDialog(props: Common & { table: number }) {
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => run({ op: "table", match: m.id, table })}
+                onClick={() => run({ op: "table", match: m.id, table, pair: matchPairKey(game, m) })}
                 className="flex w-full items-center px-4 py-3 text-left transition-colors hover:bg-brand-50/60 disabled:opacity-60"
               >
                 <MatchSides

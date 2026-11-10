@@ -15,6 +15,16 @@ import { ownerKeyStorage } from "./usePeople";
 /** 새 게임에서 고를 수 있는 테이블 수 (더 많으면 만든 뒤 게임 관리에서 바꿉니다) */
 const TABLE_CHOICES = [0, 1, 2, 3, 4, 5, 6, 8];
 
+/** 순서를 무작위로 섞은 새 목록 ('짝 무작위로') */
+function shuffled<T>(list: T[]): T[] {
+  const next = [...list];
+  for (let i = next.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
 /**
  * 새 친선 경기 만들기. 방식(리그전·자유 기록), 참가자, 경기 방식, 테이블을 고르면 바로 게임 화면으로 갑니다.
  * 만든 사람 열쇠는 이 휴대폰에 남겨, 이 휴대폰에서는 게임을 관리할 수 있게 합니다.
@@ -38,30 +48,60 @@ export function NewGameForm({
   const [bestOf, setBestOf] = useState(5);
   const [tables, setTables] = useState(0);
   const [title, setTitle] = useState("");
-  /** 고른 이름 (리그전 복식은 고른 순서대로 두 사람씩 한 팀) */
+  /**
+   * 고른 이름 (리그전 복식은 고른 순서대로 두 사람씩 한 팀).
+   * 복식에서 한 사람을 빼면 그 자리를 "" 로 비워 두어 뒤 팀의 짝이 밀리지 않게 하고, 다음에 고른 이름이 그 자리에 들어갑니다.
+   */
   const [names, setNames] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const league = format === "league";
   const pairSize = league && doubles ? 2 : 1;
+  const picked = names.filter(Boolean);
   const entries = Array.from({ length: Math.ceil(names.length / pairSize) }, (_, i) =>
     names.slice(i * pairSize, i * pairSize + pairSize),
   );
   const defaultTitle = t.defaultTitle(formatDate(today, false, lang), t.format[format]);
 
-  function shuffle() {
+  /** 단식·자유 기록으로 바꾸면 빈자리 없이 모읍니다. */
+  function choose(nextFormat: Game["format"], nextDoubles: boolean) {
+    setFormat(nextFormat);
+    setDoubles(nextDoubles);
+    if (!(nextFormat === "league" && nextDoubles)) setNames(picked);
+  }
+
+  /** 고른 이름을 빈자리부터 채우고 나머지는 뒤에 붙입니다. */
+  function add(more: string[]) {
     const next = [...names];
-    for (let i = next.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [next[i], next[j]] = [next[j], next[i]];
+    for (const name of more) {
+      const hole = next.indexOf("");
+      if (hole >= 0) next[hole] = name;
+      else next.push(name);
     }
     setNames(next);
   }
 
+  function remove(name: string) {
+    if (pairSize === 1) return setNames(names.filter((n) => n !== name));
+    const next = names.map((n) => (n === name ? "" : n));
+    // 두 사람 다 빠진 팀과 맨 끝의 빈자리는 없앱니다.
+    const kept = Array.from({ length: Math.ceil(next.length / 2) }, (_, i) => next.slice(i * 2, i * 2 + 2))
+      .filter((pair) => pair.some(Boolean))
+      .flat();
+    while (kept.at(-1) === "") kept.pop();
+    setNames(kept);
+  }
+
+  function shuffle() {
+    setNames(shuffled(picked));
+  }
+
   function submit() {
     setError(null);
-    if (pairSize === 2 && names.length % 2 === 1) return setError(t.needPartner);
+    if (pairSize === 2 && entries.some((entry) => entry.length < 2 || entry.includes(""))) {
+      return setError(t.needPartner);
+    }
     if (league && entries.length < MIN_LEAGUE_ENTRIES) return setError(t.leagueMin);
     const input: NewGameInput = {
       title: title.trim() || defaultTitle,
@@ -108,7 +148,7 @@ export function NewGameForm({
         <legend className="label">{t.formatLabel}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {(["league", "free"] as const).map((value) => (
-            <button key={value} type="button" aria-pressed={format === value} onClick={() => setFormat(value)} className={choice(format === value)}>
+            <button key={value} type="button" aria-pressed={format === value} onClick={() => choose(value, doubles)} className={choice(format === value)}>
               <span className="block font-black text-brand-950">{t.format[value]}</span>
               <span className="mt-0.5 block text-sm break-keep text-slate-500">{t.formatHint[value]}</span>
             </button>
@@ -120,18 +160,18 @@ export function NewGameForm({
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
           <legend className="text-sm font-semibold text-slate-700">
             {t.entriesLabel}
-            {names.length > 0 && (
+            {picked.length > 0 && (
               <span className="ml-1.5 text-slate-400">
-                {pairSize === 2 ? t.teams(entries.length) : t.people(names.length)}
+                {pairSize === 2 ? t.teams(entries.length) : t.people(picked.length)}
               </span>
             )}
           </legend>
           {league && (
             <div className="flex w-40 gap-1 rounded-xl bg-slate-100 p-1">
-              <button type="button" aria-pressed={!doubles} onClick={() => setDoubles(false)} className={segment(!doubles)}>
+              <button type="button" aria-pressed={!doubles} onClick={() => choose(format, false)} className={segment(!doubles)}>
                 {t.singles}
               </button>
-              <button type="button" aria-pressed={doubles} onClick={() => setDoubles(true)} className={segment(doubles)}>
+              <button type="button" aria-pressed={doubles} onClick={() => choose(format, true)} className={segment(doubles)}>
                 {t.doubles}
               </button>
             </div>
@@ -147,17 +187,24 @@ export function NewGameForm({
               >
                 {pairSize === 2 && <span className="mr-0.5 text-xs font-semibold text-brand-500">{t.teamNo(i + 1)}</span>}
                 {entry.map((name, k) => (
-                  <span key={name} className="inline-flex items-center">
+                  <span key={name || `hole-${k}`} className="inline-flex items-center">
                     {k > 0 && <span className="mx-1 text-brand-300">·</span>}
-                    {name}
-                    <button
-                      type="button"
-                      aria-label={t.remove(name)}
-                      onClick={() => setNames(names.filter((n) => n !== name))}
-                      className="ml-0.5 rounded-full p-0.5 text-brand-400 hover:text-brand-700"
-                    >
-                      <CloseIcon className="size-4" />
-                    </button>
+                    {name ? (
+                      <>
+                        {name}
+                        <button
+                          type="button"
+                          aria-label={t.remove(name)}
+                          onClick={() => remove(name)}
+                          className="ml-0.5 rounded-full p-0.5 text-brand-400 hover:text-brand-700"
+                        >
+                          <CloseIcon className="size-4" />
+                        </button>
+                      </>
+                    ) : (
+                      // 짝이 빠진 자리. 다음에 고른 이름이 여기에 들어갑니다.
+                      <span className="px-1 font-semibold text-slate-400">?</span>
+                    )}
                   </span>
                 ))}
                 {entry.length < pairSize && <span className="px-1 font-semibold text-slate-400">· ?</span>}
@@ -166,11 +213,11 @@ export function NewGameForm({
           </ol>
         )}
 
-        <NamePicker lang={lang} taken={names} people={people} onPick={(picked) => setNames([...names, ...picked])} />
+        <NamePicker lang={lang} taken={picked} people={people} onPick={add} />
         {pairSize === 2 && (
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-sm break-keep text-slate-500">{t.pairHint}</p>
-            {names.length > 2 && (
+            {picked.length > 2 && (
               <button type="button" onClick={shuffle} className="text-sm font-bold text-brand-700 hover:underline">
                 {t.shufflePairs}
               </button>

@@ -148,6 +148,14 @@ export function matchState(match: GameMatch, bestOf: number): GameMatchState {
 export const gameResultKey = (match: Pick<GameMatch, "sets" | "points" | "walkover">) =>
   JSON.stringify([match.sets ?? null, match.points ?? null, match.walkover ?? null]);
 
+/**
+ * 경기의 두 쪽을 이름으로 나타낸 글. 창을 연 뒤 그 경기가 다른 사람들의 경기로 바뀌었는지 확인할 때 씁니다.
+ * 지운 경기·선수의 id 는 다음에 만드는 경기·선수가 다시 쓰므로, id 가 같아도 사람이 다를 수 있습니다.
+ * (자유 기록에서 경기를 지우고 새로 적은 경우, 리그전에서 참가자를 빼고 더한 경우)
+ */
+export const matchPairKey = (game: Roster, match: Pick<GameMatch, "a" | "b">) =>
+  [match.a, match.b].map((side) => side.map((id) => personKey(playerName(game, id))).join("+")).join("|");
+
 /** 두 쪽에 같은 사람이 있는지 */
 const shares = (x: GameMatch, ids: string[]) => [...x.a, ...x.b].some((id) => ids.includes(id));
 
@@ -396,16 +404,18 @@ export function buildGame(
 
 // ───────────────────────── 기록·관리 ─────────────────────────
 
+// 경기를 가리키는 조작(score · removeMatch · table)의 pair 는 창을 열 때 본 두 쪽(matchPairKey)입니다.
+// 그 사이 그 경기 id 가 다른 사람들의 경기가 되었으면 거절합니다. 예전 화면이 보낸 조작처럼 pair 가 없으면 확인하지 않습니다.
 export type GameOp =
   // 누구나 (게임이 열려 있는 동안)
   /** 경기 결과 적기·고치기·지우기 (input.kind = "clear") */
-  | { op: "score"; match: string; previous: string; input: ScoreInput }
+  | { op: "score"; match: string; previous: string; input: ScoreInput; pair?: string }
   /** 자유 기록: 새 경기. 이름으로 적고, 게임에 없는 이름은 선수로 더합니다. input 이 없으면 테이블에서 시작만 합니다. */
   | { op: "record"; a: string[]; b: string[]; input: ScoreInput | null; table: number | null }
   /** 자유 기록: 잘못 적은 경기 지우기 */
-  | { op: "removeMatch"; match: string; previous: string }
+  | { op: "removeMatch"; match: string; previous: string; pair?: string }
   /** 경기를 테이블에 올리거나(시작) 내립니다(null). */
-  | { op: "table"; match: string; table: number | null }
+  | { op: "table"; match: string; table: number | null; pair?: string }
   // 만든 사람·관리자
   | { op: "title"; title: string }
   | { op: "tables"; tables: number }
@@ -438,6 +448,8 @@ export function applyGameOp(
   const next: Game = structuredClone(game);
   const match = typeof value.match === "string" ? next.matches.find((m) => m.id === value.match) : undefined;
   const league = next.format === "league";
+  // 창을 연 뒤 그 경기 id 에 다른 사람들의 경기가 들어왔으면 엉뚱한 경기를 고치지 않게 거절합니다.
+  if (match && value.pair !== undefined && value.pair !== matchPairKey(next, match)) return { error: "conflict" };
 
   switch (op?.op) {
     case "score": {

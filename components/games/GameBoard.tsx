@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useEffect, useId, useMemo, useState } from "react";
 import { dateOf, formatDate } from "@/lib/dates";
 import { personKey } from "@/lib/draw/roster";
@@ -14,10 +15,10 @@ import {
   type PublicGame,
   type GamePayload,
 } from "@/lib/games/play";
-import type { Locale } from "@/lib/i18n/config";
+import { localePath, type Locale } from "@/lib/i18n/config";
 import { getDictionary, type Dictionary } from "@/lib/i18n/dictionaries";
 import type { GameMatch } from "@/lib/types";
-import { CheckIcon, ChevronDownIcon, CopyIcon, PencilIcon, PlusIcon, StarIcon } from "@/components/icons";
+import { CheckIcon, ChevronDownIcon, CopyIcon, PencilIcon, PlusIcon, PrinterIcon, StarIcon } from "@/components/icons";
 import { MatchSides, type MatchSide } from "@/components/draw/MatchSides";
 import { clockTime } from "@/components/draw/labels";
 import { useStored } from "@/components/draw/useStored";
@@ -92,7 +93,15 @@ export function GameBoard({ lang, initial, admin, renderedAt }: Props) {
           {game.tables > 0 && ` · ${t.tablesTitle} ${game.tables}`}
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <ShareButton t={t} title={game.title} />
+          <div className="flex flex-wrap gap-2">
+            <ShareButton t={t} title={game.title} />
+            {!gone && (
+              <Link href={localePath(lang, `/games/${game.id}/print`)} className="btn btn-ghost btn-sm">
+                <PrinterIcon className="size-4" />
+                {t.printing.open}
+              </Link>
+            )}
+          </div>
           <p aria-live="polite" className={`text-xs ${online ? "text-slate-400" : "font-bold text-accent-600"}`}>
             <span suppressHydrationWarning>
               {online ? t.updated(clockTime(checkedAt ?? renderedAt, lang, true)) : t.reconnecting}

@@ -38,6 +38,8 @@ export function useLiveGame(id: string, initial: GamePayload) {
   }, [id, accept]);
 
   useEffect(() => {
+    // 지워진 게임은 더 받아 오지 않습니다.
+    if (gone) return;
     let timer: number | undefined;
     let stopped = false;
     const schedule = () => {
@@ -56,7 +58,7 @@ export function useLiveGame(id: string, initial: GamePayload) {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, gone]);
 
   const apply = useCallback(
     (next: GamePayload) => {
